@@ -4,14 +4,10 @@ import constants::*;
 module arbiter (
   input  logic        reset,
   input  logic        clock,
-  input  mem_in_type  imem0_in,
-  input  mem_in_type  imem1_in,
-  output mem_out_type imem0_out,
-  output mem_out_type imem1_out,
-  input  mem_in_type  dmem0_in,
-  input  mem_in_type  dmem1_in,
-  output mem_out_type dmem0_out,
-  output mem_out_type dmem1_out,
+  input  mem_in_type  imem_in [0:1],
+  output mem_out_type imem_out[0:1],
+  input  mem_in_type  dmem_in [0:1],
+  output mem_out_type dmem_out[0:1],
   output mem_in_type  mem_in,
   input  mem_out_type mem_out
 );
@@ -24,12 +20,10 @@ module arbiter (
   localparam [2:0] data1_access = 4;
 
   typedef struct packed {
-    logic [2:0] access_type;
-    mem_in_type mem_in;
-    mem_in_type imem0_in;
-    mem_in_type imem1_in;
-    mem_in_type dmem0_in;
-    mem_in_type dmem1_in;
+    logic [2:0]       access_type;
+    mem_in_type       mem_in;
+    mem_in_type [1:0] imem_in;
+    mem_in_type [1:0] dmem_in;
   } reg_type;
 
   localparam reg_type init_reg = '{default: 0};
@@ -47,37 +41,32 @@ module arbiter (
       v.mem_in = init_mem_in;
     end
 
-    if (dmem0_in.mem_valid == 1) begin
-      v.dmem0_in = dmem0_in;
-    end
-    if (dmem1_in.mem_valid == 1) begin
-      v.dmem1_in = dmem1_in;
-    end
-
-    if (imem0_in.mem_valid == 1) begin
-      v.imem0_in = imem0_in;
-    end
-    if (imem1_in.mem_valid == 1) begin
-      v.imem1_in = imem1_in;
+    for (int p = 0; p < 2; p++) begin
+      if (dmem_in[p].mem_valid == 1) begin
+        v.dmem_in[p] = dmem_in[p];
+      end
+      if (imem_in[p].mem_valid == 1) begin
+        v.imem_in[p] = imem_in[p];
+      end
     end
 
     if (v.access_type == no_access) begin
-      if (v.dmem0_in.mem_valid == 1) begin
+      if (v.dmem_in[0].mem_valid == 1) begin
         v.access_type = data0_access;
-        v.mem_in      = v.dmem0_in;
-        v.dmem0_in    = init_mem_in;
-      end else if (v.dmem1_in.mem_valid == 1) begin
+        v.mem_in      = v.dmem_in[0];
+        v.dmem_in[0]  = init_mem_in;
+      end else if (v.dmem_in[1].mem_valid == 1) begin
         v.access_type = data1_access;
-        v.mem_in      = v.dmem1_in;
-        v.dmem1_in    = init_mem_in;
-      end else if (v.imem0_in.mem_valid == 1) begin
+        v.mem_in      = v.dmem_in[1];
+        v.dmem_in[1]  = init_mem_in;
+      end else if (v.imem_in[0].mem_valid == 1) begin
         v.access_type = instr0_access;
-        v.mem_in      = v.imem0_in;
-        v.imem0_in    = init_mem_in;
-      end else if (v.imem1_in.mem_valid == 1) begin
+        v.mem_in      = v.imem_in[0];
+        v.imem_in[0]  = init_mem_in;
+      end else if (v.imem_in[1].mem_valid == 1) begin
         v.access_type = instr1_access;
-        v.mem_in      = v.imem1_in;
-        v.imem1_in    = init_mem_in;
+        v.mem_in      = v.imem_in[1];
+        v.imem_in[1]  = init_mem_in;
       end
     end
 
@@ -89,27 +78,10 @@ module arbiter (
 
     rin = v;
 
-    if (r.access_type == data0_access) begin
-      dmem0_out = mem_out;
-    end else begin
-      dmem0_out = init_mem_out;
-    end
-    if (r.access_type == data1_access) begin
-      dmem1_out = mem_out;
-    end else begin
-      dmem1_out = init_mem_out;
-    end
-
-    if (r.access_type == instr0_access) begin
-      imem0_out = mem_out;
-    end else begin
-      imem0_out = init_mem_out;
-    end
-    if (r.access_type == instr1_access) begin
-      imem1_out = mem_out;
-    end else begin
-      imem1_out = init_mem_out;
-    end
+    dmem_out[0] = (r.access_type == data0_access) ? mem_out : init_mem_out;
+    dmem_out[1] = (r.access_type == data1_access) ? mem_out : init_mem_out;
+    imem_out[0] = (r.access_type == instr0_access) ? mem_out : init_mem_out;
+    imem_out[1] = (r.access_type == instr1_access) ? mem_out : init_mem_out;
 
   end
 

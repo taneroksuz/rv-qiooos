@@ -16,15 +16,15 @@ module soc (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  mem_in_type imem0_in, imem1_in;
-  mem_in_type dmem0_in, dmem1_in;
-  mem_out_type imem0_out, imem1_out;
-  mem_out_type dmem0_out, dmem1_out;
+  mem_in_type  imem_in [0:1];
+  mem_in_type  dmem_in [0:1];
+  mem_out_type imem_out[0:1];
+  mem_out_type dmem_out[0:1];
 
-  mem_in_type itim0_in, itim1_in;
-  mem_in_type dtim0_in, dtim1_in;
-  mem_out_type itim0_out, itim1_out;
-  mem_out_type dtim0_out, dtim1_out;
+  mem_in_type  itim_in [0:1];
+  mem_in_type  dtim_in [0:1];
+  mem_out_type itim_out[0:1];
+  mem_out_type dtim_out[0:1];
 
   mem_in_type rom_in, spi_in, clint_in, uart_rx_in, uart_tx_in;
   mem_out_type rom_out, spi_out, clint_out, uart_rx_out, uart_tx_out;
@@ -36,43 +36,31 @@ module soc (
   assign meip = rx_irq | tx_irq;
 
   cpu cpu_comp (
-    .reset    (reset),
-    .clear    (clear),
-    .clock    (clock),
-    .imem0_in (imem0_in),
-    .imem1_in (imem1_in),
-    .imem0_out(imem0_out),
-    .imem1_out(imem1_out),
-    .dmem0_in (dmem0_in),
-    .dmem1_in (dmem1_in),
-    .dmem0_out(dmem0_out),
-    .dmem1_out(dmem1_out),
-    .meip     (meip),
-    .msip     (msip),
-    .mtip     (mtip),
-    .mtime    (mtime)
+    .reset   (reset),
+    .clear   (clear),
+    .clock   (clock),
+    .imem_in (imem_in),
+    .imem_out(imem_out),
+    .dmem_in (dmem_in),
+    .dmem_out(dmem_out),
+    .meip    (meip),
+    .msip    (msip),
+    .mtip    (mtip),
+    .mtime   (mtime)
   );
 
   bus bus_comp (
     .reset      (reset),
     .clear      (clear),
     .clock      (clock),
-    .imem0_in   (imem0_in),
-    .imem1_in   (imem1_in),
-    .imem0_out  (imem0_out),
-    .imem1_out  (imem1_out),
-    .dmem0_in   (dmem0_in),
-    .dmem1_in   (dmem1_in),
-    .dmem0_out  (dmem0_out),
-    .dmem1_out  (dmem1_out),
-    .itim0_in   (itim0_in),
-    .itim1_in   (itim1_in),
-    .dtim0_in   (dtim0_in),
-    .dtim1_in   (dtim1_in),
-    .itim0_out  (itim0_out),
-    .itim1_out  (itim1_out),
-    .dtim0_out  (dtim0_out),
-    .dtim1_out  (dtim1_out),
+    .imem_in    (imem_in),
+    .imem_out   (imem_out),
+    .dmem_in    (dmem_in),
+    .dmem_out   (dmem_out),
+    .itim_in    (itim_in),
+    .dtim_in    (dtim_in),
+    .itim_out   (itim_out),
+    .dtim_out   (dtim_out),
     .rom_in     (rom_in),
     .ram_in     (ram_in),
     .spi_in     (spi_in),
@@ -88,21 +76,17 @@ module soc (
   );
 
   tim itim_comp (
-    .reset   (reset),
-    .clock   (clock),
-    .tim0_in (itim0_in),
-    .tim1_in (itim1_in),
-    .tim0_out(itim0_out),
-    .tim1_out(itim1_out)
+    .reset  (reset),
+    .clock  (clock),
+    .tim_in (itim_in),
+    .tim_out(itim_out)
   );
 
   tim dtim_comp (
-    .reset   (reset),
-    .clock   (clock),
-    .tim0_in (dtim0_in),
-    .tim1_in (dtim1_in),
-    .tim0_out(dtim0_out),
-    .tim1_out(dtim1_out)
+    .reset  (reset),
+    .clock  (clock),
+    .tim_in (dtim_in),
+    .tim_out(dtim_out)
   );
 
   rom rom_comp (

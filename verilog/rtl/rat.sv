@@ -80,63 +80,63 @@ module rat (
       31: {1'b1, PRF_ADDR_BITS'(31)}
   };
 
-  logic [PRF_ADDR_BITS:0] eff0, eff1, eff2, eff3, old0, old1;
+  logic [PRF_ADDR_BITS:0] eff[0:7];
+  logic [PRF_ADDR_BITS:0] old[0:3];
+
+  logic [              4:0] rsrc_a [0:7];
+  logic [              4:0] waddr_a[0:3];
+  logic [PRF_ADDR_BITS-1:0] waddr_p[0:3];
+  logic [              0:0] wren   [0:3];
 
   always_comb begin
-    eff0 = flush ? comm[rat_in.rsrc0_a] : spec[rat_in.rsrc0_a];
-    eff1 = flush ? comm[rat_in.rsrc1_a] : spec[rat_in.rsrc1_a];
-    eff2 = flush ? comm[rat_in.rsrc2_a] : spec[rat_in.rsrc2_a];
-    eff3 = flush ? comm[rat_in.rsrc3_a] : spec[rat_in.rsrc3_a];
-    old0 = flush ? comm[rat_in.waddr0_a] : spec[rat_in.waddr0_a];
-    old1 = flush ? comm[rat_in.waddr1_a] : spec[rat_in.waddr1_a];
+    for (int i = 0; i < 8; i++) begin
+      rsrc_a[i] = rat_in.rsrc_a[i];
+    end
 
-    if (!flush) begin
-      if (rat_in.commit_en0 && (rat_in.commit_addr0 != 5'h0)) begin
-        if (rat_in.rsrc0_a == rat_in.commit_addr0 && eff0[PRF_ADDR_BITS-1:0] == rat_in.commit_tag0)
-          eff0 = {1'b1, rat_in.commit_tag0};
-        if (rat_in.rsrc1_a == rat_in.commit_addr0 && eff1[PRF_ADDR_BITS-1:0] == rat_in.commit_tag0)
-          eff1 = {1'b1, rat_in.commit_tag0};
-        if (rat_in.rsrc2_a == rat_in.commit_addr0 && eff2[PRF_ADDR_BITS-1:0] == rat_in.commit_tag0)
-          eff2 = {1'b1, rat_in.commit_tag0};
-        if (rat_in.rsrc3_a == rat_in.commit_addr0 && eff3[PRF_ADDR_BITS-1:0] == rat_in.commit_tag0)
-          eff3 = {1'b1, rat_in.commit_tag0};
+    for (int i = 0; i < 4; i++) begin
+      waddr_a[i] = rat_in.waddr_a[i];
+      waddr_p[i] = rat_in.waddr_p[i];
+      wren[i]    = rat_in.wren[i];
+    end
+
+    for (int r = 0; r < 8; r++) begin
+      eff[r] = flush ? comm[rsrc_a[r]] : spec[rsrc_a[r]];
+      if (!flush) begin
+        for (int c = 0; c < 4; c++) begin
+          if (rat_in.commit_en[c] && (rat_in.commit_addr[c] != 5'h0) &&
+              (rsrc_a[r] == rat_in.commit_addr[c]) &&
+              (eff[r][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
+            eff[r] = {1'b1, rat_in.commit_tag[c]};
+          end
+        end
       end
-      if (rat_in.commit_en1 && (rat_in.commit_addr1 != 5'h0)) begin
-        if (rat_in.rsrc0_a == rat_in.commit_addr1 && eff0[PRF_ADDR_BITS-1:0] == rat_in.commit_tag1)
-          eff0 = {1'b1, rat_in.commit_tag1};
-        if (rat_in.rsrc1_a == rat_in.commit_addr1 && eff1[PRF_ADDR_BITS-1:0] == rat_in.commit_tag1)
-          eff1 = {1'b1, rat_in.commit_tag1};
-        if (rat_in.rsrc2_a == rat_in.commit_addr1 && eff2[PRF_ADDR_BITS-1:0] == rat_in.commit_tag1)
-          eff2 = {1'b1, rat_in.commit_tag1};
-        if (rat_in.rsrc3_a == rat_in.commit_addr1 && eff3[PRF_ADDR_BITS-1:0] == rat_in.commit_tag1)
-          eff3 = {1'b1, rat_in.commit_tag1};
+    end
+
+    for (int r = 0; r < 8; r++) begin
+      for (int w = 0; w < r / 2; w++) begin
+        if (wren[w] && (rsrc_a[r] == waddr_a[w]) && (waddr_a[w] != 5'h0)) begin
+          eff[r] = {1'b0, waddr_p[w]};
+        end
+      end
+    end
+
+    for (int k = 0; k < 4; k++) begin
+      old[k] = flush ? comm[waddr_a[k]] : spec[waddr_a[k]];
+      for (int w = 0; w < k; w++) begin
+        if (wren[w] && (waddr_a[w] == waddr_a[k]) && (waddr_a[w] != 5'h0)) begin
+          old[k] = {1'b0, waddr_p[w]};
+        end
       end
     end
 
     rat_out = init_rat_out;
-    rat_out.old_pdest0 = old0[PRF_ADDR_BITS-1:0];
-    rat_out.old_pdest1 = (rat_in.wren0 && (rat_in.waddr0_a == rat_in.waddr1_a)) ? rat_in.waddr0_p :
-        old1[PRF_ADDR_BITS-1:0];
-
-    rat_out.psrc0       = eff0[PRF_ADDR_BITS-1:0];
-    rat_out.psrc0_valid = eff0[PRF_ADDR_BITS];
-    rat_out.psrc1       = eff1[PRF_ADDR_BITS-1:0];
-    rat_out.psrc1_valid = eff1[PRF_ADDR_BITS];
-
-    if (rat_in.wren0 && (rat_in.rsrc2_a == rat_in.waddr0_a) && (rat_in.waddr0_a != 5'h0)) begin
-      rat_out.psrc2       = rat_in.waddr0_p;
-      rat_out.psrc2_valid = 1'b0;
-    end else begin
-      rat_out.psrc2       = eff2[PRF_ADDR_BITS-1:0];
-      rat_out.psrc2_valid = eff2[PRF_ADDR_BITS];
+    for (int k = 0; k < 4; k++) begin
+      rat_out.old_pdest[k] = old[k][PRF_ADDR_BITS-1:0];
     end
 
-    if (rat_in.wren0 && (rat_in.rsrc3_a == rat_in.waddr0_a) && (rat_in.waddr0_a != 5'h0)) begin
-      rat_out.psrc3       = rat_in.waddr0_p;
-      rat_out.psrc3_valid = 1'b0;
-    end else begin
-      rat_out.psrc3       = eff3[PRF_ADDR_BITS-1:0];
-      rat_out.psrc3_valid = eff3[PRF_ADDR_BITS];
+    for (int r = 0; r < 8; r++) begin
+      rat_out.psrc[r]       = eff[r][PRF_ADDR_BITS-1:0];
+      rat_out.psrc_valid[r] = eff[r][PRF_ADDR_BITS];
     end
   end
 
@@ -148,29 +148,21 @@ module rat (
         end
       end
 
-      if (rat_in.commit_en0 && (rat_in.commit_addr0 != 5'h0)) begin
-        comm[rat_in.commit_addr0] <= {1'b1, rat_in.commit_tag0};
-        if (flush) begin
-          spec[rat_in.commit_addr0] <= {1'b1, rat_in.commit_tag0};
-        end else if (spec[rat_in.commit_addr0][PRF_ADDR_BITS-1:0] == rat_in.commit_tag0) begin
-          spec[rat_in.commit_addr0] <= {1'b1, rat_in.commit_tag0};
+      for (int c = 0; c < 4; c++) begin
+        if (rat_in.commit_en[c] && (rat_in.commit_addr[c] != 5'h0)) begin
+          comm[rat_in.commit_addr[c]] <= {1'b1, rat_in.commit_tag[c]};
+          if (flush) begin
+            spec[rat_in.commit_addr[c]] <= {1'b1, rat_in.commit_tag[c]};
+          end else if (spec[rat_in.commit_addr[c]][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c]) begin
+            spec[rat_in.commit_addr[c]] <= {1'b1, rat_in.commit_tag[c]};
+          end
         end
       end
 
-      if (rat_in.commit_en1 && (rat_in.commit_addr1 != 5'h0)) begin
-        comm[rat_in.commit_addr1] <= {1'b1, rat_in.commit_tag1};
-        if (flush) begin
-          spec[rat_in.commit_addr1] <= {1'b1, rat_in.commit_tag1};
-        end else if (spec[rat_in.commit_addr1][PRF_ADDR_BITS-1:0] == rat_in.commit_tag1) begin
-          spec[rat_in.commit_addr1] <= {1'b1, rat_in.commit_tag1};
+      for (int k = 0; k < 4; k++) begin
+        if (wren[k] && (waddr_a[k] != 5'h0)) begin
+          spec[waddr_a[k]] <= {1'b0, waddr_p[k]};
         end
-      end
-
-      if (rat_in.wren0 && (rat_in.waddr0_a != 5'h0)) begin
-        spec[rat_in.waddr0_a] <= {1'b0, rat_in.waddr0_p};
-      end
-      if (rat_in.wren1 && (rat_in.waddr1_a != 5'h0)) begin
-        spec[rat_in.waddr1_a] <= {1'b0, rat_in.waddr1_p};
       end
     end
   end

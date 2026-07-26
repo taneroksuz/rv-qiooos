@@ -11,140 +11,128 @@ module commit (
 );
   timeunit 1ns; timeprecision 1ps;
   typedef struct packed {
-    register_write_in_type register0_win;
-    register_write_in_type register1_win;
-    csr_write_in_type      csr_win;
-    csr_exception_in_type  csr_ein;
-    rat_in_type            rat_i;
-    prf_in_type            prf_i;
-    fl_in_type             fl_i;
-    logic [0:0]            flush_all;
-    logic [0:0]            commit_store0;
-    rob_entry_type         commit_entry0;
-    logic [0:0]            commit_store1;
-    rob_entry_type         commit_entry1;
+    register_write_in_type [3:0] register_win;
+    csr_write_in_type            csr_win;
+    csr_exception_in_type        csr_ein;
+    rat_in_type                  rat_i;
+    prf_in_type                  prf_i;
+    fl_in_type                   fl_i;
+    logic [0:0]                  flush_all;
+    logic [1:0][0:0]             commit_store;
+    rob_entry_type [1:0]         commit_entry;
+    logic [1:0][0:0]             store_slot_valid;
+    rob_entry_type [1:0]         store_slot_entry;
   } commit_reg_type;
   localparam commit_reg_type init_commit_reg = '{
-      register0_win : '{wren : 0, waddr : 0, wdata : 0},
-      register1_win : '{wren : 0, waddr : 0, wdata : 0},
+      register_win : '{default: '{wren : 0, waddr : 0, wdata : 0}},
       csr_win       : init_csr_write_in,
       csr_ein       : init_csr_exception_in,
       rat_i         : init_rat_in,
       prf_i         : init_prf_in,
       fl_i          : init_fl_in,
       flush_all     : 0,
-      commit_store0 : 0,
-      commit_entry0 : init_rob_entry,
-      commit_store1 : 0,
-      commit_entry1 : init_rob_entry
+      commit_store  : '{default: 0},
+      commit_entry  : '{default: init_rob_entry},
+      store_slot_valid : '{default: 0},
+      store_slot_entry : '{default: init_rob_entry}
   };
   commit_reg_type r, rin;
   commit_reg_type v;
-  rob_entry_type e0, e1;
-  logic c0, c1;
-  logic flush0, flush1;
-  logic do0, do1;
+  rob_entry_type  e               [0:3];
+  logic           c               [0:3];
+  logic           entry_flush     [0:3];
+  logic           do_commit       [0:3];
+  logic           any_flush;
+  logic           pc_set;
+  logic           store_slot_found[0:1];
+  int             store_slot_owner[0:1];
   always_comb begin
-    v      = init_commit_reg;
-    e0     = commit_in.entry0;
-    e1     = commit_in.entry1;
-    c0     = commit_in.commit0;
-    c1     = commit_in.commit1;
-    flush0 = 1'b0;
-    flush1 = 1'b0;
-
-    do0 = c0;
-
-    if (do0) begin
-      flush0 = e0.exception | e0.mret | (!e0.branch ? e0.jump : 0) |
-          (e0.branch ? e0.jump ^ e0.pred.taken : 0);
+    v = init_commit_reg;
+    for (int k = 0; k < 4; k++) begin
+      e[k] = commit_in.entry[k];
+      c[k] = commit_in.commit[k];
     end
 
-    do1 = c1 && !flush0;
-
-    if (do1) begin
-      flush1 = e1.exception | e1.mret | (!e1.branch ? e1.jump : 0) |
-          (e1.branch ? e1.jump ^ e1.pred.taken : 0);
-    end
-
-    v.flush_all = flush0 | flush1;
-
-    v.commit_store0 = 1'b0;
-    v.commit_entry0 = init_rob_entry;
-    v.commit_store1 = 1'b0;
-    v.commit_entry1 = init_rob_entry;
-    if (do0) begin
-      v.commit_store0 = e0.store;
-      v.commit_entry0 = e0;
-    end
-    if (do1) begin
-      v.commit_store1 = e1.store;
-      v.commit_entry1 = e1;
-    end
-
-    if (do0) begin
-      v.csr_ein.valid0      = 1'b1;
-      v.csr_ein.pc          = e0.pc;
-      v.register0_win.wren  = e0.wren;
-      v.register0_win.waddr = e0.adest;
-      v.register0_win.wdata = e0.result;
-      v.prf_i.wren0         = e0.wren;
-      v.prf_i.waddr0        = e0.pdest;
-      v.prf_i.wdata0        = e0.result;
-      v.rat_i.commit_addr0  = e0.adest;
-      v.rat_i.commit_tag0   = e0.pdest;
-      v.rat_i.commit_en0    = e0.wren;
-      v.fl_i.free_tag0      = e0.old_pdest;
-      v.fl_i.free_en0       = e0.wren;
-      if (e0.cwren) begin
-        v.csr_win.cwren  = 1'b1;
-        v.csr_win.cwaddr = e0.caddr;
-        v.csr_win.cdata  = e0.cwdata;
+    any_flush = 1'b0;
+    for (int k = 0; k < 4; k++) begin
+      do_commit[k]   = c[k] && !any_flush;
+      entry_flush[k] = 1'b0;
+      if (do_commit[k]) begin
+        entry_flush[k] = e[k].exception | e[k].mret | (!e[k].branch ? e[k].jump : 0) |
+            (e[k].branch ? e[k].jump ^ e[k].pred.taken : 0);
       end
-      if (e0.mret) begin
-        v.csr_ein.mret = 1'b1;
-        v.csr_ein.epc  = e0.pc;
-      end
-      if (e0.exception) begin
-        v.csr_ein.exception = 1'b1;
-        v.csr_ein.pc        = e0.pc;
-        v.csr_ein.epc       = e0.pc;
-        v.csr_ein.ecause    = e0.ecause;
-        v.csr_ein.etval     = e0.etval;
+      any_flush = any_flush | entry_flush[k];
+    end
+
+    v.flush_all = any_flush;
+
+    for (int p = 0; p < 2; p++) begin
+      v.commit_store[p] = 1'b0;
+      v.commit_entry[p] = init_rob_entry;
+      if (do_commit[p]) begin
+        v.commit_store[p] = e[p].store;
+        v.commit_entry[p] = e[p];
       end
     end
 
-    if (do1) begin
-      v.csr_ein.valid1 = 1'b1;
-      if (!do0) begin
-        v.csr_ein.pc = e1.pc;
+    store_slot_found[0] = 1'b0;
+    store_slot_found[1] = 1'b0;
+    store_slot_owner[0] = 0;
+    store_slot_owner[1] = 0;
+    for (int k = 0; k < 4; k++) begin
+      if (do_commit[k] && e[k].store) begin
+        if (!store_slot_found[0]) begin
+          store_slot_owner[0] = k;
+          store_slot_found[0] = 1'b1;
+        end else if (!store_slot_found[1]) begin
+          store_slot_owner[1] = k;
+          store_slot_found[1] = 1'b1;
+        end
       end
-      v.register1_win.wren  = e1.wren;
-      v.register1_win.waddr = e1.adest;
-      v.register1_win.wdata = e1.result;
-      v.prf_i.wren1         = e1.wren;
-      v.prf_i.waddr1        = e1.pdest;
-      v.prf_i.wdata1        = e1.result;
-      v.rat_i.commit_addr1  = e1.adest;
-      v.rat_i.commit_tag1   = e1.pdest;
-      v.rat_i.commit_en1    = e1.wren;
-      v.fl_i.free_tag1      = e1.old_pdest;
-      v.fl_i.free_en1       = e1.wren;
-      if (e1.cwren) begin
-        v.csr_win.cwren  = 1'b1;
-        v.csr_win.cwaddr = e1.caddr;
-        v.csr_win.cdata  = e1.cwdata;
+    end
+    for (int p = 0; p < 2; p++) begin
+      v.store_slot_valid[p] = store_slot_found[p];
+      v.store_slot_entry[p] = store_slot_found[p] ? e[store_slot_owner[p]] : init_rob_entry;
+    end
+
+    pc_set = 1'b0;
+    for (int k = 0; k < 4; k++) begin
+      if (do_commit[k] && !pc_set) begin
+        v.csr_ein.pc = e[k].pc;
+        pc_set       = 1'b1;
       end
-      if (e1.mret) begin
-        v.csr_ein.mret = 1'b1;
-        v.csr_ein.epc  = e1.pc;
-      end
-      if (e1.exception) begin
-        v.csr_ein.exception = 1'b1;
-        v.csr_ein.pc        = e1.pc;
-        v.csr_ein.epc       = e1.pc;
-        v.csr_ein.ecause    = e1.ecause;
-        v.csr_ein.etval     = e1.etval;
+    end
+
+    for (int k = 0; k < 4; k++) begin
+      if (do_commit[k]) begin
+        v.csr_ein.valid[k]      = 1'b1;
+        v.register_win[k].wren  = e[k].wren;
+        v.register_win[k].waddr = e[k].adest;
+        v.register_win[k].wdata = e[k].result;
+        v.prf_i.wren[k]         = e[k].wren;
+        v.prf_i.waddr[k]        = e[k].pdest;
+        v.prf_i.wdata[k]        = e[k].result;
+        v.rat_i.commit_addr[k]  = e[k].adest;
+        v.rat_i.commit_tag[k]   = e[k].pdest;
+        v.rat_i.commit_en[k]    = e[k].wren;
+        v.fl_i.free_tag[k]      = e[k].old_pdest;
+        v.fl_i.free_en[k]       = e[k].wren;
+        if (e[k].cwren) begin
+          v.csr_win.cwren  = 1'b1;
+          v.csr_win.cwaddr = e[k].caddr;
+          v.csr_win.cdata  = e[k].cwdata;
+        end
+        if (e[k].mret) begin
+          v.csr_ein.mret = 1'b1;
+          v.csr_ein.epc  = e[k].pc;
+        end
+        if (e[k].exception) begin
+          v.csr_ein.exception = 1'b1;
+          v.csr_ein.pc        = e[k].pc;
+          v.csr_ein.epc       = e[k].pc;
+          v.csr_ein.ecause    = e[k].ecause;
+          v.csr_ein.etval     = e[k].etval;
+        end
       end
     end
 
@@ -152,19 +140,20 @@ module commit (
       v = init_commit_reg;
     end
 
-    rin                      = v;
-    commit_out.register0_win = r.register0_win;
-    commit_out.register1_win = r.register1_win;
-    commit_out.csr_win       = r.csr_win;
-    commit_out.csr_ein       = r.csr_ein;
-    commit_out.rat_i         = r.rat_i;
-    commit_out.prf_i         = r.prf_i;
-    commit_out.fl_i          = r.fl_i;
-    commit_out.flush         = r.flush_all;
-    commit_out.commit_store0 = r.commit_store0;
-    commit_out.commit_entry0 = r.commit_entry0;
-    commit_out.commit_store1 = r.commit_store1;
-    commit_out.commit_entry1 = r.commit_entry1;
+    rin                     = v;
+    commit_out.register_win = r.register_win;
+    commit_out.csr_win      = r.csr_win;
+    commit_out.csr_ein      = r.csr_ein;
+    commit_out.rat_i        = r.rat_i;
+    commit_out.prf_i        = r.prf_i;
+    commit_out.fl_i         = r.fl_i;
+    commit_out.flush        = r.flush_all;
+    for (int p = 0; p < 2; p++) begin
+      commit_out.commit_store[p]     = r.commit_store[p];
+      commit_out.commit_entry[p]     = r.commit_entry[p];
+      commit_out.store_slot_valid[p] = r.store_slot_valid[p];
+      commit_out.store_slot_entry[p] = r.store_slot_entry[p];
+    end
   end
   always_ff @(posedge clock) begin
     if (reset == 0) begin

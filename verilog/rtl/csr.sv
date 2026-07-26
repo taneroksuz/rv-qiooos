@@ -25,16 +25,10 @@ module csr (
   logic [ 0 : 0] valid;
   logic [63 : 0] incr;
 
-  assign valid = csr_ein.valid0 | csr_ein.valid1;
+  assign valid = csr_ein.valid[0] | csr_ein.valid[1] | csr_ein.valid[2] | csr_ein.valid[3];
 
   always_comb begin
-    if ((csr_ein.valid0 & csr_ein.valid1) == 1) begin
-      incr = 2;
-    end else if (valid == 1) begin
-      incr = 1;
-    end else begin
-      incr = 0;
-    end
+    incr = 64'($countones(csr_ein.valid));
   end
 
   always_comb begin

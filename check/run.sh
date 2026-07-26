@@ -31,6 +31,7 @@ FORMAT_FLAGS=(
   --compact_indexing_and_selections=true
   --verify_convergence=true
   --failsafe_success=true
+  --max_search_states=2000000
 )
 
 SV_FILES=$(find ${BASEDIR} -name "*.sv" | sort)

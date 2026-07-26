@@ -5,22 +5,14 @@ module bus (
   input  logic        reset,
   input  logic        clear,
   input  logic        clock,
-  input  mem_in_type  imem0_in,
-  input  mem_in_type  imem1_in,
-  output mem_out_type imem0_out,
-  output mem_out_type imem1_out,
-  input  mem_in_type  dmem0_in,
-  input  mem_in_type  dmem1_in,
-  output mem_out_type dmem0_out,
-  output mem_out_type dmem1_out,
-  input  mem_out_type itim0_out,
-  input  mem_out_type itim1_out,
-  input  mem_out_type dtim0_out,
-  input  mem_out_type dtim1_out,
-  output mem_in_type  itim0_in,
-  output mem_in_type  itim1_in,
-  output mem_in_type  dtim0_in,
-  output mem_in_type  dtim1_in,
+  input  mem_in_type  imem_in    [0:1],
+  output mem_out_type imem_out   [0:1],
+  input  mem_in_type  dmem_in    [0:1],
+  output mem_out_type dmem_out   [0:1],
+  input  mem_out_type itim_out   [0:1],
+  input  mem_out_type dtim_out   [0:1],
+  output mem_in_type  itim_in    [0:1],
+  output mem_in_type  dtim_in    [0:1],
   input  mem_out_type rom_out,
   input  mem_out_type ram_out,
   input  mem_out_type spi_out,
@@ -37,184 +29,121 @@ module bus (
   timeunit 1ns; timeprecision 1ps;
 
   mem_in_type bridge_in;
-  mem_in_type ibridge0_in;
-  mem_in_type ibridge1_in;
-  mem_in_type dbridge0_in;
-  mem_in_type dbridge1_in;
+  mem_in_type ibridge_in[0:1];
+  mem_in_type dbridge_in[0:1];
 
   mem_out_type bridge_out;
-  mem_out_type ibridge0_out;
-  mem_out_type ibridge1_out;
-  mem_out_type dbridge0_out;
-  mem_out_type dbridge1_out;
+  mem_out_type ibridge_out[0:1];
+  mem_out_type dbridge_out[0:1];
 
-  logic [0 : 0] itim0_rev;
-  logic [0 : 0] itim1_rev;
-  logic [0 : 0] dtim0_rev;
-  logic [0 : 0] dtim1_rev;
+  logic [0 : 0] itim_rev[0:1];
+  logic [0 : 0] dtim_rev[0:1];
 
-  logic [0 : 0] itim0_rev_reg;
-  logic [0 : 0] itim1_rev_reg;
-  logic [0 : 0] dtim0_rev_reg;
-  logic [0 : 0] dtim1_rev_reg;
+  logic [0 : 0] itim_rev_reg[0:1];
+  logic [0 : 0] dtim_rev_reg[0:1];
 
-  logic itim0_hit_i, dtim0_hit_i;
-  logic itim0_hit_d, dtim0_hit_d;
-  logic itim1_hit_i, dtim1_hit_i;
-  logic itim1_hit_d, dtim1_hit_d;
+  logic itim_hit_i[0:1], dtim_hit_i[0:1];
+  logic itim_hit_d[0:1], dtim_hit_d[0:1];
 
   always_comb begin
 
-    itim0_in = init_mem_in;
-    itim1_in = init_mem_in;
-    dtim0_in = init_mem_in;
-    dtim1_in = init_mem_in;
+    for (int p = 0; p < 2; p++) begin
+      itim_in[p]    = init_mem_in;
+      dtim_in[p]    = init_mem_in;
+      ibridge_in[p] = init_mem_in;
+      dbridge_in[p] = init_mem_in;
 
-    ibridge0_in = init_mem_in;
-    ibridge1_in = init_mem_in;
-    dbridge0_in = init_mem_in;
-    dbridge1_in = init_mem_in;
+      itim_rev[p] = itim_rev_reg[p];
+      dtim_rev[p] = dtim_rev_reg[p];
 
-    itim0_rev = itim0_rev_reg;
-    itim1_rev = itim1_rev_reg;
-    dtim0_rev = dtim0_rev_reg;
-    dtim1_rev = dtim1_rev_reg;
-
-    itim0_hit_i = ~|(ITIM_BASE ^ (imem0_in.mem_addr & ITIM_MASK));
-    dtim0_hit_i = ~|(DTIM_BASE ^ (imem0_in.mem_addr & DTIM_MASK));
-    itim0_hit_d = ~|(ITIM_BASE ^ (dmem0_in.mem_addr & ITIM_MASK));
-    dtim0_hit_d = ~|(DTIM_BASE ^ (dmem0_in.mem_addr & DTIM_MASK));
-    itim1_hit_i = ~|(ITIM_BASE ^ (imem1_in.mem_addr & ITIM_MASK));
-    dtim1_hit_i = ~|(DTIM_BASE ^ (imem1_in.mem_addr & DTIM_MASK));
-    itim1_hit_d = ~|(ITIM_BASE ^ (dmem1_in.mem_addr & ITIM_MASK));
-    dtim1_hit_d = ~|(DTIM_BASE ^ (dmem1_in.mem_addr & DTIM_MASK));
-
-    if (imem0_in.mem_valid & itim0_hit_i) begin
-      itim0_in          = imem0_in;
-      itim0_in.mem_addr = imem0_in.mem_addr - ITIM_BASE;
-      itim0_rev         = 0;
-    end else if (dmem0_in.mem_valid & itim0_hit_d) begin
-      itim0_in          = dmem0_in;
-      itim0_in.mem_addr = dmem0_in.mem_addr - ITIM_BASE;
-      itim0_rev         = 1;
+      itim_hit_i[p] = ~|(ITIM_BASE ^ (imem_in[p].mem_addr & ITIM_MASK));
+      dtim_hit_i[p] = ~|(DTIM_BASE ^ (imem_in[p].mem_addr & DTIM_MASK));
+      itim_hit_d[p] = ~|(ITIM_BASE ^ (dmem_in[p].mem_addr & ITIM_MASK));
+      dtim_hit_d[p] = ~|(DTIM_BASE ^ (dmem_in[p].mem_addr & DTIM_MASK));
     end
 
-    if (imem1_in.mem_valid & itim1_hit_i) begin
-      itim1_in          = imem1_in;
-      itim1_in.mem_addr = imem1_in.mem_addr - ITIM_BASE;
-      itim1_rev         = 0;
-    end else if (dmem1_in.mem_valid & itim1_hit_d) begin
-      itim1_in          = dmem1_in;
-      itim1_in.mem_addr = dmem1_in.mem_addr - ITIM_BASE;
-      itim1_rev         = 1;
+    for (int p = 0; p < 2; p++) begin
+      if (imem_in[p].mem_valid & itim_hit_i[p]) begin
+        itim_in[p]          = imem_in[p];
+        itim_in[p].mem_addr = imem_in[p].mem_addr - ITIM_BASE;
+        itim_rev[p]         = 0;
+      end else if (dmem_in[p].mem_valid & itim_hit_d[p]) begin
+        itim_in[p]          = dmem_in[p];
+        itim_in[p].mem_addr = dmem_in[p].mem_addr - ITIM_BASE;
+        itim_rev[p]         = 1;
+      end
+
+      if (imem_in[p].mem_valid & dtim_hit_i[p]) begin
+        dtim_in[p]          = imem_in[p];
+        dtim_in[p].mem_addr = imem_in[p].mem_addr - DTIM_BASE;
+        dtim_rev[p]         = 1;
+      end else if (dmem_in[p].mem_valid & dtim_hit_d[p]) begin
+        dtim_in[p]          = dmem_in[p];
+        dtim_in[p].mem_addr = dmem_in[p].mem_addr - DTIM_BASE;
+        dtim_rev[p]         = 0;
+      end
+
+      if (imem_in[p].mem_valid & ~itim_hit_i[p] & ~dtim_hit_i[p]) begin
+        ibridge_in[p] = imem_in[p];
+      end
+      if (dmem_in[p].mem_valid & ~itim_hit_d[p] & ~dtim_hit_d[p]) begin
+        dbridge_in[p] = dmem_in[p];
+      end
     end
 
-    if (imem0_in.mem_valid & dtim0_hit_i) begin
-      dtim0_in          = imem0_in;
-      dtim0_in.mem_addr = imem0_in.mem_addr - DTIM_BASE;
-      dtim0_rev         = 1;
-    end else if (dmem0_in.mem_valid & dtim0_hit_d) begin
-      dtim0_in          = dmem0_in;
-      dtim0_in.mem_addr = dmem0_in.mem_addr - DTIM_BASE;
-      dtim0_rev         = 0;
+    for (int p = 0; p < 2; p++) begin
+      imem_out[p] = init_mem_out;
+      dmem_out[p] = init_mem_out;
     end
 
-    if (imem1_in.mem_valid & dtim1_hit_i) begin
-      dtim1_in          = imem1_in;
-      dtim1_in.mem_addr = imem1_in.mem_addr - DTIM_BASE;
-      dtim1_rev         = 1;
-    end else if (dmem1_in.mem_valid & dtim1_hit_d) begin
-      dtim1_in          = dmem1_in;
-      dtim1_in.mem_addr = dmem1_in.mem_addr - DTIM_BASE;
-      dtim1_rev         = 0;
-    end
+    for (int p = 0; p < 2; p++) begin
+      if (itim_out[p].mem_ready == 1 && itim_rev_reg[p] == 0) begin
+        imem_out[p] = itim_out[p];
+      end
+      if (itim_out[p].mem_ready == 1 && itim_rev_reg[p] == 1) begin
+        dmem_out[p] = itim_out[p];
+      end
 
-    if (imem0_in.mem_valid & ~itim0_hit_i & ~dtim0_hit_i) begin
-      ibridge0_in = imem0_in;
-    end
-    if (imem1_in.mem_valid & ~itim1_hit_i & ~dtim1_hit_i) begin
-      ibridge1_in = imem1_in;
-    end
-    if (dmem0_in.mem_valid & ~itim0_hit_d & ~dtim0_hit_d) begin
-      dbridge0_in = dmem0_in;
-    end
-    if (dmem1_in.mem_valid & ~itim1_hit_d & ~dtim1_hit_d) begin
-      dbridge1_in = dmem1_in;
-    end
+      if (dtim_out[p].mem_ready == 1 && dtim_rev_reg[p] == 1) begin
+        imem_out[p] = dtim_out[p];
+      end
+      if (dtim_out[p].mem_ready == 1 && dtim_rev_reg[p] == 0) begin
+        dmem_out[p] = dtim_out[p];
+      end
 
-    imem0_out = init_mem_out;
-    imem1_out = init_mem_out;
-    dmem0_out = init_mem_out;
-    dmem1_out = init_mem_out;
-
-    if (itim0_out.mem_ready == 1 && itim0_rev_reg == 0) begin
-      imem0_out = itim0_out;
-    end
-    if (itim0_out.mem_ready == 1 && itim0_rev_reg == 1) begin
-      dmem0_out = itim0_out;
-    end
-    if (itim1_out.mem_ready == 1 && itim1_rev_reg == 0) begin
-      imem1_out = itim1_out;
-    end
-    if (itim1_out.mem_ready == 1 && itim1_rev_reg == 1) begin
-      dmem1_out = itim1_out;
-    end
-
-    if (dtim0_out.mem_ready == 1 && dtim0_rev_reg == 1) begin
-      imem0_out = dtim0_out;
-    end
-    if (dtim0_out.mem_ready == 1 && dtim0_rev_reg == 0) begin
-      dmem0_out = dtim0_out;
-    end
-    if (dtim1_out.mem_ready == 1 && dtim1_rev_reg == 1) begin
-      imem1_out = dtim1_out;
-    end
-    if (dtim1_out.mem_ready == 1 && dtim1_rev_reg == 0) begin
-      dmem1_out = dtim1_out;
-    end
-
-    if (ibridge0_out.mem_ready == 1) begin
-      imem0_out = ibridge0_out;
-    end
-    if (ibridge1_out.mem_ready == 1) begin
-      imem1_out = ibridge1_out;
-    end
-    if (dbridge0_out.mem_ready == 1) begin
-      dmem0_out = dbridge0_out;
-    end
-    if (dbridge1_out.mem_ready == 1) begin
-      dmem1_out = dbridge1_out;
+      if (ibridge_out[p].mem_ready == 1) begin
+        imem_out[p] = ibridge_out[p];
+      end
+      if (dbridge_out[p].mem_ready == 1) begin
+        dmem_out[p] = dbridge_out[p];
+      end
     end
 
   end
 
   always_ff @(posedge clock) begin
     if (reset == 0) begin
-      itim0_rev_reg <= 0;
-      itim1_rev_reg <= 0;
-      dtim0_rev_reg <= 0;
-      dtim1_rev_reg <= 0;
+      for (int p = 0; p < 2; p++) begin
+        itim_rev_reg[p] <= 0;
+        dtim_rev_reg[p] <= 0;
+      end
     end else begin
-      itim0_rev_reg <= itim0_rev;
-      itim1_rev_reg <= itim1_rev;
-      dtim0_rev_reg <= dtim0_rev;
-      dtim1_rev_reg <= dtim1_rev;
+      for (int p = 0; p < 2; p++) begin
+        itim_rev_reg[p] <= itim_rev[p];
+        dtim_rev_reg[p] <= dtim_rev[p];
+      end
     end
   end
 
   arbiter arbiter_comp (
-    .reset    (reset),
-    .clock    (clock),
-    .imem0_in (ibridge0_in),
-    .imem0_out(ibridge0_out),
-    .imem1_in (ibridge1_in),
-    .imem1_out(ibridge1_out),
-    .dmem0_in (dbridge0_in),
-    .dmem0_out(dbridge0_out),
-    .dmem1_in (dbridge1_in),
-    .dmem1_out(dbridge1_out),
-    .mem_in   (bridge_in),
-    .mem_out  (bridge_out)
+    .reset   (reset),
+    .clock   (clock),
+    .imem_in (ibridge_in),
+    .imem_out(ibridge_out),
+    .dmem_in (dbridge_in),
+    .dmem_out(dbridge_out),
+    .mem_in  (bridge_in),
+    .mem_out (bridge_out)
   );
 
   bridge bridge_comp (

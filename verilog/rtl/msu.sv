@@ -13,293 +13,193 @@ module msu (
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
-    cdb_type                  cdb0;
-    cdb_type                  cdb1;
-    logic [ROB_ADDR_BITS-1:0] rob_wtag0;
-    rob_entry_type            rob_wentry0;
-    logic [0:0]               rob_wen0;
-    logic [ROB_ADDR_BITS-1:0] rob_wtag1;
-    rob_entry_type            rob_wentry1;
-    logic [0:0]               rob_wen1;
-    mem_in_type               dmem1_in;
-    lsu_in_type               lsu1_in;
-    mem_in_type               dmem0_in;
-    lsu_in_type               lsu0_in;
-    logic [0:0]               load0_pending;
-    logic [ROB_ADDR_BITS-1:0] load0_rob_tag;
-    logic [PRF_ADDR_BITS-1:0] load0_pdest;
-    logic [31:0]              load0_addr;
-    logic [0:0]               load1_pending;
-    logic [ROB_ADDR_BITS-1:0] load1_rob_tag;
-    logic [PRF_ADDR_BITS-1:0] load1_pdest;
-    logic [31:0]              load1_addr;
-    logic [0:0]               store0_pending;
-    logic [0:0]               store0_sent;
-    rob_entry_type            store0_entry;
-    logic [0:0]               store1_pending;
-    logic [0:0]               store1_sent;
-    rob_entry_type            store1_entry;
-    logic [0:0]               load0_sent;
-    logic [0:0]               load1_sent;
+    cdb_type [1:0]                 cdb;
+    logic [1:0][ROB_ADDR_BITS-1:0] rob_wtag;
+    rob_entry_type [1:0]           rob_wentry;
+    logic [1:0]                    rob_wen;
+    mem_in_type [1:0]              dmem_in;
+    lsu_in_type [1:0]              lsu_in;
+    logic [1:0][0:0]               load_pending;
+    logic [1:0][ROB_ADDR_BITS-1:0] load_rob_tag;
+    logic [1:0][PRF_ADDR_BITS-1:0] load_pdest;
+    logic [1:0][31:0]              load_addr;
+    logic [1:0][0:0]               store_pending;
+    logic [1:0][0:0]               store_sent;
+    rob_entry_type [1:0]           store_entry;
+    logic [1:0][0:0]               load_sent;
   } msu_reg_type;
 
   localparam msu_reg_type init_msu_reg = '{
-      cdb0           : init_cdb,
-      cdb1           : init_cdb,
-      rob_wtag0      : '0,
-      rob_wentry0    : init_rob_entry,
-      rob_wen0       : 1'b0,
-      rob_wtag1      : '0,
-      rob_wentry1    : init_rob_entry,
-      rob_wen1       : 1'b0,
-      dmem1_in       : init_mem_in,
-      lsu1_in        : '{ldata : 32'h0, byteenable : 4'h0, lsu_op : init_lsu_op},
-      dmem0_in       : init_mem_in,
-      lsu0_in        : '{ldata : 32'h0, byteenable : 4'h0, lsu_op : init_lsu_op},
-      load0_pending  : 1'b0,
-      load0_sent     : 1'b0,
-      load0_rob_tag  : '0,
-      load0_pdest    : '0,
-      load0_addr     : '0,
-      load1_pending  : 1'b0,
-      load1_sent     : 1'b0,
-      load1_rob_tag  : '0,
-      load1_pdest    : '0,
-      load1_addr     : '0,
-      store0_pending : 1'b0,
-      store0_sent    : 1'b0,
-      store0_entry   : init_rob_entry,
-      store1_pending : 1'b0,
-      store1_sent    : 1'b0,
-      store1_entry   : init_rob_entry
+      cdb            : '{default: init_cdb},
+      rob_wtag       : '{default: '0},
+      rob_wentry     : '{default: init_rob_entry},
+      rob_wen        : '{default: 1'b0},
+      dmem_in        : '{default: init_mem_in},
+      lsu_in         : '{default: '{ldata : 32'h0, byteenable : 4'h0, lsu_op : init_lsu_op}},
+      load_pending   : '{default: 1'b0},
+      load_sent      : '{default: 1'b0},
+      load_rob_tag   : '{default: '0},
+      load_pdest     : '{default: '0},
+      load_addr      : '{default: '0},
+      store_pending  : '{default: 1'b0},
+      store_sent     : '{default: 1'b0},
+      store_entry    : '{default: init_rob_entry}
   };
 
   msu_reg_type r, rin, v;
-  logic load0_accept, load1_accept;
-  logic load0_ready, load1_ready;
-  logic commit_store0_valid, commit_store1_valid;
-  logic load0_busy, load1_busy, store0_busy, store1_busy;
-  logic store0_done, store1_done;
-  logic store_slot0_free, store_slot1_free;
-  logic slot0_free_pre, slot1_free_pre;
-  logic commit_claims_slot0, commit_claims_slot1;
-  logic slot0_blocked, slot1_blocked;
+  logic load_accept       [0:1];
+  logic load_ready        [0:1];
+  logic commit_store_valid[0:1];
+  logic load_busy[0:1], store_busy[0:1];
+  logic store_done        [0:1];
+  logic store_slot_free   [0:1];
+  logic slot_free_pre     [0:1];
+  logic commit_claims_slot[0:1];
+  logic slot_blocked      [0:1];
 
   always_comb begin
     v = r;
     if (flush) begin
-      v.load0_pending = 1'b0;
-      v.load1_pending = 1'b0;
-      v.load0_sent    = 1'b0;
-      v.load1_sent    = 1'b0;
-    end
-
-    v.lsu0_in.ldata = msu_in.dmem0_out.mem_rdata;
-    v.lsu1_in.ldata = msu_in.dmem1_out.mem_rdata;
-
-    commit_store0_valid = msu_in.commit_store0 && !msu_in.commit_entry0.exception;
-    commit_store1_valid = msu_in.commit_store1 && !msu_in.commit_entry1.exception;
-
-    load0_busy  = r.load0_pending && !msu_in.dmem0_out.mem_ready;
-    load1_busy  = r.load1_pending && !msu_in.dmem1_out.mem_ready;
-    store0_busy = r.store0_pending && !msu_in.dmem0_out.mem_ready;
-    store1_busy = r.store1_pending && !msu_in.dmem1_out.mem_ready;
-    store0_done = r.store0_pending && r.store0_sent && msu_in.dmem0_out.mem_ready;
-    store1_done = r.store1_pending && r.store1_sent && msu_in.dmem1_out.mem_ready;
-
-    slot0_free_pre = !r.store0_pending || store0_done;
-    slot1_free_pre = !r.store1_pending || store1_done;
-
-    commit_claims_slot0 = 1'b0;
-    commit_claims_slot1 = 1'b0;
-    if (commit_store0_valid) begin
-      if (slot0_free_pre) begin
-        commit_claims_slot0 = 1'b1;
-      end else if (slot1_free_pre) begin
-        commit_claims_slot1 = 1'b1;
-      end
-    end
-    if (commit_store1_valid) begin
-      if (slot0_free_pre && !commit_claims_slot0) begin
-        commit_claims_slot0 = 1'b1;
-      end else if (slot1_free_pre && !commit_claims_slot1) begin
-        commit_claims_slot1 = 1'b1;
+      for (int p = 0; p < 2; p++) begin
+        v.load_pending[p] = 1'b0;
+        v.load_sent[p]    = 1'b0;
       end
     end
 
-    slot0_blocked = load0_busy || store0_busy || commit_claims_slot0;
-    slot1_blocked = load1_busy || store1_busy || commit_claims_slot1;
-
-    load0_accept = msu_in.issue0_valid && msu_in.issue0.op.load && !slot0_blocked && !flush;
-    load1_accept = msu_in.issue1_valid && msu_in.issue1.op.load && !slot1_blocked && !flush;
-    load0_ready  = r.load0_pending && !r.store0_pending && msu_in.dmem0_out.mem_ready && !flush;
-    load1_ready  = r.load1_pending && !r.store1_pending && msu_in.dmem1_out.mem_ready && !flush;
-
-    if (load0_accept && !msu_in.agu2_out.exception) begin
-      v.load0_pending      = 1'b1;
-      v.load0_sent         = 1'b0;
-      v.load0_rob_tag      = msu_in.issue0.rob_tag;
-      v.load0_pdest        = msu_in.issue0.pdest;
-      v.load0_addr         = msu_in.agu2_out.address;
-      v.lsu0_in.byteenable = msu_in.agu2_out.byteenable;
-      v.lsu0_in.lsu_op     = msu_in.issue0.lsu_op;
-    end
-    if (load1_accept && !msu_in.agu3_out.exception) begin
-      v.load1_pending      = 1'b1;
-      v.load1_sent         = 1'b0;
-      v.load1_rob_tag      = msu_in.issue1.rob_tag;
-      v.load1_pdest        = msu_in.issue1.pdest;
-      v.load1_addr         = msu_in.agu3_out.address;
-      v.lsu1_in.byteenable = msu_in.agu3_out.byteenable;
-      v.lsu1_in.lsu_op     = msu_in.issue1.lsu_op;
+    for (int p = 0; p < 2; p++) begin
+      v.lsu_in[p].ldata = msu_in.dmem_out[p].mem_rdata;
     end
 
-    if (store0_done) begin
-      v.store0_pending = 1'b0;
-      v.store0_sent    = 1'b0;
+    for (int p = 0; p < 2; p++) begin
+      commit_store_valid[p] = msu_in.commit_store[p] && !msu_in.commit_entry[p].exception;
+      load_busy[p]          = r.load_pending[p] && !msu_in.dmem_out[p].mem_ready;
+      store_busy[p]         = r.store_pending[p] && !msu_in.dmem_out[p].mem_ready;
+      store_done[p]         = r.store_pending[p] && r.store_sent[p] && msu_in.dmem_out[p].mem_ready;
+      slot_free_pre[p]      = !r.store_pending[p] || store_done[p];
     end
-    if (store1_done) begin
-      v.store1_pending = 1'b0;
-      v.store1_sent    = 1'b0;
-    end
-    store_slot0_free = !v.store0_pending;
-    store_slot1_free = !v.store1_pending;
-    if (commit_store0_valid) begin
-      if (store_slot0_free) begin
-        v.store0_pending = 1'b1;
-        v.store0_sent    = 1'b0;
-        v.store0_entry   = msu_in.commit_entry0;
-        store_slot0_free = 1'b0;
-      end else if (store_slot1_free) begin
-        v.store1_pending = 1'b1;
-        v.store1_sent    = 1'b0;
-        v.store1_entry   = msu_in.commit_entry0;
-        store_slot1_free = 1'b0;
+
+    commit_claims_slot[0] = 1'b0;
+    commit_claims_slot[1] = 1'b0;
+    for (int c = 0; c < 2; c++) begin
+      if (commit_store_valid[c]) begin
+        if (slot_free_pre[0] && !commit_claims_slot[0]) begin
+          commit_claims_slot[0] = 1'b1;
+        end else if (slot_free_pre[1] && !commit_claims_slot[1]) begin
+          commit_claims_slot[1] = 1'b1;
+        end
       end
     end
-    if (commit_store1_valid) begin
-      if (store_slot0_free) begin
-        v.store0_pending = 1'b1;
-        v.store0_sent    = 1'b0;
-        v.store0_entry   = msu_in.commit_entry1;
-        store_slot0_free = 1'b0;
-      end else if (store_slot1_free) begin
-        v.store1_pending = 1'b1;
-        v.store1_sent    = 1'b0;
-        v.store1_entry   = msu_in.commit_entry1;
-        store_slot1_free = 1'b0;
+
+    for (int p = 0; p < 2; p++) begin
+      slot_blocked[p] = load_busy[p] || store_busy[p] || commit_claims_slot[p];
+      load_accept[p] = msu_in.issue_valid[p] && msu_in.issue[p].op.load && !slot_blocked[p] &&
+          !flush;
+      load_ready[p] = r.load_pending[p] && !r.store_pending[p] && msu_in.dmem_out[p].mem_ready &&
+          !flush;
+    end
+
+    for (int p = 0; p < 2; p++) begin
+      if (load_accept[p] && !msu_in.agu_out[p].exception) begin
+        v.load_pending[p]      = 1'b1;
+        v.load_sent[p]         = 1'b0;
+        v.load_rob_tag[p]      = msu_in.issue[p].rob_tag;
+        v.load_pdest[p]        = msu_in.issue[p].pdest;
+        v.load_addr[p]         = msu_in.agu_out[p].address;
+        v.lsu_in[p].byteenable = msu_in.agu_out[p].byteenable;
+        v.lsu_in[p].lsu_op     = msu_in.issue[p].lsu_op;
       end
     end
-    if (load0_ready) begin
-      v.load0_pending = (load0_accept && !msu_in.agu2_out.exception) ? 1'b1 : 1'b0;
-      v.load0_sent    = 1'b0;
+
+    for (int p = 0; p < 2; p++) begin
+      if (store_done[p]) begin
+        v.store_pending[p] = 1'b0;
+        v.store_sent[p]    = 1'b0;
+      end
+      store_slot_free[p] = !v.store_pending[p];
     end
-    if (load1_ready) begin
-      v.load1_pending = (load1_accept && !msu_in.agu3_out.exception) ? 1'b1 : 1'b0;
-      v.load1_sent    = 1'b0;
+    for (int c = 0; c < 2; c++) begin
+      if (commit_store_valid[c]) begin
+        if (store_slot_free[0]) begin
+          v.store_pending[0] = 1'b1;
+          v.store_sent[0]    = 1'b0;
+          v.store_entry[0]   = msu_in.commit_entry[c];
+          store_slot_free[0] = 1'b0;
+        end else if (store_slot_free[1]) begin
+          v.store_pending[1] = 1'b1;
+          v.store_sent[1]    = 1'b0;
+          v.store_entry[1]   = msu_in.commit_entry[c];
+          store_slot_free[1] = 1'b0;
+        end
+      end
     end
-    v.dmem0_in = init_mem_in;
-    v.dmem1_in = init_mem_in;
-    if (v.store0_pending && !v.store0_sent) begin
-      v.dmem0_in.mem_valid = 1'b1;
-      v.dmem0_in.mem_instr = 1'b0;
-      v.dmem0_in.mem_mode  = 2'h0;
-      v.dmem0_in.mem_addr  = v.store0_entry.store_addr;
-      v.dmem0_in.mem_wdata = v.store0_entry.store_data;
-      v.dmem0_in.mem_wstrb = v.store0_entry.store_strb;
-      v.store0_sent        = 1'b1;
-    end else if (v.load0_pending && !v.load0_sent) begin
-      v.dmem0_in.mem_valid = 1'b1;
-      v.dmem0_in.mem_instr = 1'b0;
-      v.dmem0_in.mem_mode  = 2'h0;
-      v.dmem0_in.mem_addr  = v.load0_addr;
-      v.dmem0_in.mem_wdata = 32'h0;
-      v.dmem0_in.mem_wstrb = 4'h0;
-      v.load0_sent         = 1'b1;
-    end
-    if (v.store1_pending && !v.store1_sent) begin
-      v.dmem1_in.mem_valid = 1'b1;
-      v.dmem1_in.mem_instr = 1'b0;
-      v.dmem1_in.mem_mode  = 2'h0;
-      v.dmem1_in.mem_addr  = v.store1_entry.store_addr;
-      v.dmem1_in.mem_wdata = v.store1_entry.store_data;
-      v.dmem1_in.mem_wstrb = v.store1_entry.store_strb;
-      v.store1_sent        = 1'b1;
-    end else if (v.load1_pending && !v.load1_sent) begin
-      v.dmem1_in.mem_valid = 1'b1;
-      v.dmem1_in.mem_instr = 1'b0;
-      v.dmem1_in.mem_mode  = 2'h0;
-      v.dmem1_in.mem_addr  = v.load1_addr;
-      v.dmem1_in.mem_wdata = 32'h0;
-      v.dmem1_in.mem_wstrb = 4'h0;
-      v.load1_sent         = 1'b1;
+    for (int p = 0; p < 2; p++) begin
+      if (load_ready[p]) begin
+        v.load_pending[p] = (load_accept[p] && !msu_in.agu_out[p].exception) ? 1'b1 : 1'b0;
+        v.load_sent[p]    = 1'b0;
+      end
     end
 
-    v.cdb0        = init_cdb;
-    v.cdb1        = init_cdb;
-    v.rob_wtag0   = r.load0_rob_tag;
-    v.rob_wtag1   = r.load1_rob_tag;
-    v.rob_wentry0 = init_rob_entry;
-    v.rob_wentry1 = init_rob_entry;
-    v.rob_wen0    = 1'b0;
-    v.rob_wen1    = 1'b0;
-
-    if (load0_accept && msu_in.agu2_out.exception) begin
-      v.rob_wtag0             = msu_in.issue0.rob_tag;
-      v.rob_wen0              = 1'b1;
-      v.rob_wentry0.done      = 1'b1;
-      v.rob_wentry0.exception = 1'b1;
-      v.rob_wentry0.ecause    = msu_in.agu2_out.ecause;
-      v.rob_wentry0.etval     = msu_in.agu2_out.etval;
-    end else if (load0_ready) begin
-      v.cdb0.valid         = 1'b1;
-      v.cdb0.tag           = r.load0_pdest;
-      v.cdb0.data          = msu_in.lsu0_out.result;
-      v.rob_wen0           = 1'b1;
-      v.rob_wentry0.done   = 1'b1;
-      v.rob_wentry0.result = msu_in.lsu0_out.result;
+    for (int p = 0; p < 2; p++) begin
+      v.dmem_in[p] = init_mem_in;
+      if (v.store_pending[p] && !v.store_sent[p]) begin
+        v.dmem_in[p].mem_valid = 1'b1;
+        v.dmem_in[p].mem_instr = 1'b0;
+        v.dmem_in[p].mem_mode  = 2'h0;
+        v.dmem_in[p].mem_addr  = v.store_entry[p].store_addr;
+        v.dmem_in[p].mem_wdata = v.store_entry[p].store_data;
+        v.dmem_in[p].mem_wstrb = v.store_entry[p].store_strb;
+        v.store_sent[p]        = 1'b1;
+      end else if (v.load_pending[p] && !v.load_sent[p]) begin
+        v.dmem_in[p].mem_valid = 1'b1;
+        v.dmem_in[p].mem_instr = 1'b0;
+        v.dmem_in[p].mem_mode  = 2'h0;
+        v.dmem_in[p].mem_addr  = v.load_addr[p];
+        v.dmem_in[p].mem_wdata = 32'h0;
+        v.dmem_in[p].mem_wstrb = 4'h0;
+        v.load_sent[p]         = 1'b1;
+      end
     end
-    if (load1_accept && msu_in.agu3_out.exception) begin
-      v.rob_wtag1             = msu_in.issue1.rob_tag;
-      v.rob_wen1              = 1'b1;
-      v.rob_wentry1.done      = 1'b1;
-      v.rob_wentry1.exception = 1'b1;
-      v.rob_wentry1.ecause    = msu_in.agu3_out.ecause;
-      v.rob_wentry1.etval     = msu_in.agu3_out.etval;
-    end else if (load1_ready) begin
-      v.cdb1.valid         = 1'b1;
-      v.cdb1.tag           = r.load1_pdest;
-      v.cdb1.data          = msu_in.lsu1_out.result;
-      v.rob_wen1           = 1'b1;
-      v.rob_wentry1.done   = 1'b1;
-      v.rob_wentry1.result = msu_in.lsu1_out.result;
+
+    for (int p = 0; p < 2; p++) begin
+      v.cdb[p]        = init_cdb;
+      v.rob_wtag[p]   = r.load_rob_tag[p];
+      v.rob_wentry[p] = init_rob_entry;
+      v.rob_wen[p]    = 1'b0;
+
+      if (load_accept[p] && msu_in.agu_out[p].exception) begin
+        v.rob_wtag[p]             = msu_in.issue[p].rob_tag;
+        v.rob_wen[p]              = 1'b1;
+        v.rob_wentry[p].done      = 1'b1;
+        v.rob_wentry[p].exception = 1'b1;
+        v.rob_wentry[p].ecause    = msu_in.agu_out[p].ecause;
+        v.rob_wentry[p].etval     = msu_in.agu_out[p].etval;
+      end else if (load_ready[p]) begin
+        v.cdb[p].valid         = 1'b1;
+        v.cdb[p].tag           = r.load_pdest[p];
+        v.cdb[p].data          = msu_in.lsu_out[p].result;
+        v.rob_wen[p]           = 1'b1;
+        v.rob_wentry[p].done   = 1'b1;
+        v.rob_wentry[p].result = msu_in.lsu_out[p].result;
+      end
     end
 
     rin = v;
 
-    msu_out.cdb0 = r.cdb0;
-    msu_out.cdb1 = r.cdb1;
-    msu_out.rob_wtag0 = r.rob_wtag0;
-    msu_out.rob_wentry0 = r.rob_wentry0;
-    msu_out.rob_wen0 = r.rob_wen0;
-    msu_out.rob_wtag1 = r.rob_wtag1;
-    msu_out.rob_wentry1 = r.rob_wentry1;
-    msu_out.rob_wen1 = r.rob_wen1;
-    msu_out.load_busy = {slot1_blocked, slot0_blocked};
-    msu_out.store_ready = !(r.store0_pending || r.store1_pending) &&
-        !(msu_in.commit_store0 || msu_in.commit_store1);
-    msu_out.dmem1_in = v.dmem1_in;
-    msu_out.lsu1_in = v.lsu1_in;
-    msu_out.dmem0_in = v.dmem0_in;
-    msu_out.lsu0_in = v.lsu0_in;
-    if (load0_ready) begin
-      msu_out.lsu0_in.byteenable = r.lsu0_in.byteenable;
-      msu_out.lsu0_in.lsu_op     = r.lsu0_in.lsu_op;
+    for (int p = 0; p < 2; p++) begin
+      msu_out.cdb[p]        = r.cdb[p];
+      msu_out.rob_wtag[p]   = r.rob_wtag[p];
+      msu_out.rob_wentry[p] = r.rob_wentry[p];
+      msu_out.rob_wen[p]    = r.rob_wen[p];
+      msu_out.dmem_in[p]    = v.dmem_in[p];
+      msu_out.lsu_in[p]     = v.lsu_in[p];
+      if (load_ready[p]) begin
+        msu_out.lsu_in[p].byteenable = r.lsu_in[p].byteenable;
+        msu_out.lsu_in[p].lsu_op     = r.lsu_in[p].lsu_op;
+      end
     end
-    if (load1_ready) begin
-      msu_out.lsu1_in.byteenable = r.lsu1_in.byteenable;
-      msu_out.lsu1_in.lsu_op     = r.lsu1_in.lsu_op;
-    end
+    msu_out.load_busy = {slot_blocked[1], slot_blocked[0]};
+    msu_out.store_ready = !(r.store_pending[0] || r.store_pending[1]) &&
+        !(msu_in.commit_store[0] || msu_in.commit_store[1]);
   end
 
   always_ff @(posedge clock) begin

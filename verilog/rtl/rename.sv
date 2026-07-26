@@ -12,243 +12,219 @@ module rename (
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
-    logic                     i0_is_mem;
-    logic                     i1_is_mem;
-    logic                     need_fl0;
-    logic                     need_fl1;
-    logic                     rs0_ok;
-    logic                     rs1_ok;
-    logic                     can_dispatch0;
-    logic                     can_dispatch1;
-    logic                     stall;
-    logic [PRF_ADDR_BITS-1:0] pdest0;
-    logic [PRF_ADDR_BITS-1:0] pdest1;
-    rs_entry_type             e0;
-    rs_entry_type             e1;
-    rs_entry_type             em0;
-    rs_entry_type             em1;
-    rename_out_type           rename_out;
+    logic [0:0]               is_mem;
+    logic [0:0]               need_fl;
+    logic [0:0]               rs_ok;
+    logic [0:0]               fl_ok;
+    logic [0:0]               can_dispatch;
+    logic [PRF_ADDR_BITS-1:0] pdest;
+    rs_entry_type             e;
+    rs_entry_type             em;
+  } lane_type;
+
+  typedef struct packed {
+    logic           rob_ok;
+    logic           int_room_ok;
+    logic           stall;
+    lane_type [3:0] l;
+    rename_out_type rename_out;
   } rename_reg_type;
 
   rename_reg_type v;
   cdb_type        cdb_load_any;
 
+  instruction_type                     instr      [0:3];
+  logic            [              0:0] instr_valid[0:3];
+  logic            [ROB_ADDR_BITS-1:0] rob_tag    [0:3];
+
+  logic [PRF_ADDR_BITS-1:0] psrc_arr      [0:7];
+  logic [              0:0] psrc_valid_arr[0:7];
+  logic [             31:0] prf_rdata_arr [0:7];
+  logic [              0:0] prf_rvalid_arr[0:7];
+
+  logic [PRF_ADDR_BITS-1:0] fl_tag_arr[0:3];
+  logic [              0:0] fl_ok_arr [0:3];
+
+  logic [0:0] can_dispatch_final[0:3];
+
+  lane_type lanes    [0:3];
+  int       fl_count;
+  int       fl_idx;
+
   always_comb begin
     v            = '0;
     v.rename_out = '0;
-    cdb_load_any = rename_in.cdb_load0.valid ? rename_in.cdb_load0 : rename_in.cdb_load1;
+    cdb_load_any = rename_in.cdb_load[0].valid ? rename_in.cdb_load[0] : rename_in.cdb_load[1];
 
-    v.i0_is_mem = rename_in.instr0.op.load | rename_in.instr0.op.store;
-    v.i1_is_mem = rename_in.instr1.op.load | rename_in.instr1.op.store;
-    v.need_fl0 = rename_in.instr0_valid && rename_in.instr0.op.wren &&
-        (rename_in.instr0.waddr != 5'h0);
-    v.need_fl1 = rename_in.instr1_valid && rename_in.instr1.op.wren &&
-        (rename_in.instr1.waddr != 5'h0);
-    v.rs0_ok = rename_in.instr0_valid ?
-        (v.i0_is_mem ? !rename_in.rs_mem_full : !rename_in.rs_int_full) : 1'b1;
-    if (rename_in.instr1_valid) begin
-      if (v.i1_is_mem) begin
-        v.rs1_ok = (rename_in.instr0_valid && v.i0_is_mem) ? rename_in.rs_mem_has_two :
-            !rename_in.rs_mem_full;
-      end else begin
-        v.rs1_ok = (rename_in.instr0_valid && !v.i0_is_mem) ? rename_in.rs_int_has_two :
-            !rename_in.rs_int_full;
+    for (int i = 0; i < 4; i++) begin
+      instr[i]       = rename_in.instr[i];
+      instr_valid[i] = rename_in.instr_valid[i];
+      rob_tag[i]     = rename_in.rob_tag[i];
+    end
+
+    for (int i = 0; i < 8; i++) begin
+      psrc_arr[i]       = rename_in.rat.psrc[i];
+      psrc_valid_arr[i] = rename_in.rat.psrc_valid[i];
+      prf_rdata_arr[i]  = rename_in.prf.rdata[i];
+      prf_rvalid_arr[i] = rename_in.prf.rvalid[i];
+    end
+
+    for (int i = 0; i < 4; i++) begin
+      fl_tag_arr[i] = rename_in.fl.alloc_tag[i];
+      fl_ok_arr[i]  = rename_in.fl.alloc_ok[i];
+    end
+
+    v.rob_ok      = rename_in.rob_alloc_ok[0];
+    v.int_room_ok = rename_in.rs_int_alloc_ok[0];
+
+    begin
+      fl_count = 0;
+
+      for (int i = 0; i < 4; i++) begin
+        lanes[i]         = '0;
+        lanes[i].is_mem  = instr_valid[i] && (instr[i].op.load || instr[i].op.store);
+        lanes[i].need_fl = instr_valid[i] && instr[i].op.wren && (instr[i].waddr != 5'h0);
+
+        if (lanes[i].is_mem) begin
+          lanes[i].rs_ok = rename_in.rs_mem_alloc_ok[0];
+        end else begin
+          lanes[i].rs_ok = v.int_room_ok;
+        end
+
+        if (lanes[i].need_fl) begin
+          lanes[i].fl_ok = fl_ok_arr[fl_count];
+          fl_count       = fl_count + 1;
+        end else begin
+          lanes[i].fl_ok = 1'b1;
+        end
       end
-    end else begin
-      v.rs1_ok = 1'b1;
+
+      lanes[0].can_dispatch = instr_valid[0] && v.rob_ok && lanes[0].rs_ok && lanes[0].fl_ok &&
+          !flush;
+      for (int i = 1; i < 4; i++) begin
+        lanes[i].can_dispatch = instr_valid[i] && lanes[i-1].can_dispatch && v.rob_ok &&
+            lanes[i].rs_ok && lanes[i].fl_ok && !flush;
+      end
+
+      v.stall = 1'b0;
+      for (int i = 0; i < 4; i++) begin
+        if (instr_valid[i] && !lanes[i].can_dispatch) begin
+          v.stall = 1'b1;
+        end
+      end
+
+      for (int i = 0; i < 4; i++) begin
+        can_dispatch_final[i] = v.stall ? 1'b0 : lanes[i].can_dispatch;
+      end
+
+      begin
+        fl_idx = 0;
+        for (int i = 0; i < 4; i++) begin
+          if (lanes[i].need_fl) begin
+            lanes[i].pdest = fl_tag_arr[fl_idx];
+            fl_idx         = fl_idx + 1;
+          end else begin
+            lanes[i].pdest = PRF_ADDR_BITS'(0);
+          end
+        end
+      end
+
+      for (int i = 0; i < 4; i++) begin
+        lanes[i].e = init_rs_entry;
+        lanes[i].e.valid = can_dispatch_final[i] && !lanes[i].is_mem;
+        lanes[i].e.psrc1 = psrc_arr[2*i];
+        lanes[i].e.psrc2 = psrc_arr[2*i+1];
+        lanes[i].e.src1_ready = !instr[i].op.rden1 || src_ready(
+            psrc_arr[2*i], psrc_valid_arr[2*i] && prf_rvalid_arr[2*i], rename_in.cdb, cdb_load_any);
+        lanes[i].e.src2_ready = !instr[i].op.rden2 || src_ready(
+          psrc_arr[2*i+1],
+          psrc_valid_arr[2*i+1] && prf_rvalid_arr[2*i+1],
+          rename_in.cdb,
+          cdb_load_any
+        );
+        lanes[i].e.rdata1 = instr[i].op.rden1 ? prf_or_cdb(
+          psrc_arr[2*i],
+          psrc_valid_arr[2*i] && prf_rvalid_arr[2*i],
+          prf_rdata_arr[2*i],
+          rename_in.cdb,
+          cdb_load_any
+        ) : 32'h0;
+        lanes[i].e.rdata2 = instr[i].op.rden2 ? prf_or_cdb(
+          psrc_arr[2*i+1],
+          psrc_valid_arr[2*i+1] && prf_rvalid_arr[2*i+1],
+          prf_rdata_arr[2*i+1],
+          rename_in.cdb,
+          cdb_load_any
+        ) : 32'h0;
+        lanes[i].e.pdest = lanes[i].pdest;
+        lanes[i].e.rob_tag = rob_tag[i];
+        lanes[i].e.imm = instr[i].imm;
+        lanes[i].e.pc = instr[i].pc;
+        lanes[i].e.npc = instr[i].npc;
+        lanes[i].e.caddr = instr[i].caddr;
+        lanes[i].e.op = instr[i].op;
+        lanes[i].e.alu_op = instr[i].alu_op;
+        lanes[i].e.bcu_op = instr[i].bcu_op;
+        lanes[i].e.lsu_op = instr[i].lsu_op;
+        lanes[i].e.csr_op = instr[i].csr_op;
+        lanes[i].e.div_op = instr[i].div_op;
+        lanes[i].e.mul_op = instr[i].mul_op;
+        lanes[i].e.bit_op = instr[i].bit_op;
+
+        lanes[i].em       = lanes[i].e;
+        lanes[i].em.valid = can_dispatch_final[i] && lanes[i].is_mem;
+      end
+
+      for (int i = 0; i < 4; i++) begin
+        v.l[i] = lanes[i];
+      end
     end
-    v.can_dispatch0 = rename_in.instr0_valid && !rename_in.rob_full &&
-        (!v.need_fl0 || rename_in.fl.alloc_ok0) && v.rs0_ok && !flush;
-    v.can_dispatch1 = rename_in.instr1_valid && v.can_dispatch0 && rename_in.rob_has_two &&
-        (!v.need_fl1 || (v.need_fl0 ? rename_in.fl.alloc_ok1 : rename_in.fl.alloc_ok0)) &&
-        v.rs1_ok && !flush;
-    v.stall = (rename_in.instr0_valid && !v.can_dispatch0) ||
-        (rename_in.instr1_valid && !v.can_dispatch1);
-    if (v.stall) begin
-      v.can_dispatch0 = 1'b0;
-      v.can_dispatch1 = 1'b0;
-    end
-    v.pdest0 = v.need_fl0 ? rename_in.fl.alloc_tag0 : PRF_ADDR_BITS'(0);
-    v.pdest1 = v.need_fl1 ? (v.need_fl0 ? rename_in.fl.alloc_tag1 : rename_in.fl.alloc_tag0) :
-        PRF_ADDR_BITS'(0);
 
     v.rename_out.stall = v.stall;
-    v.rename_out.fl.alloc0 = v.can_dispatch0 && v.need_fl0;
-    v.rename_out.fl.alloc1 = v.can_dispatch1 && v.need_fl1;
-    v.rename_out.rat.rsrc0_a = rename_in.instr0.op.rden1 ? rename_in.instr0.raddr1 : 5'h0;
-    v.rename_out.rat.rsrc1_a = rename_in.instr0.op.rden2 ? rename_in.instr0.raddr2 : 5'h0;
-    v.rename_out.rat.rsrc2_a = rename_in.instr1.op.rden1 ? rename_in.instr1.raddr1 : 5'h0;
-    v.rename_out.rat.rsrc3_a = rename_in.instr1.op.rden2 ? rename_in.instr1.raddr2 : 5'h0;
-    v.rename_out.rat.waddr0_a = rename_in.instr0.waddr;
-    v.rename_out.rat.waddr0_p = v.pdest0;
-    v.rename_out.rat.wren0 = v.can_dispatch0 && rename_in.instr0.op.wren &&
-        (rename_in.instr0.waddr != 5'h0);
-    v.rename_out.rat.waddr1_a = rename_in.instr1.waddr;
-    v.rename_out.rat.waddr1_p = v.pdest1;
-    v.rename_out.rat.wren1 = v.can_dispatch1 && rename_in.instr1.op.wren &&
-        (rename_in.instr1.waddr != 5'h0);
-    v.rename_out.rob_alloc0 = v.can_dispatch0;
-    v.rename_out.rob_alloc1 = v.can_dispatch1;
 
-    v.e0 = init_rs_entry;
-    v.e0.valid = v.can_dispatch0 && !v.i0_is_mem;
-    v.e0.psrc1 = rename_in.rat.psrc0;
-    v.e0.psrc2 = rename_in.rat.psrc1;
-    v.e0.src1_ready = !rename_in.instr0.op.rden1 || src_ready(
-      rename_in.rat.psrc0,
-      rename_in.rat.psrc0_valid && rename_in.prf.rvalid0,
-      rename_in.cdb0,
-      rename_in.cdb1,
-      cdb_load_any
-    );
-    v.e0.src2_ready = !rename_in.instr0.op.rden2 || src_ready(
-      rename_in.rat.psrc1,
-      rename_in.rat.psrc1_valid && rename_in.prf.rvalid1,
-      rename_in.cdb0,
-      rename_in.cdb1,
-      cdb_load_any
-    );
-    v.e0.rdata1 = rename_in.instr0.op.rden1 ? prf_or_cdb(
-      rename_in.rat.psrc0,
-      rename_in.rat.psrc0_valid && rename_in.prf.rvalid0,
-      rename_in.prf.rdata0,
-      rename_in.cdb0,
-      rename_in.cdb1,
-      cdb_load_any
-    ) : 32'h0;
-    v.e0.rdata2 = rename_in.instr0.op.rden2 ? prf_or_cdb(
-      rename_in.rat.psrc1,
-      rename_in.rat.psrc1_valid && rename_in.prf.rvalid1,
-      rename_in.prf.rdata1,
-      rename_in.cdb0,
-      rename_in.cdb1,
-      cdb_load_any
-    ) : 32'h0;
-    v.e0.pdest = v.pdest0;
-    v.e0.rob_tag = rename_in.rob_tag0;
-    v.e0.imm = rename_in.instr0.imm;
-    v.e0.pc = rename_in.instr0.pc;
-    v.e0.npc = rename_in.instr0.npc;
-    v.e0.caddr = rename_in.instr0.caddr;
-    v.e0.op = rename_in.instr0.op;
-    v.e0.alu_op = rename_in.instr0.alu_op;
-    v.e0.bcu_op = rename_in.instr0.bcu_op;
-    v.e0.lsu_op = rename_in.instr0.lsu_op;
-    v.e0.csr_op = rename_in.instr0.csr_op;
-    v.e0.div_op = rename_in.instr0.div_op;
-    v.e0.mul_op = rename_in.instr0.mul_op;
-    v.e0.bit_op = rename_in.instr0.bit_op;
+    for (int i = 0; i < 4; i++) begin
+      v.rename_out.fl.alloc[i] = can_dispatch_final[i] && v.l[i].need_fl;
 
-    v.e1 = init_rs_entry;
-    v.e1.valid = v.can_dispatch1 && !v.i1_is_mem;
-    v.e1.psrc1 = rename_in.rat.psrc2;
-    v.e1.psrc2 = rename_in.rat.psrc3;
-    v.e1.src1_ready = !rename_in.instr1.op.rden1 || src_ready(
-      rename_in.rat.psrc2,
-      rename_in.rat.psrc2_valid && rename_in.prf.rvalid2,
-      rename_in.cdb0,
-      rename_in.cdb1,
-      cdb_load_any
-    );
-    v.e1.src2_ready = !rename_in.instr1.op.rden2 || src_ready(
-      rename_in.rat.psrc3,
-      rename_in.rat.psrc3_valid && rename_in.prf.rvalid3,
-      rename_in.cdb0,
-      rename_in.cdb1,
-      cdb_load_any
-    );
-    v.e1.rdata1 = rename_in.instr1.op.rden1 ? prf_or_cdb(
-      rename_in.rat.psrc2,
-      rename_in.rat.psrc2_valid && rename_in.prf.rvalid2,
-      rename_in.prf.rdata2,
-      rename_in.cdb0,
-      rename_in.cdb1,
-      cdb_load_any
-    ) : 32'h0;
-    v.e1.rdata2 = rename_in.instr1.op.rden2 ? prf_or_cdb(
-      rename_in.rat.psrc3,
-      rename_in.rat.psrc3_valid && rename_in.prf.rvalid3,
-      rename_in.prf.rdata3,
-      rename_in.cdb0,
-      rename_in.cdb1,
-      cdb_load_any
-    ) : 32'h0;
-    v.e1.pdest = v.pdest1;
-    v.e1.rob_tag = rename_in.rob_tag1;
-    v.e1.imm = rename_in.instr1.imm;
-    v.e1.pc = rename_in.instr1.pc;
-    v.e1.npc = rename_in.instr1.npc;
-    v.e1.caddr = rename_in.instr1.caddr;
-    v.e1.op = rename_in.instr1.op;
-    v.e1.alu_op = rename_in.instr1.alu_op;
-    v.e1.bcu_op = rename_in.instr1.bcu_op;
-    v.e1.lsu_op = rename_in.instr1.lsu_op;
-    v.e1.csr_op = rename_in.instr1.csr_op;
-    v.e1.div_op = rename_in.instr1.div_op;
-    v.e1.mul_op = rename_in.instr1.mul_op;
-    v.e1.bit_op = rename_in.instr1.bit_op;
+      v.rename_out.rat.rsrc_a[2*i]   = instr[i].op.rden1 ? instr[i].raddr1 : 5'h0;
+      v.rename_out.rat.rsrc_a[2*i+1] = instr[i].op.rden2 ? instr[i].raddr2 : 5'h0;
 
-    v.em0       = v.e0;
-    v.em0.valid = v.can_dispatch0 && v.i0_is_mem;
-    v.em1       = v.e1;
-    v.em1.valid = v.can_dispatch1 && v.i1_is_mem;
+      v.rename_out.rat.waddr_a[i] = instr[i].waddr;
+      v.rename_out.rat.waddr_p[i] = v.l[i].pdest;
+      v.rename_out.rat.wren[i] = can_dispatch_final[i] && instr[i].op.wren &&
+          (instr[i].waddr != 5'h0);
 
-    v.rename_out.rs_int_alloc0 = v.e0.valid;
-    v.rename_out.rs_int_entry0 = v.e0;
-    v.rename_out.rs_int_alloc1 = v.e1.valid;
-    v.rename_out.rs_int_entry1 = v.e1;
-    v.rename_out.rs_mem_alloc0 = v.em0.valid;
-    v.rename_out.rs_mem_entry0 = v.em0;
-    v.rename_out.rs_mem_alloc1 = v.em1.valid;
-    v.rename_out.rs_mem_entry1 = v.em1;
+      v.rename_out.rob_alloc[i] = can_dispatch_final[i];
 
-    v.rename_out.rob_entry0 = init_rob_entry;
-    v.rename_out.rob_entry0.valid = 1'b1;
-    v.rename_out.rob_entry0.pc = rename_in.instr0.pc;
-    v.rename_out.rob_entry0.npc = rename_in.instr0.npc;
-    v.rename_out.rob_entry0.pnpc = rename_in.instr0.npc;
-    v.rename_out.rob_entry0.pred = rename_in.instr0.pred;
-    v.rename_out.rob_entry0.pdest = v.pdest0;
-    v.rename_out.rob_entry0.adest = rename_in.instr0.waddr;
-    v.rename_out.rob_entry0.wren = rename_in.instr0.op.wren && (rename_in.instr0.waddr != 5'h0);
-    v.rename_out.rob_entry0.old_pdest = rename_in.rat.old_pdest0;
-    v.rename_out.rob_entry0.store = rename_in.instr0.op.store;
-    v.rename_out.rob_entry0.load = rename_in.instr0.op.load;
-    v.rename_out.rob_entry0.lsu_op = rename_in.instr0.lsu_op;
-    v.rename_out.rob_entry0.branch = rename_in.instr0.op.branch;
-    v.rename_out.rob_entry0.jump = rename_in.instr0.op.jal | rename_in.instr0.op.jalr;
-    v.rename_out.rob_entry0.mret = rename_in.instr0.op.mret;
-    v.rename_out.rob_entry0.fence = rename_in.instr0.op.fence;
-    v.rename_out.rob_entry0.ecall = rename_in.instr0.op.ecall;
-    v.rename_out.rob_entry0.ebreak = rename_in.instr0.op.ebreak;
-    v.rename_out.rob_entry0.wfi = rename_in.instr0.op.wfi;
-    v.rename_out.rob_entry0.csreg = rename_in.instr0.op.csreg;
-    v.rename_out.rob_entry0.cwren = rename_in.instr0.op.cwren;
-    v.rename_out.rob_entry0.caddr = rename_in.instr0.caddr;
+      v.rename_out.rs_int_entry[i] = v.l[i].e;
+      v.rename_out.rs_int_alloc[i] = v.l[i].e.valid;
 
-    v.rename_out.rob_entry1 = init_rob_entry;
-    v.rename_out.rob_entry1.valid = 1'b1;
-    v.rename_out.rob_entry1.pc = rename_in.instr1.pc;
-    v.rename_out.rob_entry1.npc = rename_in.instr1.npc;
-    v.rename_out.rob_entry1.pnpc = rename_in.instr1.npc;
-    v.rename_out.rob_entry1.pred = rename_in.instr1.pred;
-    v.rename_out.rob_entry1.pdest = v.pdest1;
-    v.rename_out.rob_entry1.adest = rename_in.instr1.waddr;
-    v.rename_out.rob_entry1.wren = rename_in.instr1.op.wren && (rename_in.instr1.waddr != 5'h0);
-    v.rename_out.rob_entry1.old_pdest = rename_in.rat.old_pdest1;
-    v.rename_out.rob_entry1.store = rename_in.instr1.op.store;
-    v.rename_out.rob_entry1.load = rename_in.instr1.op.load;
-    v.rename_out.rob_entry1.lsu_op = rename_in.instr1.lsu_op;
-    v.rename_out.rob_entry1.branch = rename_in.instr1.op.branch;
-    v.rename_out.rob_entry1.jump = rename_in.instr1.op.jal | rename_in.instr1.op.jalr;
-    v.rename_out.rob_entry1.mret = rename_in.instr1.op.mret;
-    v.rename_out.rob_entry1.fence = rename_in.instr1.op.fence;
-    v.rename_out.rob_entry1.ecall = rename_in.instr1.op.ecall;
-    v.rename_out.rob_entry1.ebreak = rename_in.instr1.op.ebreak;
-    v.rename_out.rob_entry1.wfi = rename_in.instr1.op.wfi;
-    v.rename_out.rob_entry1.csreg = rename_in.instr1.op.csreg;
-    v.rename_out.rob_entry1.cwren = rename_in.instr1.op.cwren;
-    v.rename_out.rob_entry1.caddr = rename_in.instr1.caddr;
+      v.rename_out.rs_mem_entry[i] = v.l[i].em;
+      v.rename_out.rs_mem_alloc[i] = v.l[i].em.valid;
+
+      v.rename_out.rob_entry[i]           = init_rob_entry;
+      v.rename_out.rob_entry[i].valid     = 1'b1;
+      v.rename_out.rob_entry[i].pc        = instr[i].pc;
+      v.rename_out.rob_entry[i].npc       = instr[i].npc;
+      v.rename_out.rob_entry[i].pnpc      = instr[i].npc;
+      v.rename_out.rob_entry[i].pred      = instr[i].pred;
+      v.rename_out.rob_entry[i].pdest     = v.l[i].pdest;
+      v.rename_out.rob_entry[i].adest     = instr[i].waddr;
+      v.rename_out.rob_entry[i].wren      = instr[i].op.wren && (instr[i].waddr != 5'h0);
+      v.rename_out.rob_entry[i].old_pdest = rename_in.rat.old_pdest[i];
+      v.rename_out.rob_entry[i].store     = instr[i].op.store;
+      v.rename_out.rob_entry[i].load      = instr[i].op.load;
+      v.rename_out.rob_entry[i].lsu_op    = instr[i].lsu_op;
+      v.rename_out.rob_entry[i].branch    = instr[i].op.branch;
+      v.rename_out.rob_entry[i].jump      = instr[i].op.jal | instr[i].op.jalr;
+      v.rename_out.rob_entry[i].mret      = instr[i].op.mret;
+      v.rename_out.rob_entry[i].fence     = instr[i].op.fence;
+      v.rename_out.rob_entry[i].ecall     = instr[i].op.ecall;
+      v.rename_out.rob_entry[i].ebreak    = instr[i].op.ebreak;
+      v.rename_out.rob_entry[i].wfi       = instr[i].op.wfi;
+      v.rename_out.rob_entry[i].csreg     = instr[i].op.csreg;
+      v.rename_out.rob_entry[i].cwren     = instr[i].op.cwren;
+      v.rename_out.rob_entry[i].caddr     = instr[i].caddr;
+    end
 
     rename_out = v.rename_out;
   end

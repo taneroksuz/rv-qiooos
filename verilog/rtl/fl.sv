@@ -29,80 +29,72 @@ module fl (
 
   logic [PRF_ADDR_BITS-1:0] list[0:FLIST_DEPTH-1];
   fl_reg_type r, rin, v;
-  logic do_free0, do_free1;
-  logic [FL_IDX_BITS-1:0] free0_slot, free1_slot;
-  logic [FL_IDX_BITS-1:0] alloc_slot0, alloc_slot1;
-  logic [FL_CNT_BITS-1:0] spec_head_p1;
+  logic [              3:0] do_free;
+  logic [  FL_IDX_BITS-1:0] free_slot   [0:3];
+  logic [  FL_IDX_BITS-1:0] alloc_slot  [0:3];
+  logic [  FL_CNT_BITS-1:0] spec_head_pn[0:3];
+  logic [              0:0] free_en     [0:3];
+  logic [PRF_ADDR_BITS-1:0] free_tag    [0:3];
 
   always_comb begin
-    v          = r;
-    do_free0   = 1'b0;
-    do_free1   = 1'b0;
-    free0_slot = '0;
-    free1_slot = '0;
+    v       = r;
+    do_free = '0;
 
-    alloc_slot0  = r.spec_head[FL_IDX_BITS-1:0];
-    spec_head_p1 = r.spec_head + FL_CNT_BITS'(1);
-    alloc_slot1  = spec_head_p1[FL_IDX_BITS-1:0];
+    for (int i = 0; i < 4; i++) begin
+      free_en[i]  = fl_in.free_en[i];
+      free_tag[i] = fl_in.free_tag[i];
+    end
+
+    for (int i = 0; i < 4; i++) begin
+      free_slot[i] = '0;
+    end
+
+    for (int i = 0; i < 4; i++) begin
+      spec_head_pn[i] = r.spec_head + FL_CNT_BITS'(i);
+      alloc_slot[i]   = spec_head_pn[i][FL_IDX_BITS-1:0];
+    end
 
     fl_out = '0;
-    fl_out.alloc_tag0 = r.list_written[alloc_slot0] ?
-        list[alloc_slot0] : (PRF_ADDR_BITS'(ARCH_REGS) + PRF_ADDR_BITS'(alloc_slot0));
-    fl_out.alloc_tag1 = r.list_written[alloc_slot1] ?
-        list[alloc_slot1] : (PRF_ADDR_BITS'(ARCH_REGS) + PRF_ADDR_BITS'(alloc_slot1));
-    fl_out.alloc_ok0 = (r.spec_count >= 1);
-    fl_out.alloc_ok1 = (r.spec_count >= 2);
-    fl_out.empty = (r.spec_count == '0);
-    fl_out.has_two = fl_out.alloc_ok1;
+    for (int i = 0; i < 4; i++) begin
+      fl_out.alloc_tag[i] = r.list_written[alloc_slot[i]] ?
+          list[alloc_slot[i]] : (PRF_ADDR_BITS'(ARCH_REGS) + PRF_ADDR_BITS'(alloc_slot[i]));
+      fl_out.alloc_ok[i] = (r.spec_count >= FL_CNT_BITS'(i + 1));
+    end
+    fl_out.empty   = (r.spec_count == '0);
+    fl_out.has_two = fl_out.alloc_ok[1];
 
     if (flush) begin
       v.spec_head  = r.comm_head;
       v.comm_head  = r.comm_head;
       v.spec_count = r.comm_count;
 
-      if (fl_in.free_en0) begin
-        do_free0                   = 1'b1;
-        free0_slot                 = v.tail[FL_IDX_BITS-1:0];
-        v.tail                     = v.tail + 1'b1;
-        v.spec_head                = v.spec_head + 1'b1;
-        v.comm_head                = v.comm_head + 1'b1;
-        v.list_written[free0_slot] = 1'b1;
-      end
-
-      if (fl_in.free_en1) begin
-        do_free1                   = 1'b1;
-        free1_slot                 = v.tail[FL_IDX_BITS-1:0];
-        v.tail                     = v.tail + 1'b1;
-        v.spec_head                = v.spec_head + 1'b1;
-        v.comm_head                = v.comm_head + 1'b1;
-        v.list_written[free1_slot] = 1'b1;
+      for (int i = 0; i < 4; i++) begin
+        if (free_en[i]) begin
+          do_free[i]                   = 1'b1;
+          free_slot[i]                 = v.tail[FL_IDX_BITS-1:0];
+          v.tail                       = v.tail + 1'b1;
+          v.spec_head                  = v.spec_head + 1'b1;
+          v.comm_head                  = v.comm_head + 1'b1;
+          v.list_written[free_slot[i]] = 1'b1;
+        end
       end
     end else begin
-      if (fl_in.free_en0 && (v.spec_count < FL_CNT_BITS'(FLIST_DEPTH))) begin
-        do_free0                   = 1'b1;
-        free0_slot                 = v.tail[FL_IDX_BITS-1:0];
-        v.tail                     = v.tail + 1'b1;
-        v.spec_count               = v.spec_count + 1'b1;
-        v.comm_head                = v.comm_head + 1'b1;
-        v.list_written[free0_slot] = 1'b1;
+      for (int i = 0; i < 4; i++) begin
+        if (free_en[i] && (v.spec_count < FL_CNT_BITS'(FLIST_DEPTH))) begin
+          do_free[i]                   = 1'b1;
+          free_slot[i]                 = v.tail[FL_IDX_BITS-1:0];
+          v.tail                       = v.tail + 1'b1;
+          v.spec_count                 = v.spec_count + 1'b1;
+          v.comm_head                  = v.comm_head + 1'b1;
+          v.list_written[free_slot[i]] = 1'b1;
+        end
       end
 
-      if (fl_in.free_en1 && (v.spec_count < FL_CNT_BITS'(FLIST_DEPTH))) begin
-        do_free1                   = 1'b1;
-        free1_slot                 = v.tail[FL_IDX_BITS-1:0];
-        v.tail                     = v.tail + 1'b1;
-        v.spec_count               = v.spec_count + 1'b1;
-        v.comm_head                = v.comm_head + 1'b1;
-        v.list_written[free1_slot] = 1'b1;
-      end
-
-      if (fl_in.alloc0 && (v.spec_count >= 1)) begin
-        v.spec_head  = v.spec_head + 1'b1;
-        v.spec_count = v.spec_count - 1'b1;
-      end
-      if (fl_in.alloc1 && (v.spec_count >= 1)) begin
-        v.spec_head  = v.spec_head + 1'b1;
-        v.spec_count = v.spec_count - 1'b1;
+      for (int i = 0; i < 4; i++) begin
+        if (fl_in.alloc[i] && (v.spec_count >= 1)) begin
+          v.spec_head  = v.spec_head + 1'b1;
+          v.spec_count = v.spec_count - 1'b1;
+        end
       end
     end
     rin = v;
@@ -118,11 +110,10 @@ module fl (
 
   always_ff @(posedge clock) begin
     if (reset != 0) begin
-      if (do_free0) begin
-        list[free0_slot] <= fl_in.free_tag0;
-      end
-      if (do_free1) begin
-        list[free1_slot] <= fl_in.free_tag1;
+      for (int i = 0; i < 4; i++) begin
+        if (do_free[i]) begin
+          list[free_slot[i]] <= free_tag[i];
+        end
       end
     end
   end

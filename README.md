@@ -1,6 +1,6 @@
-# RV-DIOOOS (RISC-V Dual-Issue Out-Of-Order Superscalar)
+# RV-QIOOOS (RISC-V Quad-Issue Out-Of-Order Superscalar)
 
-This cpu is 8-stage dual-issue out-of-order superscalar processor.
+This cpu is 8-stage quad-issue out-of-order superscalar processor.
 
 ## SPECIFICATIONS
 

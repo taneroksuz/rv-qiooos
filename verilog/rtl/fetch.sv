@@ -22,44 +22,44 @@ module fetch (
     v.valid = 0;
     v.stall = fetch_in.buffer_out.stall;
 
-    v.flush = fetch_in.btac_out.pred_miss0 | fetch_in.btac_out.pred_miss1;
-    v.flush = v.flush | fetch_in.btac_out.pred0.taken | fetch_in.btac_out.pred1.taken;
+    v.flush = fetch_in.btac_out.pred_miss[0] | fetch_in.btac_out.pred_miss[1] |
+        fetch_in.btac_out.pred_miss[2] | fetch_in.btac_out.pred_miss[3];
+    v.flush = v.flush | fetch_in.btac_out.pred[0].taken | fetch_in.btac_out.pred[1].taken |
+        fetch_in.btac_out.pred[2].taken | fetch_in.btac_out.pred[3].taken;
     v.flush = v.flush | fetch_in.csr_out.trap | fetch_in.csr_out.mret;
 
-    if (fetch_in.imem0_out.mem_ready == 1) begin
-      v.irdata0 = fetch_in.imem0_out.mem_rdata;
-      v.iready0 = fetch_in.imem0_out.mem_ready;
+    if (fetch_in.imem_out[0].mem_ready == 1) begin
+      v.irdata[0] = fetch_in.imem_out[0].mem_rdata;
+      v.iready[0] = fetch_in.imem_out[0].mem_ready;
     end
 
-    if (fetch_in.imem1_out.mem_ready == 1) begin
-      v.irdata1 = fetch_in.imem1_out.mem_rdata;
-      v.iready1 = fetch_in.imem1_out.mem_ready;
+    if (fetch_in.imem_out[1].mem_ready == 1) begin
+      v.irdata[1] = fetch_in.imem_out[1].mem_rdata;
+      v.iready[1] = fetch_in.imem_out[1].mem_ready;
     end
 
-    if ((v.iready0 & v.iready1) == 1) begin
-      v.rdata   = {v.irdata1, v.irdata0};
-      v.ready   = 1;
-      v.iready0 = 0;
-      v.iready1 = 0;
+    if ((v.iready[0] & v.iready[1]) == 1) begin
+      v.rdata     = {v.irdata[1], v.irdata[0]};
+      v.ready     = 1;
+      v.iready[0] = 0;
+      v.iready[1] = 0;
     end else begin
       v.rdata = 0;
       v.ready = 0;
     end
 
-    v.pc0    = fetch_in.buffer_out.pc0;
-    v.pc1    = fetch_in.buffer_out.pc1;
-    v.instr0 = fetch_in.buffer_out.instr0;
-    v.instr1 = fetch_in.buffer_out.instr1;
-    v.ready0 = fetch_in.buffer_out.ready0;
-    v.ready1 = fetch_in.buffer_out.ready1;
+    for (int s = 0; s < 4; s++) begin
+      v.pc[s]         = fetch_in.buffer_out.pc[s];
+      v.instr[s]      = fetch_in.buffer_out.instr[s];
+      v.lane_ready[s] = fetch_in.buffer_out.ready[s];
+    end
 
     if (stall == 1 && flush == 0) begin
-      v.pc0    = r.pc0;
-      v.pc1    = r.pc1;
-      v.instr0 = r.instr0;
-      v.instr1 = r.instr1;
-      v.ready0 = r.ready0;
-      v.ready1 = r.ready1;
+      for (int s = 0; s < 4; s++) begin
+        v.pc[s]         = r.pc[s];
+        v.instr[s]      = r.instr[s];
+        v.lane_ready[s] = r.lane_ready[s];
+      end
     end
 
     case (v.state)
@@ -79,22 +79,30 @@ module fetch (
     endcase
 
     if (fetch_in.csr_out.trap == 1) begin
-      v.ipc0 = fetch_in.csr_out.mtvec;
+      v.ipc[0] = fetch_in.csr_out.mtvec;
     end else if (fetch_in.csr_out.mret == 1) begin
-      v.ipc0 = fetch_in.csr_out.mepc;
-    end else if (fetch_in.btac_out.pred_miss0) begin
-      v.ipc0 = fetch_in.btac_out.pred_maddr0;
-    end else if (fetch_in.btac_out.pred_miss1) begin
-      v.ipc0 = fetch_in.btac_out.pred_maddr1;
-    end else if (fetch_in.btac_out.pred0.taken) begin
-      v.ipc0 = fetch_in.btac_out.pred0.taddr;
-    end else if (fetch_in.btac_out.pred1.taken) begin
-      v.ipc0 = fetch_in.btac_out.pred1.taddr;
+      v.ipc[0] = fetch_in.csr_out.mepc;
+    end else if (fetch_in.btac_out.pred_miss[0]) begin
+      v.ipc[0] = fetch_in.btac_out.pred_maddr[0];
+    end else if (fetch_in.btac_out.pred_miss[1]) begin
+      v.ipc[0] = fetch_in.btac_out.pred_maddr[1];
+    end else if (fetch_in.btac_out.pred_miss[2]) begin
+      v.ipc[0] = fetch_in.btac_out.pred_maddr[2];
+    end else if (fetch_in.btac_out.pred_miss[3]) begin
+      v.ipc[0] = fetch_in.btac_out.pred_maddr[3];
+    end else if (fetch_in.btac_out.pred[0].taken) begin
+      v.ipc[0] = fetch_in.btac_out.pred[0].taddr;
+    end else if (fetch_in.btac_out.pred[1].taken) begin
+      v.ipc[0] = fetch_in.btac_out.pred[1].taddr;
+    end else if (fetch_in.btac_out.pred[2].taken) begin
+      v.ipc[0] = fetch_in.btac_out.pred[2].taddr;
+    end else if (fetch_in.btac_out.pred[3].taken) begin
+      v.ipc[0] = fetch_in.btac_out.pred[3].taddr;
     end else if (v.stall == 0) begin
-      v.ipc0 = v.ipc0 + 8;
+      v.ipc[0] = v.ipc[0] + 8;
     end
 
-    v.ipc1 = v.ipc0 + 4;
+    v.ipc[1] = v.ipc[0] + 4;
 
     case (v.state)
       IDLE: begin
@@ -127,48 +135,39 @@ module fetch (
       end
     endcase
 
-    fetch_out.buffer_in.pc0   = r.ipc0;
-    fetch_out.buffer_in.pc1   = r.ipc1;
+    fetch_out.buffer_in.pc[0] = r.ipc[0];
+    fetch_out.buffer_in.pc[1] = r.ipc[1];
     fetch_out.buffer_in.rdata = v.rdata;
     fetch_out.buffer_in.ready = v.ready;
     fetch_out.buffer_in.clear = v.flush;
     fetch_out.buffer_in.stall = stall;
 
-    fetch_out.imem0_in.mem_valid = v.valid;
-    fetch_out.imem0_in.mem_instr = 1;
-    fetch_out.imem0_in.mem_mode  = 0;
-    fetch_out.imem0_in.mem_addr  = v.ipc0;
-    fetch_out.imem0_in.mem_wdata = 0;
-    fetch_out.imem0_in.mem_wstrb = 0;
+    for (int p = 0; p < 2; p++) begin
+      fetch_out.imem_in[p].mem_valid = v.valid;
+      fetch_out.imem_in[p].mem_instr = 1;
+      fetch_out.imem_in[p].mem_mode  = 0;
+      fetch_out.imem_in[p].mem_addr  = v.ipc[p];
+      fetch_out.imem_in[p].mem_wdata = 0;
+      fetch_out.imem_in[p].mem_wstrb = 0;
+    end
 
-    fetch_out.imem1_in.mem_valid = v.valid;
-    fetch_out.imem1_in.mem_instr = 1;
-    fetch_out.imem1_in.mem_mode  = 0;
-    fetch_out.imem1_in.mem_addr  = v.ipc1;
-    fetch_out.imem1_in.mem_wdata = 0;
-    fetch_out.imem1_in.mem_wstrb = 0;
+    for (int s = 0; s < 4; s++) begin
+      fetch_out.btac_in.get_pc[s] = v.pc[s];
+    end
+    for (int p = 0; p < 2; p++) begin
+      fetch_out.btac_in.upd_pc[p]     = fetch_in.entry[p].pc;
+      fetch_out.btac_in.upd_npc[p]    = fetch_in.entry[p].pnpc;
+      fetch_out.btac_in.upd_addr[p]   = fetch_in.entry[p].npc;
+      fetch_out.btac_in.upd_jump[p]   = fetch_in.entry[p].jump;
+      fetch_out.btac_in.upd_branch[p] = fetch_in.entry[p].branch;
+      fetch_out.btac_in.upd_pred[p]   = fetch_in.entry[p].pred;
+    end
 
-    fetch_out.btac_in.get_pc0     = v.pc0;
-    fetch_out.btac_in.get_pc1     = v.pc1;
-    fetch_out.btac_in.upd_pc0     = fetch_in.entry0.pc;
-    fetch_out.btac_in.upd_pc1     = fetch_in.entry1.pc;
-    fetch_out.btac_in.upd_npc0    = fetch_in.entry0.pnpc;
-    fetch_out.btac_in.upd_npc1    = fetch_in.entry1.pnpc;
-    fetch_out.btac_in.upd_addr0   = fetch_in.entry0.npc;
-    fetch_out.btac_in.upd_addr1   = fetch_in.entry1.npc;
-    fetch_out.btac_in.upd_jump0   = fetch_in.entry0.jump;
-    fetch_out.btac_in.upd_jump1   = fetch_in.entry1.jump;
-    fetch_out.btac_in.upd_branch0 = fetch_in.entry0.branch;
-    fetch_out.btac_in.upd_branch1 = fetch_in.entry1.branch;
-    fetch_out.btac_in.upd_pred0   = fetch_in.entry0.pred;
-    fetch_out.btac_in.upd_pred1   = fetch_in.entry1.pred;
-
-    fetch_out.pc0    = v.pc0;
-    fetch_out.pc1    = v.pc1;
-    fetch_out.instr0 = v.instr0;
-    fetch_out.instr1 = v.instr1;
-    fetch_out.ready0 = v.ready0;
-    fetch_out.ready1 = v.ready1;
+    for (int s = 0; s < 4; s++) begin
+      fetch_out.pc[s]    = v.pc[s];
+      fetch_out.instr[s] = v.instr[s];
+      fetch_out.ready[s] = v.lane_ready[s];
+    end
 
     rin = v;
 

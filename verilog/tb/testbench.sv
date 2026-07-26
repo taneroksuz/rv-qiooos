@@ -63,30 +63,33 @@ module testbench ();
     end
   end
 
-  wire        commit0_valid = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.valid;
-  wire        commit1_valid = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.valid;
-  wire [31:0] commit0_pc = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.pc;
-  wire [31:0] commit1_pc = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.pc;
-  wire [ 4:0] commit0_waddr = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.adest;
-  wire [ 4:0] commit1_waddr = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.adest;
-  wire [31:0] commit0_wdata = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.result;
-  wire [31:0] commit1_wdata = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.result;
-  wire        commit0_wren = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.wren;
-  wire        commit1_wren = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.wren;
-  wire        commit0_store = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.store;
-  wire        commit1_store = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.store;
-  wire [31:0] commit0_saddr = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.store_addr;
-  wire [31:0] commit1_saddr = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.store_addr;
-  wire [31:0] commit0_sdata = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.store_data;
-  wire [31:0] commit1_sdata = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.store_data;
-  wire [ 3:0] commit0_sstrb = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.store_strb;
-  wire [ 3:0] commit1_sstrb = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.store_strb;
-  wire        commit0_cwren = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.cwren;
-  wire        commit1_cwren = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.cwren;
-  wire [11:0] commit0_caddr = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.caddr;
-  wire [11:0] commit1_caddr = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.caddr;
-  wire [31:0] commit0_cwdata = testbench.soc_comp.cpu_comp.commit_out.commit_entry0.cwdata;
-  wire [31:0] commit1_cwdata = testbench.soc_comp.cpu_comp.commit_out.commit_entry1.cwdata;
+  wire        commit_valid [0:3];
+  wire [31:0] commit_pc    [0:3];
+  wire [ 4:0] commit_waddr [0:3];
+  wire [31:0] commit_wdata [0:3];
+  wire        commit_wren  [0:3];
+  wire        commit_store [0:3];
+  wire [31:0] commit_saddr [0:3];
+  wire [31:0] commit_sdata [0:3];
+  wire [ 3:0] commit_sstrb [0:3];
+  wire        commit_cwren [0:3];
+  wire [11:0] commit_caddr [0:3];
+  wire [31:0] commit_cwdata[0:3];
+
+  for (genvar k = 0; k < 4; k++) begin : g_commit_wires
+    assign commit_valid[k]  = testbench.soc_comp.cpu_comp.commit_in.commit[k];
+    assign commit_pc[k]     = testbench.soc_comp.cpu_comp.commit_in.entry[k].pc;
+    assign commit_waddr[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].adest;
+    assign commit_wdata[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].result;
+    assign commit_wren[k]   = testbench.soc_comp.cpu_comp.commit_in.entry[k].wren;
+    assign commit_store[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].store;
+    assign commit_saddr[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].store_addr;
+    assign commit_sdata[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].store_data;
+    assign commit_sstrb[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].store_strb;
+    assign commit_cwren[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].cwren;
+    assign commit_caddr[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].caddr;
+    assign commit_cwdata[k] = testbench.soc_comp.cpu_comp.commit_in.entry[k].cwdata;
+  end
 
   initial begin
     string filename;
@@ -94,17 +97,13 @@ module testbench ();
       reg_file = $fopen(filename, "w");
       for (int i = 0; i < stoptime; i = i + 1) begin
         @(posedge clock);
-        if (commit0_valid && commit0_wren) begin
-          $fwrite(reg_file, "PERIOD = %t ;\t", $time);
-          $fwrite(reg_file, "PC = %x ;\t", commit0_pc);
-          $fwrite(reg_file, "WADDR = %x ;\t", commit0_waddr);
-          $fwrite(reg_file, "WDATA = %x ;\n", commit0_wdata);
-        end
-        if (commit1_valid && commit1_wren) begin
-          $fwrite(reg_file, "PERIOD = %t ;\t", $time);
-          $fwrite(reg_file, "PC = %x ;\t", commit1_pc);
-          $fwrite(reg_file, "WADDR = %x ;\t", commit1_waddr);
-          $fwrite(reg_file, "WDATA = %x ;\n", commit1_wdata);
+        for (int k = 0; k < 4; k++) begin
+          if (commit_valid[k] && commit_wren[k]) begin
+            $fwrite(reg_file, "PERIOD = %t ;\t", $time);
+            $fwrite(reg_file, "PC = %x ;\t", commit_pc[k]);
+            $fwrite(reg_file, "WADDR = %x ;\t", commit_waddr[k]);
+            $fwrite(reg_file, "WDATA = %x ;\n", commit_wdata[k]);
+          end
         end
       end
       $fclose(reg_file);
@@ -117,17 +116,13 @@ module testbench ();
       csr_file = $fopen(filename, "w");
       for (int i = 0; i < stoptime; i = i + 1) begin
         @(posedge clock);
-        if (commit0_valid && commit0_cwren) begin
-          $fwrite(csr_file, "PERIOD = %t ;\t", $time);
-          $fwrite(csr_file, "PC = %x ;\t", commit0_pc);
-          $fwrite(csr_file, "WADDR = %x ;\t", commit0_caddr);
-          $fwrite(csr_file, "WDATA = %x ;\n", commit0_cwdata);
-        end
-        if (commit1_valid && commit1_cwren) begin
-          $fwrite(csr_file, "PERIOD = %t ;\t", $time);
-          $fwrite(csr_file, "PC = %x ;\t", commit1_pc);
-          $fwrite(csr_file, "WADDR = %x ;\t", commit1_caddr);
-          $fwrite(csr_file, "WDATA = %x ;\n", commit1_cwdata);
+        for (int k = 0; k < 4; k++) begin
+          if (commit_valid[k] && commit_cwren[k]) begin
+            $fwrite(csr_file, "PERIOD = %t ;\t", $time);
+            $fwrite(csr_file, "PC = %x ;\t", commit_pc[k]);
+            $fwrite(csr_file, "WADDR = %x ;\t", commit_caddr[k]);
+            $fwrite(csr_file, "WDATA = %x ;\n", commit_cwdata[k]);
+          end
         end
       end
       $fclose(csr_file);
@@ -140,19 +135,14 @@ module testbench ();
       mem_file = $fopen(filename, "w");
       for (int i = 0; i < stoptime; i = i + 1) begin
         @(posedge clock);
-        if (commit0_valid && commit0_store && |commit0_sstrb) begin
-          $fwrite(mem_file, "PERIOD = %t ;\t", $time);
-          $fwrite(mem_file, "PC = %x ;\t", commit0_pc);
-          $fwrite(mem_file, "WADDR = %x ;\t", commit0_saddr);
-          $fwrite(mem_file, "WSTRB = %b ;\t", commit0_sstrb);
-          $fwrite(mem_file, "WDATA = %x ;\n", commit0_sdata);
-        end
-        if (commit1_valid && commit1_store && |commit1_sstrb) begin
-          $fwrite(mem_file, "PERIOD = %t ;\t", $time);
-          $fwrite(mem_file, "PC = %x ;\t", commit1_pc);
-          $fwrite(mem_file, "WADDR = %x ;\t", commit1_saddr);
-          $fwrite(mem_file, "WSTRB = %b ;\t", commit1_sstrb);
-          $fwrite(mem_file, "WDATA = %x ;\n", commit1_sdata);
+        for (int k = 0; k < 4; k++) begin
+          if (commit_valid[k] && commit_store[k] && |commit_sstrb[k]) begin
+            $fwrite(mem_file, "PERIOD = %t ;\t", $time);
+            $fwrite(mem_file, "PC = %x ;\t", commit_pc[k]);
+            $fwrite(mem_file, "WADDR = %x ;\t", commit_saddr[k]);
+            $fwrite(mem_file, "WSTRB = %b ;\t", commit_sstrb[k]);
+            $fwrite(mem_file, "WDATA = %x ;\n", commit_sdata[k]);
+          end
         end
       end
       $fclose(mem_file);
@@ -160,16 +150,12 @@ module testbench ();
   end
 
   always_ff @(posedge clock) begin
-    if (commit0_valid && commit0_store && |commit0_sstrb) begin
-      if (commit0_saddr[31:3] == host[0][31:3]) begin
-        $display("%d", commit0_sdata[31:0]);
-        $finish;
-      end
-    end
-    if (commit1_valid && commit1_store && |commit1_sstrb) begin
-      if (commit1_saddr[31:3] == host[0][31:3]) begin
-        $display("%d", commit1_sdata[31:0]);
-        $finish;
+    for (int k = 0; k < 4; k++) begin
+      if (commit_valid[k] && commit_store[k] && |commit_sstrb[k]) begin
+        if (commit_saddr[k][31:3] == host[0][31:3]) begin
+          $display("%d", commit_sdata[k][31:0]);
+          $finish;
+        end
       end
     end
   end

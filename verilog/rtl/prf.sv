@@ -16,46 +16,45 @@ module prf (
   logic [31:0] mem[0:PRF_DEPTH-1];
   prf_reg_type r, rin, v;
 
-  logic wen0, wen1;
-  logic [PRF_ADDR_BITS-1:0] waddr0, waddr1;
-  logic [31:0] wdata0, wdata1;
+  logic [              0:0] wen  [0:3];
+  logic [PRF_ADDR_BITS-1:0] waddr[0:3];
+  logic [             31:0] wdata[0:3];
+  logic [PRF_ADDR_BITS-1:0] raddr[0:7];
+  logic [             31:0] rdata[0:7];
 
   always_comb begin
-    v      = r;
-    wen0   = prf_in.wren0 && (prf_in.waddr0 != '0);
-    waddr0 = prf_in.waddr0;
-    wdata0 = prf_in.wdata0;
-    wen1   = prf_in.wren1 && (prf_in.waddr1 != '0);
-    waddr1 = prf_in.waddr1;
-    wdata1 = prf_in.wdata1;
+    v = r;
+
+    for (int w = 0; w < 4; w++) begin
+      wen[w]   = prf_in.wren[w] && (prf_in.waddr[w] != '0);
+      waddr[w] = prf_in.waddr[w];
+      wdata[w] = prf_in.wdata[w];
+    end
+
+    for (int i = 0; i < 8; i++) begin
+      raddr[i] = prf_in.raddr[i];
+    end
 
     prf_out = init_prf_out;
 
-    prf_out.rdata0 = r.written_bits[prf_in.raddr0] ? mem[prf_in.raddr0] : 32'h0;
-    if (wen0 && waddr0 == prf_in.raddr0) prf_out.rdata0 = wdata0;
-    else if (wen1 && waddr1 == prf_in.raddr0) prf_out.rdata0 = wdata1;
-    prf_out.rvalid0 = 1'b1;
-
-    prf_out.rdata1 = r.written_bits[prf_in.raddr1] ? mem[prf_in.raddr1] : 32'h0;
-    if (wen0 && waddr0 == prf_in.raddr1) prf_out.rdata1 = wdata0;
-    else if (wen1 && waddr1 == prf_in.raddr1) prf_out.rdata1 = wdata1;
-    prf_out.rvalid1 = 1'b1;
-
-    prf_out.rdata2 = r.written_bits[prf_in.raddr2] ? mem[prf_in.raddr2] : 32'h0;
-    if (wen0 && waddr0 == prf_in.raddr2) prf_out.rdata2 = wdata0;
-    else if (wen1 && waddr1 == prf_in.raddr2) prf_out.rdata2 = wdata1;
-    prf_out.rvalid2 = 1'b1;
-
-    prf_out.rdata3 = r.written_bits[prf_in.raddr3] ? mem[prf_in.raddr3] : 32'h0;
-    if (wen0 && waddr0 == prf_in.raddr3) prf_out.rdata3 = wdata0;
-    else if (wen1 && waddr1 == prf_in.raddr3) prf_out.rdata3 = wdata1;
-    prf_out.rvalid3 = 1'b1;
-
-    if (wen0) begin
-      v.written_bits[waddr0] = 1'b1;
+    for (int i = 0; i < 8; i++) begin
+      rdata[i] = r.written_bits[raddr[i]] ? mem[raddr[i]] : 32'h0;
+      for (int w = 0; w < 4; w++) begin
+        if (wen[w] && waddr[w] == raddr[i]) begin
+          rdata[i] = wdata[w];
+        end
+      end
     end
-    if (wen1) begin
-      v.written_bits[waddr1] = 1'b1;
+
+    for (int i = 0; i < 8; i++) begin
+      prf_out.rdata[i]  = rdata[i];
+      prf_out.rvalid[i] = 1'b1;
+    end
+
+    for (int w = 0; w < 4; w++) begin
+      if (wen[w]) begin
+        v.written_bits[waddr[w]] = 1'b1;
+      end
     end
 
     rin = v;
@@ -71,11 +70,10 @@ module prf (
 
   always_ff @(posedge clock) begin
     if (reset != 0) begin
-      if (wen0) begin
-        mem[waddr0] <= wdata0;
-      end
-      if (wen1) begin
-        mem[waddr1] <= wdata1;
+      for (int w = 0; w < 4; w++) begin
+        if (wen[w]) begin
+          mem[waddr[w]] <= wdata[w];
+        end
       end
     end
   end

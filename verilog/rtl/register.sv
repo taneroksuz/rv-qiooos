@@ -3,29 +3,25 @@ import wires::*;
 module register (
   input  logic                  reset,
   input  logic                  clock,
-  input  register_read_in_type  register0_rin,
-  input  register_read_in_type  register1_rin,
-  input  register_write_in_type register0_win,
-  input  register_write_in_type register1_win,
-  output register_out_type      register0_out,
-  output register_out_type      register1_out
+  input  register_read_in_type  register_rin[0:1],
+  input  register_write_in_type register_win[0:3],
+  output register_out_type      register_out[0:1]
 );
   timeunit 1ns; timeprecision 1ps;
 
   logic [31:0] reg_file[0:31] = '{default: '0};
 
   always_ff @(posedge clock) begin
-    if (register0_win.wren == 1) begin
-      reg_file[register0_win.waddr] <= register0_win.wdata;
-    end
-    if (register1_win.wren == 1) begin
-      reg_file[register1_win.waddr] <= register1_win.wdata;
+    for (int k = 0; k < 4; k++) begin
+      if (register_win[k].wren == 1) begin
+        reg_file[register_win[k].waddr] <= register_win[k].wdata;
+      end
     end
   end
 
-  assign register0_out.rdata1 = reg_file[register0_rin.raddr1];
-  assign register0_out.rdata2 = reg_file[register0_rin.raddr2];
-  assign register1_out.rdata1 = reg_file[register1_rin.raddr1];
-  assign register1_out.rdata2 = reg_file[register1_rin.raddr2];
+  assign register_out[0].rdata1 = reg_file[register_rin[0].raddr1];
+  assign register_out[0].rdata2 = reg_file[register_rin[0].raddr2];
+  assign register_out[1].rdata1 = reg_file[register_rin[1].raddr1];
+  assign register_out[1].rdata2 = reg_file[register_rin[1].raddr2];
 
 endmodule
