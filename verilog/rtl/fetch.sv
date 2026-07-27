@@ -154,7 +154,7 @@ module fetch (
     for (int s = 0; s < 4; s++) begin
       fetch_out.btac_in.get_pc[s] = v.pc[s];
     end
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < 4; p++) begin
       fetch_out.btac_in.upd_pc[p]     = fetch_in.entry[p].pc;
       fetch_out.btac_in.upd_npc[p]    = fetch_in.entry[p].pnpc;
       fetch_out.btac_in.upd_addr[p]   = fetch_in.entry[p].npc;

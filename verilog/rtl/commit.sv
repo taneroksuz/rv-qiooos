@@ -19,7 +19,7 @@ module commit (
     fl_in_type                   fl_i;
     logic [0:0]                  flush_all;
     logic [1:0][0:0]             commit_store;
-    rob_entry_type [1:0]         commit_entry;
+    rob_entry_type [3:0]         commit_entry;
     logic [1:0][0:0]             store_slot_valid;
     rob_entry_type [1:0]         store_slot_entry;
   } commit_reg_type;
@@ -58,7 +58,8 @@ module commit (
       do_commit[k]   = c[k] && !any_flush;
       entry_flush[k] = 1'b0;
       if (do_commit[k]) begin
-        entry_flush[k] = e[k].exception | e[k].mret | (!e[k].branch ? e[k].jump : 0) |
+        entry_flush[k] = e[k].exception | e[k].mret |
+            (!e[k].branch ? e[k].jump & (~e[k].pred.taken | (e[k].npc != e[k].pred.taddr)) : 0) |
             (e[k].branch ? e[k].jump ^ e[k].pred.taken : 0);
       end
       any_flush = any_flush | entry_flush[k];
@@ -68,9 +69,14 @@ module commit (
 
     for (int p = 0; p < 2; p++) begin
       v.commit_store[p] = 1'b0;
-      v.commit_entry[p] = init_rob_entry;
       if (do_commit[p]) begin
         v.commit_store[p] = e[p].store;
+      end
+    end
+
+    for (int p = 0; p < 4; p++) begin
+      v.commit_entry[p] = init_rob_entry;
+      if (do_commit[p]) begin
         v.commit_entry[p] = e[p];
       end
     end
@@ -148,9 +154,11 @@ module commit (
     commit_out.prf_i        = r.prf_i;
     commit_out.fl_i         = r.fl_i;
     commit_out.flush        = r.flush_all;
+    for (int p = 0; p < 4; p++) begin
+      commit_out.commit_entry[p] = r.commit_entry[p];
+    end
     for (int p = 0; p < 2; p++) begin
       commit_out.commit_store[p]     = r.commit_store[p];
-      commit_out.commit_entry[p]     = r.commit_entry[p];
       commit_out.store_slot_valid[p] = r.store_slot_valid[p];
       commit_out.store_slot_entry[p] = r.store_slot_entry[p];
     end

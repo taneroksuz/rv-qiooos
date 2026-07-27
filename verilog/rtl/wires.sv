@@ -389,12 +389,12 @@ package wires;
 
   typedef struct packed {
     logic [0:3][31:0]     get_pc;
-    logic [0:1][31:0]     upd_pc;
-    logic [0:1][31:0]     upd_npc;
-    logic [0:1][31:0]     upd_addr;
-    logic [0:1][0:0]      upd_jump;
-    logic [0:1][0:0]      upd_branch;
-    prediction_type [0:1] upd_pred;
+    logic [0:3][31:0]     upd_pc;
+    logic [0:3][31:0]     upd_npc;
+    logic [0:3][31:0]     upd_addr;
+    logic [0:3][0:0]      upd_jump;
+    logic [0:3][0:0]      upd_branch;
+    prediction_type [0:3] upd_pred;
   } btac_in_type;
 
   typedef struct packed {
@@ -1155,7 +1155,7 @@ package wires;
     fl_in_type                   fl_i;
     logic [0:0]                  flush;
     logic [0:1][0:0]             commit_store;
-    rob_entry_type [0:1]         commit_entry;
+    rob_entry_type [0:3]         commit_entry;
     logic [0:1][0:0]             store_slot_valid;
     rob_entry_type [0:1]         store_slot_entry;
   } commit_out_type;
@@ -1259,7 +1259,7 @@ package wires;
     btac_out_type        btac_out;
     mem_out_type [0:1]   imem_out;
     buffer_out_type      buffer_out;
-    rob_entry_type [0:1] entry;
+    rob_entry_type [0:3] entry;
   } fetch_in_type;
 
   typedef struct packed {

@@ -109,9 +109,9 @@ module btac_ctrl (
     logic [64-B_DEPTH : 0]     wdata;
     logic [0 : 0]              wen;
     logic [3:0][31 : 0]        pc;
-    logic [1:0][31 : 0]        maddr;
-    logic [1:0][0 : 0]         miss;
-    logic [1:0][0 : 0]         hit;
+    logic [3:0][31 : 0]        maddr;
+    logic [3:0][0 : 0]         miss;
+    logic [3:0][0 : 0]         hit;
     logic [3:0][0 : 0]         valid;
     logic [3:0][0 : 0]         branch;
     logic [3:0][0 : 0]         match;
@@ -136,7 +136,7 @@ module btac_ctrl (
     logic [3:0][T_DEPTH-1 : 0] raddr;
     logic [1 : 0]              wdata;
     logic [0 : 0]              wen;
-    logic [1:0][1 : 0]         sat;
+    logic [3:0][1 : 0]         sat;
   } bht_reg_type;
 
   parameter bht_reg_type init_bht_reg = '{
@@ -150,7 +150,7 @@ module btac_ctrl (
   btb_reg_type r_btb, rin_btb, v_btb;
   bht_reg_type r_bht, rin_bht, v_bht;
 
-  logic sel[0:1];
+  logic sel[0:3];
 
   always_comb begin
 
@@ -172,13 +172,13 @@ module btac_ctrl (
       btac_out.pred[k].tsat = bht_out.rdata[k];
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < 4; p++) begin
       v_btb.maddr[p] = 0;
       v_btb.miss[p]  = 0;
       v_btb.hit[p]   = 0;
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < 4; p++) begin
       if (btac_in.upd_pred[p].taken == 1 && btac_in.upd_jump[p] == 1) begin
         v_btb.maddr[p] = btac_in.upd_addr[p];
         v_btb.miss[p]  = |(btac_in.upd_addr[p] ^ btac_in.upd_pred[p].taddr);
@@ -197,18 +197,28 @@ module btac_ctrl (
 
     sel[0] = v_btb.hit[0] | v_btb.miss[0];
     sel[1] = v_btb.hit[1] | v_btb.miss[1];
+    sel[2] = v_btb.hit[2] | v_btb.miss[2];
+    sel[3] = v_btb.hit[3] | v_btb.miss[3];
 
-    v_btb.wen = sel[0] | sel[1];
-    v_btb.waddr = sel[0] ? btac_in.upd_pc[0][B_DEPTH:1] : btac_in.upd_pc[1][B_DEPTH:1];
+    v_btb.wen = sel[0] | sel[1] | sel[2] | sel[3];
+    v_btb.waddr = sel[0] ? btac_in.upd_pc[0][B_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][B_DEPTH:1] :
+        sel[2] ? btac_in.upd_pc[2][B_DEPTH:1] : btac_in.upd_pc[3][B_DEPTH:1];
     v_btb.wdata = sel[0] ?
         {1'b1, btac_in.upd_branch[0], btac_in.upd_pc[0][31:B_DEPTH+1], v_btb.maddr[0]} :
-        {1'b1, btac_in.upd_branch[1], btac_in.upd_pc[1][31:B_DEPTH+1], v_btb.maddr[1]};
+        sel[1] ? {1'b1, btac_in.upd_branch[1], btac_in.upd_pc[1][31:B_DEPTH+1], v_btb.maddr[1]} :
+        sel[2] ? {1'b1, btac_in.upd_branch[2], btac_in.upd_pc[2][31:B_DEPTH+1], v_btb.maddr[2]} :
+        {1'b1, btac_in.upd_branch[3], btac_in.upd_pc[3][31:B_DEPTH+1], v_btb.maddr[3]};
 
-    v_bht.wen    = (sel[0] & btac_in.upd_branch[0]) | (sel[1] & btac_in.upd_branch[1]);
-    v_bht.waddr  = sel[0] ? btac_in.upd_pc[0][T_DEPTH:1] : btac_in.upd_pc[1][T_DEPTH:1];
+    v_bht.wen = (sel[0] & btac_in.upd_branch[0]) | (sel[1] & btac_in.upd_branch[1]) |
+        (sel[2] & btac_in.upd_branch[2]) | (sel[3] & btac_in.upd_branch[3]);
+    v_bht.waddr = sel[0] ? btac_in.upd_pc[0][T_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][T_DEPTH:1] :
+        sel[2] ? btac_in.upd_pc[2][T_DEPTH:1] : btac_in.upd_pc[3][T_DEPTH:1];
     v_bht.sat[0] = saturation(btac_in.upd_pred[0].tsat, btac_in.upd_jump[0]);
     v_bht.sat[1] = saturation(btac_in.upd_pred[1].tsat, btac_in.upd_jump[1]);
-    v_bht.wdata  = sel[0] ? v_bht.sat[0] : v_bht.sat[1];
+    v_bht.sat[2] = saturation(btac_in.upd_pred[2].tsat, btac_in.upd_jump[2]);
+    v_bht.sat[3] = saturation(btac_in.upd_pred[3].tsat, btac_in.upd_jump[3]);
+    v_bht.wdata = sel[0] ? v_bht.sat[0] :
+        sel[1] ? v_bht.sat[1] : sel[2] ? v_bht.sat[2] : v_bht.sat[3];
 
     btb_in.wen   = v_btb.wen;
     btb_in.waddr = v_btb.waddr;
@@ -220,14 +230,10 @@ module btac_ctrl (
     rin_btb = v_btb;
     rin_bht = v_bht;
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < 4; p++) begin
       btac_out.pred_maddr[p] = v_btb.maddr[p];
       btac_out.pred_miss[p]  = v_btb.miss[p];
     end
-    btac_out.pred_maddr[2] = 0;
-    btac_out.pred_maddr[3] = 0;
-    btac_out.pred_miss[2]  = 0;
-    btac_out.pred_miss[3]  = 0;
 
   end
 
@@ -298,7 +304,7 @@ module btac (
 
         v = r;
 
-        for (int p = 0; p < 2; p++) begin
+        for (int p = 0; p < 4; p++) begin
           v.maddr[p] = btac_in.upd_addr[p];
           v.miss[p]  = btac_in.upd_jump[p];
         end
@@ -310,14 +316,10 @@ module btac (
           btac_out.pred[k].taddr = 0;
           btac_out.pred[k].tsat  = 0;
         end
-        for (int p = 0; p < 2; p++) begin
+        for (int p = 0; p < 4; p++) begin
           btac_out.pred_maddr[p] = v.maddr[p];
           btac_out.pred_miss[p]  = v.miss[p];
         end
-        btac_out.pred_maddr[2] = 0;
-        btac_out.pred_maddr[3] = 0;
-        btac_out.pred_miss[2]  = 0;
-        btac_out.pred_miss[3]  = 0;
 
       end
 

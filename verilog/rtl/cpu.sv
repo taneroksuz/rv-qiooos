@@ -82,6 +82,8 @@ module cpu (
   assign fetch_in.buffer_out = buffer_out;
   assign fetch_in.entry[0]   = commit_out.commit_entry[0];
   assign fetch_in.entry[1]   = commit_out.commit_entry[1];
+  assign fetch_in.entry[2]   = commit_out.commit_entry[2];
+  assign fetch_in.entry[3]   = commit_out.commit_entry[3];
   assign buffer_in           = fetch_out.buffer_in;
   assign btac_in             = fetch_out.btac_in;
   for (genvar i = 0; i < 2; i++) begin : g_imem_in
@@ -234,7 +236,7 @@ module cpu (
     assign register_win[i] = commit_out.register_win[i];
   end
   assign commit_flush = clear | csr_out.trap | csr_out.mret | btac_out.pred_miss[0] |
-      btac_out.pred_miss[1] | commit_out.flush;
+      btac_out.pred_miss[1] | btac_out.pred_miss[2] | btac_out.pred_miss[3] | commit_out.flush;
 
   alu alu0_comp (
     .alu_in (alu_in[0]),
