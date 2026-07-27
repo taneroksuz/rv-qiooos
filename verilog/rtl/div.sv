@@ -136,6 +136,8 @@ module div (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_div_reg;
+    end else if (flush) begin
+      r <= init_div_reg;
     end else begin
       r <= rin;
     end

@@ -77,6 +77,8 @@ module bit_clmul (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_bit_clmul_reg;
+    end else if (flush) begin
+      r <= init_bit_clmul_reg;
     end else begin
       r <= rin;
     end
