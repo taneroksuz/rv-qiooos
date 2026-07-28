@@ -46,6 +46,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/rename.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/eu.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/msu.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/commit.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/cache.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/cpu.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/soc.sv
 set_global_assignment -name SDC_FILE top.sdc

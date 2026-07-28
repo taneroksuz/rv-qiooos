@@ -3,14 +3,14 @@ package tim_wires;
 
   import configure::*;
 
-  localparam DEPTH = $clog2(TIM_DEPTH);
-  localparam WIDTH = $clog2(TIM_WIDTH);
+  localparam TDEPTH = $clog2(TIM_DEPTH);
+  localparam TWIDTH = $clog2(TIM_WIDTH);
 
   typedef struct packed {
-    logic [1:0][0 : 0]       en;
-    logic [1:0][DEPTH-1 : 0] addr;
-    logic [1:0][3 : 0]       strb;
-    logic [1:0][31 : 0]      data;
+    logic [1:0][0 : 0]        en;
+    logic [1:0][TDEPTH-1 : 0] addr;
+    logic [1:0][3 : 0]        strb;
+    logic [1:0][31 : 0]       data;
   } tim_ram_in_type;
 
   typedef struct packed {logic [1:0][31 : 0] data;} tim_ram_out_type;
@@ -34,8 +34,8 @@ module tim_ram (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam DEPTH = $clog2(TIM_DEPTH);
-  localparam WIDTH = $clog2(TIM_WIDTH);
+  localparam TDEPTH = $clog2(TIM_DEPTH);
+  localparam TWIDTH = $clog2(TIM_WIDTH);
 
   logic [31 : 0] tim_ram[0:TIM_DEPTH-1] = '{default: '0};
 
@@ -63,24 +63,24 @@ module tim_ctrl (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam DEPTH = $clog2(TIM_DEPTH);
-  localparam WIDTH = $clog2(TIM_WIDTH);
+  localparam TDEPTH = $clog2(TIM_DEPTH);
+  localparam TWIDTH = $clog2(TIM_WIDTH);
 
   typedef struct packed {
-    logic [1:0][WIDTH-1:0] wid;
-    logic [1:0][DEPTH-1:0] did;
-    logic [1:0][31:0]      data;
-    logic [1:0][3:0]       strb;
-    logic [1:0][0:0]       valid;
+    logic [1:0][TWIDTH-1:0] wid;
+    logic [1:0][TDEPTH-1:0] did;
+    logic [1:0][31:0]       data;
+    logic [1:0][3:0]        strb;
+    logic [1:0][0:0]        valid;
   } front_type;
 
   typedef struct packed {
-    logic [1:0][WIDTH-1:0] wid;
-    logic [1:0][DEPTH-1:0] did;
-    logic [1:0][31:0]      rdata;
-    logic [1:0][31:0]      data;
-    logic [1:0][3:0]       strb;
-    logic [1:0][0:0]       valid;
+    logic [1:0][TWIDTH-1:0] wid;
+    logic [1:0][TDEPTH-1:0] did;
+    logic [1:0][31:0]       rdata;
+    logic [1:0][31:0]       data;
+    logic [1:0][3:0]        strb;
+    logic [1:0][0:0]        valid;
   } back_type;
 
   parameter front_type init_front = 0;
@@ -104,8 +104,8 @@ module tim_ctrl (
         v_f.valid[p] = tim_in[p].mem_valid;
         v_f.strb[p]  = tim_in[p].mem_wstrb;
         v_f.data[p]  = tim_in[p].mem_wdata;
-        v_f.did[p]   = tim_in[p].mem_addr[(DEPTH+WIDTH+1):(WIDTH+2)];
-        v_f.wid[p]   = tim_in[p].mem_addr[(WIDTH+1):2];
+        v_f.did[p]   = tim_in[p].mem_addr[(TDEPTH+TWIDTH+1):(TWIDTH+2)];
+        v_f.wid[p]   = tim_in[p].mem_addr[(TWIDTH+1):2];
       end
     end
 

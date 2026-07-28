@@ -732,6 +732,21 @@ package wires;
 
   localparam mem_out_type init_mem_out = 0;
 
+  typedef struct packed {
+    logic [0:0]  mem_valid;
+    logic [31:0] mem_addr;
+  } cache_in_type;
+
+  localparam cache_in_type init_cache_in = '{default: '0};
+
+  typedef struct packed {
+    logic [0:0]                mem_ready;
+    logic [CACHE_WIDTH-1:0]    mem_error;
+    logic [CACHE_WIDTH*32-1:0] mem_rdata;
+  } cache_out_type;
+
+  localparam cache_out_type init_cache_out = '{default: '0};
+
   typedef enum bit [1:0] {
     IDLE,
     BUSY,

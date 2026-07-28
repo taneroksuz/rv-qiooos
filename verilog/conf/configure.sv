@@ -15,6 +15,9 @@ package configure;
   localparam TIM_WIDTH = 32;
   localparam TIM_DEPTH = 4096;
 
+  localparam CACHE_WIDTH = 32;
+  localparam CACHE_DEPTH = 4096;
+
   localparam RAM_DEPTH = 262144;
 
   localparam BTAC_ENABLE = 1;
