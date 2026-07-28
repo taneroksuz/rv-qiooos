@@ -268,11 +268,18 @@ module cache_ctrl (
     cache_out.mem_error = v_b.error;
 
     mem_in[0].mem_valid = v_b.mem_valid[0];
+    mem_in[0].mem_instr = 1;
+    mem_in[0].mem_mode  = 0;
     mem_in[0].mem_addr  = v_b.mem_addr[0];
     mem_in[0].mem_wstrb = 0;
+    mem_in[0].mem_wdata = 0;
+
     mem_in[1].mem_valid = v_b.mem_valid[1];
+    mem_in[1].mem_instr = 1;
+    mem_in[1].mem_mode  = 0;
     mem_in[1].mem_addr  = v_b.mem_addr[1];
     mem_in[1].mem_wstrb = 0;
+    mem_in[1].mem_wdata = 0;
 
     rin_b = v_b;
 
