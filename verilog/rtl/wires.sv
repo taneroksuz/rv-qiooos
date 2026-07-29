@@ -754,25 +754,21 @@ package wires;
   } fetch_state;
 
   typedef struct packed {
-    fetch_state       state;
-    logic [0:1][31:0] ipc;
-    logic [0:1][31:0] irdata;
-    logic [0:1][0:0]  iready;
-    logic [63:0]      rdata;
-    logic [0:0]       ready;
-    logic [0:3][31:0] pc;
-    logic [0:3][31:0] instr;
-    logic [0:3][0:0]  lane_ready;
-    logic [0:0]       valid;
-    logic [0:0]       flush;
-    logic [0:0]       stall;
+    fetch_state                state;
+    logic [31:0]               ipc;
+    logic [CACHE_WIDTH*32-1:0] rdata;
+    logic [0:0]                ready;
+    logic [0:3][31:0]          pc;
+    logic [0:3][31:0]          instr;
+    logic [0:3][0:0]           lane_ready;
+    logic [0:0]                valid;
+    logic [0:0]                flush;
+    logic [0:0]                stall;
   } fetch_reg_type;
 
   localparam fetch_reg_type init_fetch_reg = '{
       state: IDLE,
-      ipc: '{default: 0},
-      irdata: '{default: 0},
-      iready: '{default: 0},
+      ipc: 0,
       rdata: 0,
       ready: 0,
       pc: '{default: 0},
@@ -1255,11 +1251,11 @@ package wires;
   } compress_out_type;
 
   typedef struct packed {
-    logic [0:1][31:0] pc;
-    logic [63:0]      rdata;
-    logic [0:0]       ready;
-    logic [0:0]       clear;
-    logic [0:0]       stall;
+    logic [31:0]               pc;
+    logic [CACHE_WIDTH*32-1:0] rdata;
+    logic [0:0]                ready;
+    logic [0:0]                clear;
+    logic [0:0]                stall;
   } buffer_in_type;
 
   typedef struct packed {
@@ -1272,7 +1268,7 @@ package wires;
   typedef struct packed {
     csr_out_type         csr_out;
     btac_out_type        btac_out;
-    mem_out_type [0:1]   imem_out;
+    cache_out_type       cache_out;
     buffer_out_type      buffer_out;
     rob_entry_type [0:3] entry;
   } fetch_in_type;
@@ -1280,7 +1276,7 @@ package wires;
   typedef struct packed {
     buffer_in_type    buffer_in;
     btac_in_type      btac_in;
-    mem_in_type [0:1] imem_in;
+    cache_in_type     cache_in;
     logic [0:3][31:0] pc;
     logic [0:3][31:0] instr;
     logic [0:3][0:0]  ready;

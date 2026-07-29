@@ -1,3 +1,4 @@
+import configure::*;
 import constants::*;
 import functions::*;
 import wires::*;
@@ -28,23 +29,10 @@ module fetch (
         fetch_in.btac_out.pred[2].taken | fetch_in.btac_out.pred[3].taken;
     v.flush = v.flush | fetch_in.csr_out.trap | fetch_in.csr_out.mret;
 
-    if (fetch_in.imem_out[0].mem_ready == 1) begin
-      v.irdata[0] = fetch_in.imem_out[0].mem_rdata;
-      v.iready[0] = fetch_in.imem_out[0].mem_ready;
-    end
-
-    if (fetch_in.imem_out[1].mem_ready == 1) begin
-      v.irdata[1] = fetch_in.imem_out[1].mem_rdata;
-      v.iready[1] = fetch_in.imem_out[1].mem_ready;
-    end
-
-    if ((v.iready[0] & v.iready[1]) == 1) begin
-      v.rdata     = {v.irdata[1], v.irdata[0]};
-      v.ready     = 1;
-      v.iready[0] = 0;
-      v.iready[1] = 0;
+    if (fetch_in.cache_out.mem_ready == 1) begin
+      v.rdata = fetch_in.cache_out.mem_rdata;
+      v.ready = 1;
     end else begin
-      v.rdata = 0;
       v.ready = 0;
     end
 
@@ -79,30 +67,28 @@ module fetch (
     endcase
 
     if (fetch_in.csr_out.trap == 1) begin
-      v.ipc[0] = fetch_in.csr_out.mtvec;
+      v.ipc = fetch_in.csr_out.mtvec;
     end else if (fetch_in.csr_out.mret == 1) begin
-      v.ipc[0] = fetch_in.csr_out.mepc;
+      v.ipc = fetch_in.csr_out.mepc;
     end else if (fetch_in.btac_out.pred_miss[0]) begin
-      v.ipc[0] = fetch_in.btac_out.pred_maddr[0];
+      v.ipc = fetch_in.btac_out.pred_maddr[0];
     end else if (fetch_in.btac_out.pred_miss[1]) begin
-      v.ipc[0] = fetch_in.btac_out.pred_maddr[1];
+      v.ipc = fetch_in.btac_out.pred_maddr[1];
     end else if (fetch_in.btac_out.pred_miss[2]) begin
-      v.ipc[0] = fetch_in.btac_out.pred_maddr[2];
+      v.ipc = fetch_in.btac_out.pred_maddr[2];
     end else if (fetch_in.btac_out.pred_miss[3]) begin
-      v.ipc[0] = fetch_in.btac_out.pred_maddr[3];
+      v.ipc = fetch_in.btac_out.pred_maddr[3];
     end else if (fetch_in.btac_out.pred[0].taken) begin
-      v.ipc[0] = fetch_in.btac_out.pred[0].taddr;
+      v.ipc = fetch_in.btac_out.pred[0].taddr;
     end else if (fetch_in.btac_out.pred[1].taken) begin
-      v.ipc[0] = fetch_in.btac_out.pred[1].taddr;
+      v.ipc = fetch_in.btac_out.pred[1].taddr;
     end else if (fetch_in.btac_out.pred[2].taken) begin
-      v.ipc[0] = fetch_in.btac_out.pred[2].taddr;
+      v.ipc = fetch_in.btac_out.pred[2].taddr;
     end else if (fetch_in.btac_out.pred[3].taken) begin
-      v.ipc[0] = fetch_in.btac_out.pred[3].taddr;
+      v.ipc = fetch_in.btac_out.pred[3].taddr;
     end else if (v.stall == 0) begin
-      v.ipc[0] = v.ipc[0] + 8;
+      v.ipc = v.ipc + PC_INCREMENTS;
     end
-
-    v.ipc[1] = v.ipc[0] + 4;
 
     case (v.state)
       IDLE: begin
@@ -135,21 +121,14 @@ module fetch (
       end
     endcase
 
-    fetch_out.buffer_in.pc[0] = r.ipc[0];
-    fetch_out.buffer_in.pc[1] = r.ipc[1];
+    fetch_out.buffer_in.pc    = r.ipc;
     fetch_out.buffer_in.rdata = v.rdata;
     fetch_out.buffer_in.ready = v.ready;
     fetch_out.buffer_in.clear = v.flush;
     fetch_out.buffer_in.stall = stall;
 
-    for (int p = 0; p < 2; p++) begin
-      fetch_out.imem_in[p].mem_valid = v.valid;
-      fetch_out.imem_in[p].mem_instr = 1;
-      fetch_out.imem_in[p].mem_mode  = 0;
-      fetch_out.imem_in[p].mem_addr  = v.ipc[p];
-      fetch_out.imem_in[p].mem_wdata = 0;
-      fetch_out.imem_in[p].mem_wstrb = 0;
-    end
+    fetch_out.cache_in.mem_valid = v.valid;
+    fetch_out.cache_in.mem_addr  = v.ipc;
 
     for (int s = 0; s < 4; s++) begin
       fetch_out.btac_in.get_pc[s] = v.pc[s];

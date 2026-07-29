@@ -71,14 +71,14 @@ module cpu (
   msu_out_type                 msu_out;
   commit_in_type               commit_in;
   commit_out_type              commit_out;
+  cache_in_type                cache_in;
+  cache_out_type               cache_out;
   rob_entry_type               rob_entries_snap[0:ROB_DEPTH-1];
   logic                  [0:0] commit_flush;
 
-  assign fetch_in.csr_out  = csr_out;
-  assign fetch_in.btac_out = btac_out;
-  for (genvar i = 0; i < 2; i++) begin : g_imem_out
-    assign fetch_in.imem_out[i] = imem_out[i];
-  end
+  assign fetch_in.csr_out    = csr_out;
+  assign fetch_in.btac_out   = btac_out;
+  assign fetch_in.cache_out  = cache_out;
   assign fetch_in.buffer_out = buffer_out;
   assign fetch_in.entry[0]   = commit_out.commit_entry[0];
   assign fetch_in.entry[1]   = commit_out.commit_entry[1];
@@ -86,10 +86,8 @@ module cpu (
   assign fetch_in.entry[3]   = commit_out.commit_entry[3];
   assign buffer_in           = fetch_out.buffer_in;
   assign btac_in             = fetch_out.btac_in;
-  for (genvar i = 0; i < 2; i++) begin : g_imem_in
-    assign imem_in[i] = fetch_out.imem_in[i];
-  end
-  assign csr_rin = rs_int_out.csr_rin;
+  assign cache_in            = fetch_out.cache_in;
+  assign csr_rin             = rs_int_out.csr_rin;
   for (genvar i = 0; i < 4; i++) begin : g_decode_base
     assign decode_in.base_out[i]     = base_out[i];
     assign decode_in.compress_out[i] = compress_out[i];
@@ -478,5 +476,13 @@ module cpu (
     .flush     (commit_flush),
     .commit_in (commit_in),
     .commit_out(commit_out)
+  );
+  cache cache_comp (
+    .reset    (reset),
+    .clock    (clock),
+    .cache_in (cache_in),
+    .cache_out(cache_out),
+    .mem_in   (imem_in),
+    .mem_out  (imem_out)
   );
 endmodule

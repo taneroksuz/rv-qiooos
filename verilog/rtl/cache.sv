@@ -127,12 +127,13 @@ module cache_ctrl (
     logic [CTAG-1:0]           fill_tag;
     logic [CDEPTH-1:0]         fill_idx;
     logic [31:0]               fill_base;
-    logic [31:0]               fill_data[0:1];
-    logic [0:0]                fill_error[0:1];
+    logic [1:0][31:0]          fill_data;
+    logic [1:0][0:0]           fill_error;
     logic [1:0]                fill_wen;
     logic [0:0]                fill_tag_wen;
-    logic [0:0]                mem_valid[0:1];
-    logic [31:0]               mem_addr[0:1];
+    logic [1:0]                mem_valid;
+    logic [1:0][31:0]          mem_addr;
+    logic [1:0]                mem_done;
     logic [CACHE_WIDTH*32-1:0] rdata;
     logic [CACHE_WIDTH-1:0]    error;
     logic [0:0]                ready;
@@ -223,27 +224,43 @@ module cache_ctrl (
             v_b.fill_tag  = r_f.tag;
             v_b.fill_idx  = r_f.idx;
             v_b.fill_base = {r_f.tag, r_f.idx, {CWIDTH{1'b0}}, 2'b00};
+            v_b.mem_done  = 2'b00;
           end
         end
       end
 
       FILL: begin
-        v_b.mem_valid[0] = 1;
-        v_b.mem_addr[0]  = r_b.fill_base + {{(32 - CWIDTH) {1'b0}}, r_b.fill_wid, 2'b00};
-        v_b.mem_valid[1] = 1;
-        v_b.mem_addr[1]  = r_b.fill_base + {{(32 - CWIDTH) {1'b0}}, r_b.fill_wid + 1, 2'b00};
-        if (mem_out[0].mem_ready == 1 && mem_out[1].mem_ready == 1) begin
-          v_b.fill_wen[0]                    = 1;
-          v_b.fill_data[0]                   = mem_out[0].mem_rdata;
-          v_b.fill_error[0]                  = mem_out[0].mem_error;
-          v_b.rdata[r_b.fill_wid*32+:32]     = mem_out[0].mem_rdata;
-          v_b.error[r_b.fill_wid]            = mem_out[0].mem_error;
+        if (v_b.mem_done[0] == 0) begin
+          v_b.mem_valid[0] = 1;
+          v_b.mem_addr[0]  = r_b.fill_base + {{(30 - CWIDTH) {1'b0}}, r_b.fill_wid, 2'b00};
+        end
+        if (v_b.mem_done[1] == 0) begin
+          v_b.mem_valid[1] = 1;
+          v_b.mem_addr[1] = r_b.fill_base +
+              {{(30 - CWIDTH) {1'b0}}, r_b.fill_wid + CWIDTH'(1), 2'b00};
+        end
+
+        if (mem_out[0].mem_ready == 1 && v_b.mem_done[0] == 0) begin
+          v_b.fill_wen[0]                = 1;
+          v_b.fill_data[0]               = mem_out[0].mem_rdata;
+          v_b.fill_error[0]              = mem_out[0].mem_error;
+          v_b.rdata[r_b.fill_wid*32+:32] = mem_out[0].mem_rdata;
+          v_b.error[r_b.fill_wid]        = mem_out[0].mem_error;
+          v_b.mem_done[0]                = 1;
+        end
+
+        if (mem_out[1].mem_ready == 1 && v_b.mem_done[1] == 0) begin
           v_b.fill_wen[1]                    = 1;
           v_b.fill_data[1]                   = mem_out[1].mem_rdata;
           v_b.fill_error[1]                  = mem_out[1].mem_error;
           v_b.rdata[(r_b.fill_wid+1)*32+:32] = mem_out[1].mem_rdata;
           v_b.error[r_b.fill_wid+1]          = mem_out[1].mem_error;
-          if (r_b.fill_wid >= CACHE_WIDTH[CWIDTH:0] - 2) begin
+          v_b.mem_done[1]                    = 1;
+        end
+
+        if (v_b.mem_done == 2'b11) begin
+          v_b.mem_done = 2'b00;
+          if (r_b.fill_wid >= CWIDTH'(CACHE_WIDTH) - CWIDTH'(2)) begin
             v_b.fill_tag_wen = 1;
             v_b.state        = DONE;
           end else begin

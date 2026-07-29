@@ -10,13 +10,16 @@ package configure;
   localparam RS_MEM_DEPTH = 8;
   localparam FLIST_DEPTH = PRF_DEPTH - ARCH_REGS;
 
-  localparam BUFFER_DEPTH = 4;
-
   localparam TIM_WIDTH = 32;
   localparam TIM_DEPTH = 4096;
 
   localparam CACHE_WIDTH = 32;
   localparam CACHE_DEPTH = 4096;
+
+  localparam BUFFER_WIDTH = 2 * CACHE_WIDTH;
+  localparam BUFFER_DEPTH = 4;
+
+  localparam PC_INCREMENTS = 4 * CACHE_WIDTH;
 
   localparam RAM_DEPTH = 262144;
 
