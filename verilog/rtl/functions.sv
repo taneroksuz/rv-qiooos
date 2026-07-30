@@ -220,7 +220,7 @@ package functions;
     input logic [PRF_ADDR_BITS-1:0] tag;
     input logic prf_valid;
     input logic [31:0] prf_data;
-    input cdb_type [0:3] c;
+    input cdb_type [3:0] c;
     input cdb_type cl;
     begin
       prf_or_cdb = 32'h0;
@@ -234,7 +234,7 @@ package functions;
   function automatic logic src_ready;
     input logic [PRF_ADDR_BITS-1:0] tag;
     input logic prf_valid;
-    input cdb_type [0:3] c;
+    input cdb_type [3:0] c;
     input cdb_type cl;
     begin
       src_ready = prf_valid;
