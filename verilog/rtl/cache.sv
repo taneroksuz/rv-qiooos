@@ -183,7 +183,7 @@ module cache_ctrl (
         cache_tag_in.wtag   = r_b.fill_tag;
         cache_tag_in.waddr  = r_b.fill_idx;
       end
-    end else begin
+    end else if (r_b.state == HIT) begin
       if (v_f.valid == 1) begin
         for (int w = 0; w < CACHE_WIDTH; w++) begin
           cache_vec_in[w].addr = v_f.idx;
