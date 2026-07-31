@@ -136,8 +136,8 @@ module buffer_ctrl (
     end
 
     if (r.clear == 1 && buffer_in.clear == 0 && buffer_in.ready == 1) begin
-      v.rid   = {{W - 1{1'b0}}, buffer_in.pc[1]};
-      v.align = {{W - 1{1'b0}}, buffer_in.pc[1]};
+      v.rid   = {{W - BWIDTH{1'b0}}, buffer_in.pc[BWIDTH:1]};
+      v.align = {{W - BWIDTH{1'b0}}, buffer_in.pc[BWIDTH:1]};
       v.clear = 0;
     end
 
@@ -146,9 +146,7 @@ module buffer_ctrl (
     v.wid_row = v.wid[W-1:BWIDTH];
 
     for (int k = 0; k < BUFFER_WIDTH; k++) begin
-      v.wdata[k] = {
-        buffer_in.pc[31:2] + 30'(k >> 1), (k[0] ? 2'b10 : 2'b00), buffer_in.rdata[k*16+:16]
-      };
+      v.wdata[k] = {buffer_in.pc[31:BWIDTH+1], k[BWIDTH-1:0], 1'b0, buffer_in.rdata[k*16+:16]};
     end
 
     for (int k = 0; k < BUFFER_WIDTH; k++) begin
