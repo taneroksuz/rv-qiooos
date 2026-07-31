@@ -19,7 +19,13 @@ cd $BASEDIR/sim/verilator/work
 
 start=`date +%s`
 
-$VERILATOR --binary -j 0 --build-jobs 0 --trace-fst --trace-structs --trace-max-width 16384 --trace-max-array 128 --timing --top-module testbench -Wno-UNOPTFLAT \
+TRACE_OPTS=""
+if [ "$DUMP" = "1" ]
+then
+  TRACE_OPTS="--trace-max-width 16384 --trace-max-array 128"
+fi
+
+$VERILATOR --binary -j 0 --build-jobs 0 --trace-fst --trace-structs $TRACE_OPTS --timing --top-module testbench -Wno-UNOPTFLAT \
             $BASEDIR/verilog/conf/configure.sv \
             $BASEDIR/verilog/rtl/constants.sv \
             $BASEDIR/verilog/rtl/wires.sv \
