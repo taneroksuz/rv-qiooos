@@ -230,11 +230,9 @@ module cache_ctrl (
       end
 
       FILL: begin
-        if (v_b.mem_done[0] == 0) begin
+        if (v_b.mem_done == 2'b00) begin
           v_b.mem_valid[0] = 1;
-          v_b.mem_addr[0]  = r_b.fill_base + {{(30 - CWIDTH) {1'b0}}, r_b.fill_wid, 2'b00};
-        end
-        if (v_b.mem_done[1] == 0) begin
+          v_b.mem_addr[0] = r_b.fill_base + {{(30 - CWIDTH) {1'b0}}, r_b.fill_wid, 2'b00};
           v_b.mem_valid[1] = 1;
           v_b.mem_addr[1] = r_b.fill_base +
               {{(30 - CWIDTH) {1'b0}}, r_b.fill_wid + CWIDTH'(1), 2'b00};
