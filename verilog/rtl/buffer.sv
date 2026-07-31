@@ -84,6 +84,10 @@ module buffer_ctrl (
     logic [0 : 0]                    wen;
     logic [0 : 0]                    clear;
     logic [0 : 0]                    stall;
+    logic [BWIDTH-1:0]               rid_bank;
+    logic [BDEPTH-1:0]               rid_row;
+    logic [BDEPTH-1:0]               rid_row_p1;
+    logic [BDEPTH-1:0]               wid_row;
   } reg_type;
 
   parameter reg_type init_reg = '{
@@ -100,7 +104,11 @@ module buffer_ctrl (
       ready : 0,
       wen : 0,
       clear : 0,
-      stall : 0
+      stall : 0,
+      rid_bank : 0,
+      rid_row : 0,
+      rid_row_p1 : 0,
+      wid_row : 0
   };
 
   reg_type r, rin, v;
@@ -115,10 +123,6 @@ module buffer_ctrl (
   endfunction
 
   int base, need;
-
-  logic [BWIDTH-1:0] rid_bank;
-  logic [BDEPTH-1:0] rid_row, rid_row_p1;
-  logic [BDEPTH-1:0] wid_row;
 
   always_comb begin
 
@@ -139,7 +143,7 @@ module buffer_ctrl (
 
     v.wen = (~buffer_in.clear) & (~r.stall) & buffer_in.ready;
 
-    wid_row = v.wid[W-1:BWIDTH];
+    v.wid_row = v.wid[W-1:BWIDTH];
 
     for (int k = 0; k < BUFFER_WIDTH; k++) begin
       v.wdata[k] = {
@@ -149,20 +153,20 @@ module buffer_ctrl (
 
     for (int k = 0; k < BUFFER_WIDTH; k++) begin
       buffer_reg_in.wen[k]   = v.wen;
-      buffer_reg_in.waddr[k] = wid_row;
+      buffer_reg_in.waddr[k] = v.wid_row;
       buffer_reg_in.wdata[k] = v.wdata[k];
     end
 
-    rid_bank   = v.rid[BWIDTH-1:0];
-    rid_row    = v.rid[W-1:BWIDTH];
-    rid_row_p1 = rid_row + 1'b1;
+    v.rid_bank   = v.rid[BWIDTH-1:0];
+    v.rid_row    = v.rid[W-1:BWIDTH];
+    v.rid_row_p1 = v.rid_row + 1'b1;
 
     for (int k = 0; k < BUFFER_WIDTH; k++) begin
-      buffer_reg_in.raddr[k] = (k < int'(rid_bank)) ? rid_row_p1 : rid_row;
+      buffer_reg_in.raddr[k] = (k < int'(v.rid_bank)) ? v.rid_row_p1 : v.rid_row;
     end
 
     for (int j = 0; j < BUFFER_WIDTH; j++) begin
-      v.rdata[j] = buffer_reg_out.rdata[(int'(rid_bank)+j)%BUFFER_WIDTH];
+      v.rdata[j] = buffer_reg_out.rdata[(int'(v.rid_bank)+j)&(BUFFER_WIDTH-1)];
     end
 
     if (v.wen == 1) begin
