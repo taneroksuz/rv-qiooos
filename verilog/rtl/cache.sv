@@ -154,7 +154,7 @@ module cache_ctrl (
 
     v_f.valid = 0;
 
-    if (cache_in.mem_valid == 1 && r_b.state == HIT) begin
+    if (cache_in.mem_valid == 1 && v_b.state == HIT) begin
       v_f.valid = 1;
       v_f.tag   = cache_in.mem_addr[31:(CDEPTH+CWIDTH+2)];
       v_f.idx   = cache_in.mem_addr[(CDEPTH+CWIDTH+1):(CWIDTH+2)];
@@ -183,7 +183,7 @@ module cache_ctrl (
         cache_tag_in.wtag   = r_b.fill_tag;
         cache_tag_in.waddr  = r_b.fill_idx;
       end
-    end else if (r_b.state == HIT) begin
+    end else if (v_b.state == HIT) begin
       if (v_f.valid == 1) begin
         for (int w = 0; w < CACHE_WIDTH; w++) begin
           cache_vec_in[w].addr = v_f.idx;
