@@ -111,7 +111,7 @@ module cache_ctrl (
 
   typedef struct packed {
     logic [CTAG-1:0]   tag;
-    logic [CDEPTH-1:0] idx;
+    logic [CDEPTH-1:0] addr;
     logic [0:0]        valid;
   } front_type;
 
@@ -123,14 +123,12 @@ module cache_ctrl (
 
   typedef struct packed {
     cache_state                state;
-    logic [CWIDTH-1:0]         fill_wid;
-    logic [CTAG-1:0]           fill_tag;
-    logic [CDEPTH-1:0]         fill_idx;
-    logic [31:0]               fill_base;
-    logic [1:0][31:0]          fill_data;
-    logic [1:0][0:0]           fill_error;
-    logic [1:0]                fill_wen;
-    logic [0:0]                fill_tag_wen;
+    logic [CWIDTH-1:0]         wid;
+    logic [CTAG-1:0]           tag;
+    logic [CDEPTH-1:0]         addr;
+    logic [31:0]               base;
+    logic [1:0][31:0]          data;
+    logic [0:0]                wen;
     logic [1:0]                mem_valid;
     logic [1:0][31:0]          mem_addr;
     logic [1:0]                mem_done;
@@ -157,39 +155,34 @@ module cache_ctrl (
     if (cache_in.mem_valid == 1 && v_b.state == HIT) begin
       v_f.valid = 1;
       v_f.tag   = cache_in.mem_addr[31:(CDEPTH+CWIDTH+2)];
-      v_f.idx   = cache_in.mem_addr[(CDEPTH+CWIDTH+1):(CWIDTH+2)];
+      v_f.addr  = cache_in.mem_addr[(CDEPTH+CWIDTH+1):(CWIDTH+2)];
     end
 
     cache_vec_in = init_cache_vec_in;
     cache_tag_in = init_cache_tag_in;
 
-    if (r_b.state == FILL) begin
-      if (r_b.fill_wen[0] == 1) begin
-        cache_vec_in[r_b.fill_wid].wren  = 1;
-        cache_vec_in[r_b.fill_wid].addr  = r_b.fill_idx;
-        cache_vec_in[r_b.fill_wid].data  = r_b.fill_data[0];
-        cache_vec_in[r_b.fill_wid].error = r_b.fill_error[0];
-      end
-      if (r_b.fill_wen[1] == 1) begin
-        cache_vec_in[r_b.fill_wid+1].wren  = 1;
-        cache_vec_in[r_b.fill_wid+1].addr  = r_b.fill_idx;
-        cache_vec_in[r_b.fill_wid+1].data  = r_b.fill_data[1];
-        cache_vec_in[r_b.fill_wid+1].error = r_b.fill_error[1];
-      end
-      if (r_b.fill_tag_wen == 1) begin
-        cache_tag_in.raddr  = r_b.fill_idx;
+    if (r_b.state == DONE) begin
+      if (r_b.wen == 1) begin
+        for (int w = 0; w < CACHE_WIDTH; w++) begin
+          cache_vec_in[w].wren  = 1;
+          cache_vec_in[w].addr  = r_b.addr;
+          cache_vec_in[w].data  = r_b.rdata[w*32+:32];
+          cache_vec_in[w].error = r_b.error[w];
+        end
         cache_tag_in.wren   = 1;
         cache_tag_in.wvalid = 1;
-        cache_tag_in.wtag   = r_b.fill_tag;
-        cache_tag_in.waddr  = r_b.fill_idx;
+        cache_tag_in.wtag   = r_b.tag;
+        cache_tag_in.waddr  = r_b.addr;
       end
-    end else if (v_b.state == HIT) begin
+    end
+
+    if (v_b.state == HIT) begin
       if (v_f.valid == 1) begin
         for (int w = 0; w < CACHE_WIDTH; w++) begin
-          cache_vec_in[w].addr = v_f.idx;
+          cache_vec_in[w].addr = v_f.addr;
         end
       end
-      cache_tag_in.raddr = v_f.idx;
+      cache_tag_in.raddr = v_f.addr;
     end
 
     rin_f = v_f;
@@ -201,8 +194,7 @@ module cache_ctrl (
     v_b = r_b;
 
     v_b.ready        = 0;
-    v_b.fill_wen     = 0;
-    v_b.fill_tag_wen = 0;
+    v_b.wen          = 0;
     v_b.mem_valid[0] = 0;
     v_b.mem_valid[1] = 0;
 
@@ -219,12 +211,12 @@ module cache_ctrl (
               v_b.error[w]        = cache_vec_out[w].error;
             end
           end else begin
-            v_b.state     = FILL;
-            v_b.fill_wid  = 0;
-            v_b.fill_tag  = r_f.tag;
-            v_b.fill_idx  = r_f.idx;
-            v_b.fill_base = {r_f.tag, r_f.idx, {CWIDTH{1'b0}}, 2'b00};
-            v_b.mem_done  = 2'b00;
+            v_b.state    = FILL;
+            v_b.wid      = 0;
+            v_b.tag      = r_f.tag;
+            v_b.addr     = r_f.addr;
+            v_b.base     = {r_f.tag, r_f.addr, {CWIDTH{1'b0}}, 2'b00};
+            v_b.mem_done = 2'b00;
           end
         end
       end
@@ -232,37 +224,30 @@ module cache_ctrl (
       FILL: begin
         if (v_b.mem_done == 2'b00) begin
           v_b.mem_valid[0] = 1;
-          v_b.mem_addr[0] = r_b.fill_base + {{(30 - CWIDTH) {1'b0}}, r_b.fill_wid, 2'b00};
+          v_b.mem_addr[0]  = r_b.base + {{(30 - CWIDTH) {1'b0}}, r_b.wid, 2'b00};
           v_b.mem_valid[1] = 1;
-          v_b.mem_addr[1] = r_b.fill_base +
-              {{(30 - CWIDTH) {1'b0}}, r_b.fill_wid + CWIDTH'(1), 2'b00};
+          v_b.mem_addr[1]  = r_b.base + {{(30 - CWIDTH) {1'b0}}, r_b.wid + CWIDTH'(1), 2'b00};
         end
 
         if (mem_out[0].mem_ready == 1 && v_b.mem_done[0] == 0) begin
-          v_b.fill_wen[0]                = 1;
-          v_b.fill_data[0]               = mem_out[0].mem_rdata;
-          v_b.fill_error[0]              = mem_out[0].mem_error;
-          v_b.rdata[r_b.fill_wid*32+:32] = mem_out[0].mem_rdata;
-          v_b.error[r_b.fill_wid]        = mem_out[0].mem_error;
-          v_b.mem_done[0]                = 1;
+          v_b.rdata[r_b.wid*32+:32] = mem_out[0].mem_rdata;
+          v_b.error[r_b.wid]        = mem_out[0].mem_error;
+          v_b.mem_done[0]           = 1;
         end
 
         if (mem_out[1].mem_ready == 1 && v_b.mem_done[1] == 0) begin
-          v_b.fill_wen[1]                    = 1;
-          v_b.fill_data[1]                   = mem_out[1].mem_rdata;
-          v_b.fill_error[1]                  = mem_out[1].mem_error;
-          v_b.rdata[(r_b.fill_wid+1)*32+:32] = mem_out[1].mem_rdata;
-          v_b.error[r_b.fill_wid+1]          = mem_out[1].mem_error;
-          v_b.mem_done[1]                    = 1;
+          v_b.rdata[(r_b.wid+1)*32+:32] = mem_out[1].mem_rdata;
+          v_b.error[r_b.wid+1]          = mem_out[1].mem_error;
+          v_b.mem_done[1]               = 1;
         end
 
         if (v_b.mem_done == 2'b11) begin
           v_b.mem_done = 2'b00;
-          if (r_b.fill_wid >= CWIDTH'(CACHE_WIDTH) - CWIDTH'(2)) begin
-            v_b.fill_tag_wen = 1;
-            v_b.state        = DONE;
+          if (r_b.wid >= CWIDTH'(CACHE_WIDTH) - CWIDTH'(2)) begin
+            v_b.wen   = 1;
+            v_b.state = DONE;
           end else begin
-            v_b.fill_wid = r_b.fill_wid + 2;
+            v_b.wid = r_b.wid + 2;
           end
         end
       end
