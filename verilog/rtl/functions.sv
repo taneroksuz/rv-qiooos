@@ -220,12 +220,12 @@ package functions;
     input logic [PRF_ADDR_BITS-1:0] tag;
     input logic prf_valid;
     input logic [31:0] prf_data;
-    input cdb_type [3:0] c;
+    input cdb_type [ISSUE_WIDTH-1:0] c;
     input cdb_type cl;
     begin
       prf_or_cdb = 32'h0;
       if (prf_valid) prf_or_cdb = prf_data;
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (c[k].valid && c[k].tag == tag) prf_or_cdb = c[k].data;
       end
       if (cl.valid && cl.tag == tag) prf_or_cdb = cl.data;
@@ -234,11 +234,11 @@ package functions;
   function automatic logic src_ready;
     input logic [PRF_ADDR_BITS-1:0] tag;
     input logic prf_valid;
-    input cdb_type [3:0] c;
+    input cdb_type [ISSUE_WIDTH-1:0] c;
     input cdb_type cl;
     begin
       src_ready = prf_valid;
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (c[k].valid && c[k].tag == tag) src_ready = 1'b1;
       end
       if (cl.valid && cl.tag == tag) src_ready = 1'b1;

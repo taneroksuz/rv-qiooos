@@ -63,20 +63,20 @@ module testbench ();
     end
   end
 
-  wire        commit_valid [0:3];
-  wire [31:0] commit_pc    [0:3];
-  wire [ 4:0] commit_waddr [0:3];
-  wire [31:0] commit_wdata [0:3];
-  wire        commit_wren  [0:3];
-  wire        commit_store [0:3];
-  wire [31:0] commit_saddr [0:3];
-  wire [31:0] commit_sdata [0:3];
-  wire [ 3:0] commit_sstrb [0:3];
-  wire        commit_cwren [0:3];
-  wire [11:0] commit_caddr [0:3];
-  wire [31:0] commit_cwdata[0:3];
+  wire        commit_valid [0:ISSUE_WIDTH-1];
+  wire [31:0] commit_pc    [0:ISSUE_WIDTH-1];
+  wire [ 4:0] commit_waddr [0:ISSUE_WIDTH-1];
+  wire [31:0] commit_wdata [0:ISSUE_WIDTH-1];
+  wire        commit_wren  [0:ISSUE_WIDTH-1];
+  wire        commit_store [0:ISSUE_WIDTH-1];
+  wire [31:0] commit_saddr [0:ISSUE_WIDTH-1];
+  wire [31:0] commit_sdata [0:ISSUE_WIDTH-1];
+  wire [ 3:0] commit_sstrb [0:ISSUE_WIDTH-1];
+  wire        commit_cwren [0:ISSUE_WIDTH-1];
+  wire [11:0] commit_caddr [0:ISSUE_WIDTH-1];
+  wire [31:0] commit_cwdata[0:ISSUE_WIDTH-1];
 
-  for (genvar k = 0; k < 4; k++) begin : g_commit_wires
+  for (genvar k = 0; k < ISSUE_WIDTH; k++) begin : g_commit_wires
     assign commit_valid[k]  = testbench.soc_comp.cpu_comp.commit_in.commit[k];
     assign commit_pc[k]     = testbench.soc_comp.cpu_comp.commit_in.entry[k].pc;
     assign commit_waddr[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].adest;
@@ -97,7 +97,7 @@ module testbench ();
       reg_file = $fopen(filename, "w");
       for (int i = 0; i < stoptime; i = i + 1) begin
         @(posedge clock);
-        for (int k = 0; k < 4; k++) begin
+        for (int k = 0; k < ISSUE_WIDTH; k++) begin
           if (commit_valid[k] && commit_wren[k]) begin
             $fwrite(reg_file, "PERIOD = %t ;\t", $time);
             $fwrite(reg_file, "PC = %x ;\t", commit_pc[k]);
@@ -116,7 +116,7 @@ module testbench ();
       csr_file = $fopen(filename, "w");
       for (int i = 0; i < stoptime; i = i + 1) begin
         @(posedge clock);
-        for (int k = 0; k < 4; k++) begin
+        for (int k = 0; k < ISSUE_WIDTH; k++) begin
           if (commit_valid[k] && commit_cwren[k]) begin
             $fwrite(csr_file, "PERIOD = %t ;\t", $time);
             $fwrite(csr_file, "PC = %x ;\t", commit_pc[k]);
@@ -135,7 +135,7 @@ module testbench ();
       mem_file = $fopen(filename, "w");
       for (int i = 0; i < stoptime; i = i + 1) begin
         @(posedge clock);
-        for (int k = 0; k < 4; k++) begin
+        for (int k = 0; k < ISSUE_WIDTH; k++) begin
           if (commit_valid[k] && commit_store[k] && |commit_sstrb[k]) begin
             $fwrite(mem_file, "PERIOD = %t ;\t", $time);
             $fwrite(mem_file, "PC = %x ;\t", commit_pc[k]);
@@ -150,7 +150,7 @@ module testbench ();
   end
 
   always_ff @(posedge clock) begin
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (commit_valid[k] && commit_store[k] && |commit_sstrb[k]) begin
         if (commit_saddr[k][31:3] == host[0][31:3]) begin
           $display("%d", commit_sdata[k][31:0]);

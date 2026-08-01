@@ -23,8 +23,7 @@ module fetch (
     v.valid = 0;
     v.stall = fetch_in.buffer_out.stall;
 
-    v.flush = fetch_in.btac_out.pred_miss[0] | fetch_in.btac_out.pred_miss[1] |
-        fetch_in.btac_out.pred_miss[2] | fetch_in.btac_out.pred_miss[3];
+    v.flush = |fetch_in.btac_out.pred_miss;
     v.flush = v.flush | fetch_in.btac_out.pred[0].taken | fetch_in.btac_out.pred[1].taken |
         fetch_in.btac_out.pred[2].taken | fetch_in.btac_out.pred[3].taken;
     v.flush = v.flush | fetch_in.csr_out.trap | fetch_in.csr_out.mret;
@@ -36,14 +35,14 @@ module fetch (
       v.ready = 0;
     end
 
-    for (int s = 0; s < 4; s++) begin
+    for (int s = 0; s < ISSUE_WIDTH; s++) begin
       v.pc[s]         = fetch_in.buffer_out.pc[s];
       v.instr[s]      = fetch_in.buffer_out.instr[s];
       v.lane_ready[s] = fetch_in.buffer_out.ready[s];
     end
 
     if (stall == 1 && flush == 0) begin
-      for (int s = 0; s < 4; s++) begin
+      for (int s = 0; s < ISSUE_WIDTH; s++) begin
         v.pc[s]         = r.pc[s];
         v.instr[s]      = r.instr[s];
         v.lane_ready[s] = r.lane_ready[s];
@@ -130,10 +129,10 @@ module fetch (
     fetch_out.cache_in.mem_valid = v.valid;
     fetch_out.cache_in.mem_addr  = v.ipc;
 
-    for (int s = 0; s < 4; s++) begin
+    for (int s = 0; s < ISSUE_WIDTH; s++) begin
       fetch_out.btac_in.get_pc[s] = v.pc[s];
     end
-    for (int p = 0; p < 4; p++) begin
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
       fetch_out.btac_in.upd_pc[p]     = fetch_in.entry[p].pc;
       fetch_out.btac_in.upd_npc[p]    = fetch_in.entry[p].pnpc;
       fetch_out.btac_in.upd_addr[p]   = fetch_in.entry[p].npc;
@@ -142,7 +141,7 @@ module fetch (
       fetch_out.btac_in.upd_pred[p]   = fetch_in.entry[p].pred;
     end
 
-    for (int s = 0; s < 4; s++) begin
+    for (int s = 0; s < ISSUE_WIDTH; s++) begin
       fetch_out.pc[s]    = v.pc[s];
       fetch_out.instr[s] = v.instr[s];
       fetch_out.ready[s] = v.lane_ready[s];

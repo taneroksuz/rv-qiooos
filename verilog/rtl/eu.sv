@@ -13,17 +13,17 @@ module eu (
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
-    cdb_type [3:0]                 cdb;
-    logic [3:0][ROB_ADDR_BITS-1:0] rob_wtag;
-    rob_entry_type [3:0]           rob_wentry;
-    logic [3:0]                    rob_wen;
-    logic [1:0][ROB_ADDR_BITS-1:0] rob_wtag_store;
-    rob_entry_type [1:0]           rob_wentry_store;
-    logic [1:0]                    rob_wen_store;
-    rs_entry_type                  div_pending;
-    logic [0:0]                    div_pending_valid;
-    rs_entry_type                  clmul_pending;
-    logic [0:0]                    clmul_pending_valid;
+    cdb_type [ISSUE_WIDTH-1:0]                     cdb;
+    logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0]     rob_wtag;
+    rob_entry_type [ISSUE_WIDTH-1:0]               rob_wentry;
+    logic [ISSUE_WIDTH-1:0]                        rob_wen;
+    logic [MEM_ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] rob_wtag_store;
+    rob_entry_type [MEM_ISSUE_WIDTH-1:0]           rob_wentry_store;
+    logic [MEM_ISSUE_WIDTH-1:0]                    rob_wen_store;
+    rs_entry_type                                  div_pending;
+    logic [0:0]                                    div_pending_valid;
+    rs_entry_type                                  clmul_pending;
+    logic [0:0]                                    clmul_pending_valid;
   } eu_reg_type;
 
   localparam eu_reg_type init_eu_reg = '{
@@ -43,64 +43,64 @@ module eu (
   eu_reg_type r, rin;
   eu_reg_type v;
 
-  rs_entry_type int_issue      [0:3];
-  logic         int_issue_valid[0:3];
+  rs_entry_type int_issue      [0:ISSUE_WIDTH-1];
+  logic         int_issue_valid[0:ISSUE_WIDTH-1];
 
-  logic [31:0] agu_result_lane   [0:3];
-  logic        agu_exception_lane[0:3];
-  logic [ 7:0] agu_ecause_lane   [0:3];
-  logic [31:0] agu_etval_lane    [0:3];
-  logic [31:0] mul_result_lane   [0:3];
-  logic [31:0] bit_result_lane   [0:3];
-  logic [31:0] csr_result_lane   [0:3];
-  logic        branch_taken_lane [0:3];
+  logic [31:0] agu_result_lane   [0:ISSUE_WIDTH-1];
+  logic        agu_exception_lane[0:ISSUE_WIDTH-1];
+  logic [ 7:0] agu_ecause_lane   [0:ISSUE_WIDTH-1];
+  logic [31:0] agu_etval_lane    [0:ISSUE_WIDTH-1];
+  logic [31:0] mul_result_lane   [0:ISSUE_WIDTH-1];
+  logic [31:0] bit_result_lane   [0:ISSUE_WIDTH-1];
+  logic [31:0] csr_result_lane   [0:ISSUE_WIDTH-1];
+  logic        branch_taken_lane [0:ISSUE_WIDTH-1];
 
-  logic [31:0] eu_result_lane[0:3];
-  logic        eu_done_lane  [0:3];
+  logic [31:0] eu_result_lane[0:ISSUE_WIDTH-1];
+  logic        eu_done_lane  [0:ISSUE_WIDTH-1];
 
-  logic agu_need [0:3];
-  int   agu_owner[0:1];
-  logic agu_found[0:1];
+  logic agu_need [     0:ISSUE_WIDTH-1];
+  int   agu_owner[0:AGU_BRANCH_COUNT-1];
+  logic agu_found[0:AGU_BRANCH_COUNT-1];
 
-  int   bcu_owner[0:1];
-  logic bcu_found[0:1];
+  int   bcu_owner[0:BCU_COUNT-1];
+  logic bcu_found[0:BCU_COUNT-1];
 
-  int   mul_owner[0:1];
-  logic mul_found[0:1];
+  int   mul_owner[0:MUL_COUNT-1];
+  logic mul_found[0:MUL_COUNT-1];
 
-  int   bitalu_owner[0:1];
-  logic bitalu_found[0:1];
+  int   bitalu_owner[0:BITALU_COUNT-1];
+  logic bitalu_found[0:BITALU_COUNT-1];
 
   int          csr_owner;
   logic        csr_found;
-  logic [31:0] mstore_data[0:1];
+  logic [31:0] mstore_data[0:MEM_ISSUE_WIDTH-1];
 
-  logic div_issue  [0:3];
-  logic clmul_issue[0:3];
+  logic div_issue  [0:ISSUE_WIDTH-1];
+  logic clmul_issue[0:ISSUE_WIDTH-1];
 
   always_comb begin
 
     v = r;
 
-    for (int l = 0; l < 4; l++) begin
+    for (int l = 0; l < ISSUE_WIDTH; l++) begin
       v.cdb[l]        = init_cdb;
       v.rob_wtag[l]   = eu_in.int_issue[l].rob_tag;
       v.rob_wentry[l] = init_rob_entry;
       v.rob_wen[l]    = 1'b0;
     end
-    for (int l = 0; l < 2; l++) begin
+    for (int l = 0; l < MEM_ISSUE_WIDTH; l++) begin
       v.rob_wtag_store[l]   = eu_in.mem_issue[l].rob_tag;
       v.rob_wentry_store[l] = init_rob_entry;
       v.rob_wen_store[l]    = 1'b0;
     end
 
-    for (int l = 0; l < 4; l++) begin
+    for (int l = 0; l < ISSUE_WIDTH; l++) begin
       int_issue[l]       = eu_in.int_issue[l];
       int_issue_valid[l] = eu_in.int_issue_valid[l];
     end
 
     div_issue[0] = eu_in.int_issue_valid[0] & eu_in.int_issue[0].op.division & ~r.div_pending_valid;
-    for (int l = 1; l < 4; l++) begin
+    for (int l = 1; l < ISSUE_WIDTH; l++) begin
       div_issue[l] = eu_in.int_issue_valid[l] &
           eu_in.int_issue[l].op.division & ~r.div_pending_valid;
       for (int j = 0; j < l; j++) begin
@@ -109,7 +109,7 @@ module eu (
     end
 
     clmul_issue[0] = eu_in.int_issue_valid[0] & eu_in.int_issue[0].op.bitc & ~r.clmul_pending_valid;
-    for (int l = 1; l < 4; l++) begin
+    for (int l = 1; l < ISSUE_WIDTH; l++) begin
       clmul_issue[l] = eu_in.int_issue_valid[l] &
           eu_in.int_issue[l].op.bitc & ~r.clmul_pending_valid;
       for (int j = 0; j < l; j++) begin
@@ -124,7 +124,7 @@ module eu (
       if (eu_in.div_out.ready) begin
         v.div_pending_valid = 1'b0;
       end else begin
-        for (int l = 0; l < 4; l++) begin
+        for (int l = 0; l < ISSUE_WIDTH; l++) begin
           if (div_issue[l]) begin
             v.div_pending       = eu_in.int_issue[l];
             v.div_pending_valid = 1'b1;
@@ -135,7 +135,7 @@ module eu (
       if (eu_in.bit_clmul_out.ready) begin
         v.clmul_pending_valid = 1'b0;
       end else begin
-        for (int l = 0; l < 4; l++) begin
+        for (int l = 0; l < ISSUE_WIDTH; l++) begin
           if (clmul_issue[l]) begin
             v.clmul_pending       = eu_in.int_issue[l];
             v.clmul_pending_valid = 1'b1;
@@ -144,7 +144,7 @@ module eu (
       end
     end
 
-    for (int l = 0; l < 4; l++) begin
+    for (int l = 0; l < ALU_COUNT; l++) begin
       eu_out.alu_in[l].rdata1 = int_issue[l].rdata1;
       eu_out.alu_in[l].rdata2 = int_issue[l].rdata2;
       eu_out.alu_in[l].imm    = int_issue[l].imm;
@@ -152,7 +152,7 @@ module eu (
       eu_out.alu_in[l].alu_op = int_issue[l].alu_op;
     end
 
-    for (int l = 0; l < 2; l++) begin
+    for (int l = 0; l < MEM_ISSUE_WIDTH; l++) begin
       eu_out.agu_in[2+l].rdata1 = eu_in.mem_issue[l].rdata1;
       eu_out.agu_in[2+l].imm    = eu_in.mem_issue[l].imm;
       eu_out.agu_in[2+l].pc     = eu_in.mem_issue[l].pc;
@@ -170,7 +170,7 @@ module eu (
     agu_owner[0] = 0;
     agu_owner[1] = 0;
 
-    for (int l = 0; l < 4; l++) begin
+    for (int l = 0; l < ISSUE_WIDTH; l++) begin
       agu_need[l] = int_issue_valid[l] && (int_issue[l].op.auipc || int_issue[l].op.jal ||
                                            int_issue[l].op.jalr || int_issue[l].op.branch);
       if (agu_need[l]) begin
@@ -184,7 +184,7 @@ module eu (
       end
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < AGU_BRANCH_COUNT; p++) begin
       eu_out.agu_in[p].rdata1 = agu_found[p] ? int_issue[agu_owner[p]].rdata1 : 32'h0;
       eu_out.agu_in[p].imm    = agu_found[p] ? int_issue[agu_owner[p]].imm : 32'h0;
       eu_out.agu_in[p].pc     = agu_found[p] ? int_issue[agu_owner[p]].pc : 32'h0;
@@ -197,7 +197,7 @@ module eu (
       eu_out.agu_in[p].lsu_op = init_lsu_op;
     end
 
-    for (int l = 0; l < 4; l++) begin
+    for (int l = 0; l < ISSUE_WIDTH; l++) begin
       if (agu_found[0] && agu_owner[0] == l) begin
         agu_result_lane[l]    = eu_in.agu_out[0].address;
         agu_exception_lane[l] = eu_in.agu_out[0].exception;
@@ -222,7 +222,7 @@ module eu (
       bcu_owner[0] = 0;
       bcu_owner[1] = 0;
 
-      for (int l = 0; l < 4; l++) begin
+      for (int l = 0; l < ISSUE_WIDTH; l++) begin
         if (int_issue_valid[l] && int_issue[l].op.branch) begin
           if (!bcu_found[0]) begin
             bcu_owner[0] = l;
@@ -234,14 +234,14 @@ module eu (
         end
       end
 
-      for (int p = 0; p < 2; p++) begin
+      for (int p = 0; p < BCU_COUNT; p++) begin
         eu_out.bcu_in[p].rdata1 = bcu_found[p] ? int_issue[bcu_owner[p]].rdata1 : 32'h0;
         eu_out.bcu_in[p].rdata2 = bcu_found[p] ? int_issue[bcu_owner[p]].rdata2 : 32'h0;
         eu_out.bcu_in[p].enable = bcu_found[p];
         eu_out.bcu_in[p].bcu_op = bcu_found[p] ? int_issue[bcu_owner[p]].bcu_op : init_bcu_op;
       end
 
-      for (int l = 0; l < 4; l++) begin
+      for (int l = 0; l < ISSUE_WIDTH; l++) begin
         if (bcu_found[0] && bcu_owner[0] == l) begin
           branch_taken_lane[l] = int_issue[l].op.branch & eu_in.bcu_out[0].branch;
         end else if (bcu_found[1] && bcu_owner[1] == l) begin
@@ -258,7 +258,7 @@ module eu (
       mul_owner[0] = 0;
       mul_owner[1] = 0;
 
-      for (int l = 0; l < 4; l++) begin
+      for (int l = 0; l < ISSUE_WIDTH; l++) begin
         if (int_issue_valid[l] && int_issue[l].op.mult) begin
           if (!mul_found[0]) begin
             mul_owner[0] = l;
@@ -270,13 +270,13 @@ module eu (
         end
       end
 
-      for (int p = 0; p < 2; p++) begin
+      for (int p = 0; p < MUL_COUNT; p++) begin
         eu_out.mul_in[p].rdata1 = mul_found[p] ? int_issue[mul_owner[p]].rdata1 : 32'h0;
         eu_out.mul_in[p].rdata2 = mul_found[p] ? int_issue[mul_owner[p]].rdata2 : 32'h0;
         eu_out.mul_in[p].mul_op = mul_found[p] ? int_issue[mul_owner[p]].mul_op : init_mul_op;
       end
 
-      for (int l = 0; l < 4; l++) begin
+      for (int l = 0; l < ISSUE_WIDTH; l++) begin
         if (mul_found[0] && mul_owner[0] == l) begin
           mul_result_lane[l] = eu_in.mul_out[0].result;
         end else if (mul_found[1] && mul_owner[1] == l) begin
@@ -293,7 +293,7 @@ module eu (
       bitalu_owner[0] = 0;
       bitalu_owner[1] = 0;
 
-      for (int l = 0; l < 4; l++) begin
+      for (int l = 0; l < ISSUE_WIDTH; l++) begin
         if (int_issue_valid[l] && int_issue[l].op.bitm) begin
           if (!bitalu_found[0]) begin
             bitalu_owner[0] = l;
@@ -305,7 +305,7 @@ module eu (
         end
       end
 
-      for (int p = 0; p < 2; p++) begin
+      for (int p = 0; p < BITALU_COUNT; p++) begin
         eu_out.bit_alu_in[p].rdata1 = bitalu_found[p] ? int_issue[bitalu_owner[p]].rdata1 : 32'h0;
         eu_out.bit_alu_in[p].rdata2 = bitalu_found[p] ? int_issue[bitalu_owner[p]].rdata2 : 32'h0;
         eu_out.bit_alu_in[p].imm = bitalu_found[p] ? int_issue[bitalu_owner[p]].imm : 32'h0;
@@ -314,7 +314,7 @@ module eu (
             init_bit_op;
       end
 
-      for (int l = 0; l < 4; l++) begin
+      for (int l = 0; l < ISSUE_WIDTH; l++) begin
         if (bitalu_found[0] && bitalu_owner[0] == l) begin
           bit_result_lane[l] = eu_in.bit_alu_out[0].result;
         end else if (bitalu_found[1] && bitalu_owner[1] == l) begin
@@ -329,30 +329,23 @@ module eu (
       csr_found = 1'b0;
       csr_owner = 0;
 
-      for (int l = 0; l < 4; l++) begin
+      for (int l = 0; l < ISSUE_WIDTH; l++) begin
         if (int_issue_valid[l] && int_issue[l].op.csreg && !csr_found) begin
           csr_owner = l;
           csr_found = 1'b1;
         end
       end
 
-      eu_out.csr_alu_in[0].cdata = eu_in.csr.cdata;
-      eu_out.csr_alu_in[0].rdata1 = csr_found ? int_issue[csr_owner].rdata1 : 32'h0;
-      eu_out.csr_alu_in[0].imm = csr_found ? int_issue[csr_owner].imm : 32'h0;
-      eu_out.csr_alu_in[0].sel = csr_found &&
-          (int_issue[csr_owner].csr_op.csrrwi | int_issue[csr_owner].csr_op.csrrsi |
-           int_issue[csr_owner].csr_op.csrrci);
-      eu_out.csr_alu_in[0].csr_op = csr_found ? int_issue[csr_owner].csr_op : init_csr_op;
+      eu_out.csr_alu_in.cdata = eu_in.csr.cdata;
+      eu_out.csr_alu_in.rdata1 = csr_found ? int_issue[csr_owner].rdata1 : 32'h0;
+      eu_out.csr_alu_in.imm = csr_found ? int_issue[csr_owner].imm : 32'h0;
+      eu_out.csr_alu_in.sel = csr_found && (int_issue[csr_owner].csr_op.csrrwi | int_issue[csr_owner
+                                            ].csr_op.csrrsi | int_issue[csr_owner].csr_op.csrrci);
+      eu_out.csr_alu_in.csr_op = csr_found ? int_issue[csr_owner].csr_op : init_csr_op;
 
-      eu_out.csr_alu_in[1].cdata  = eu_in.csr.cdata;
-      eu_out.csr_alu_in[1].rdata1 = 32'h0;
-      eu_out.csr_alu_in[1].imm    = 32'h0;
-      eu_out.csr_alu_in[1].sel    = 1'b0;
-      eu_out.csr_alu_in[1].csr_op = init_csr_op;
-
-      for (int l = 0; l < 4; l++) begin
+      for (int l = 0; l < ISSUE_WIDTH; l++) begin
         if (csr_found && csr_owner == l) begin
-          csr_result_lane[l] = eu_in.csr_alu_out[0].cdata;
+          csr_result_lane[l] = eu_in.csr_alu_out.cdata;
         end else begin
           csr_result_lane[l] = eu_in.csr.cdata;
         end
@@ -381,7 +374,7 @@ module eu (
         clmul_issue[1] ? eu_in.int_issue[1].bit_op.bit_zbc :
         clmul_issue[2] ? eu_in.int_issue[2].bit_op.bit_zbc : eu_in.int_issue[3].bit_op.bit_zbc;
 
-    for (int l = 0; l < 4; l++) begin
+    for (int l = 0; l < ISSUE_WIDTH; l++) begin
       eu_result_lane[l] = eu_result(
         int_issue[l],
         eu_in.alu_out[l].result,
@@ -396,7 +389,7 @@ module eu (
           eu_done(int_issue[l], int_issue_valid[l], eu_in.div_out, eu_in.bit_clmul_out);
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       mstore_data[p] = store_data(
         eu_in.mem_issue[p].rdata2,
         eu_in.mem_issue[p].lsu_op.lsu_sb,
@@ -483,7 +476,7 @@ module eu (
         v.rob_wentry[1].cwdata = csr_result_lane[1];
       end
 
-      for (int l = 2; l < 4; l++) begin
+      for (int l = 2; l < ISSUE_WIDTH; l++) begin
         if (int_issue_valid[l] && eu_done_lane[l]) begin
           if (int_issue[l].op.wren) begin
             v.cdb[l].valid = 1'b1;
@@ -505,7 +498,7 @@ module eu (
         end
       end
 
-      for (int p = 0; p < 2; p++) begin
+      for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
         if (eu_in.mem_issue_valid[p] && eu_in.mem_issue[p].op.store) begin
           v.rob_wtag_store[p]              = eu_in.mem_issue[p].rob_tag;
           v.rob_wen_store[p]               = 1'b1;
@@ -523,13 +516,13 @@ module eu (
 
     rin = v;
 
-    for (int l = 0; l < 4; l++) begin
+    for (int l = 0; l < ISSUE_WIDTH; l++) begin
       eu_out.cdb[l]        = r.cdb[l];
       eu_out.rob_wtag[l]   = r.rob_wtag[l];
       eu_out.rob_wentry[l] = r.rob_wentry[l];
       eu_out.rob_wen[l]    = r.rob_wen[l];
     end
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       eu_out.rob_wtag_store[p]   = r.rob_wtag_store[p];
       eu_out.rob_wentry_store[p] = r.rob_wentry_store[p];
       eu_out.rob_wen_store[p]    = r.rob_wen_store[p];

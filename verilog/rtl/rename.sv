@@ -23,31 +23,31 @@ module rename (
   } lane_type;
 
   typedef struct packed {
-    logic           rob_ok;
-    logic           int_room_ok;
-    logic           stall;
-    lane_type [3:0] l;
-    rename_out_type rename_out;
+    logic                       rob_ok;
+    logic                       int_room_ok;
+    logic                       stall;
+    lane_type [ISSUE_WIDTH-1:0] l;
+    rename_out_type             rename_out;
   } rename_reg_type;
 
   rename_reg_type v;
   cdb_type        cdb_load_any;
 
-  instruction_type                     instr      [0:3];
-  logic            [              0:0] instr_valid[0:3];
-  logic            [ROB_ADDR_BITS-1:0] rob_tag    [0:3];
+  instruction_type                     instr      [0:ISSUE_WIDTH-1];
+  logic            [              0:0] instr_valid[0:ISSUE_WIDTH-1];
+  logic            [ROB_ADDR_BITS-1:0] rob_tag    [0:ISSUE_WIDTH-1];
 
-  logic [PRF_ADDR_BITS-1:0] psrc_arr      [0:7];
-  logic [              0:0] psrc_valid_arr[0:7];
-  logic [             31:0] prf_rdata_arr [0:7];
-  logic [              0:0] prf_rvalid_arr[0:7];
+  logic [PRF_ADDR_BITS-1:0] psrc_arr      [0:2*ISSUE_WIDTH-1];
+  logic [              0:0] psrc_valid_arr[0:2*ISSUE_WIDTH-1];
+  logic [             31:0] prf_rdata_arr [0:2*ISSUE_WIDTH-1];
+  logic [              0:0] prf_rvalid_arr[0:2*ISSUE_WIDTH-1];
 
-  logic [PRF_ADDR_BITS-1:0] fl_tag_arr[0:3];
-  logic [              0:0] fl_ok_arr [0:3];
+  logic [PRF_ADDR_BITS-1:0] fl_tag_arr[0:ISSUE_WIDTH-1];
+  logic [              0:0] fl_ok_arr [0:ISSUE_WIDTH-1];
 
-  logic [0:0] can_dispatch_final[0:3];
+  logic [0:0] can_dispatch_final[0:ISSUE_WIDTH-1];
 
-  lane_type lanes    [0:3];
+  lane_type lanes    [0:ISSUE_WIDTH-1];
   int       fl_count;
   int       fl_idx;
 
@@ -56,20 +56,20 @@ module rename (
     v.rename_out = '0;
     cdb_load_any = rename_in.cdb_load[0].valid ? rename_in.cdb_load[0] : rename_in.cdb_load[1];
 
-    for (int i = 0; i < 4; i++) begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
       instr[i]       = rename_in.instr[i];
       instr_valid[i] = rename_in.instr_valid[i];
       rob_tag[i]     = rename_in.rob_tag[i];
     end
 
-    for (int i = 0; i < 8; i++) begin
+    for (int i = 0; i < 2 * ISSUE_WIDTH; i++) begin
       psrc_arr[i]       = rename_in.rat.psrc[i];
       psrc_valid_arr[i] = rename_in.rat.psrc_valid[i];
       prf_rdata_arr[i]  = rename_in.prf.rdata[i];
       prf_rvalid_arr[i] = rename_in.prf.rvalid[i];
     end
 
-    for (int i = 0; i < 4; i++) begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
       fl_tag_arr[i] = rename_in.fl.alloc_tag[i];
       fl_ok_arr[i]  = rename_in.fl.alloc_ok[i];
     end
@@ -80,7 +80,7 @@ module rename (
     begin
       fl_count = 0;
 
-      for (int i = 0; i < 4; i++) begin
+      for (int i = 0; i < ISSUE_WIDTH; i++) begin
         lanes[i]         = '0;
         lanes[i].is_mem  = instr_valid[i] && (instr[i].op.load || instr[i].op.store);
         lanes[i].need_fl = instr_valid[i] && instr[i].op.wren && (instr[i].waddr != 5'h0);
@@ -101,25 +101,25 @@ module rename (
 
       lanes[0].can_dispatch = instr_valid[0] && v.rob_ok && lanes[0].rs_ok && lanes[0].fl_ok &&
           !flush;
-      for (int i = 1; i < 4; i++) begin
+      for (int i = 1; i < ISSUE_WIDTH; i++) begin
         lanes[i].can_dispatch = instr_valid[i] && lanes[i-1].can_dispatch && v.rob_ok &&
             lanes[i].rs_ok && lanes[i].fl_ok && !flush;
       end
 
       v.stall = 1'b0;
-      for (int i = 0; i < 4; i++) begin
+      for (int i = 0; i < ISSUE_WIDTH; i++) begin
         if (instr_valid[i] && !lanes[i].can_dispatch) begin
           v.stall = 1'b1;
         end
       end
 
-      for (int i = 0; i < 4; i++) begin
+      for (int i = 0; i < ISSUE_WIDTH; i++) begin
         can_dispatch_final[i] = v.stall ? 1'b0 : lanes[i].can_dispatch;
       end
 
       begin
         fl_idx = 0;
-        for (int i = 0; i < 4; i++) begin
+        for (int i = 0; i < ISSUE_WIDTH; i++) begin
           if (lanes[i].need_fl) begin
             lanes[i].pdest = fl_tag_arr[fl_idx];
             fl_idx         = fl_idx + 1;
@@ -129,7 +129,7 @@ module rename (
         end
       end
 
-      for (int i = 0; i < 4; i++) begin
+      for (int i = 0; i < ISSUE_WIDTH; i++) begin
         lanes[i].e = init_rs_entry;
         lanes[i].e.valid = can_dispatch_final[i] && !lanes[i].is_mem;
         lanes[i].e.psrc1 = psrc_arr[2*i];
@@ -175,14 +175,14 @@ module rename (
         lanes[i].em.valid = can_dispatch_final[i] && lanes[i].is_mem;
       end
 
-      for (int i = 0; i < 4; i++) begin
+      for (int i = 0; i < ISSUE_WIDTH; i++) begin
         v.l[i] = lanes[i];
       end
     end
 
     v.rename_out.stall = v.stall;
 
-    for (int i = 0; i < 4; i++) begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
       v.rename_out.fl.alloc[i] = can_dispatch_final[i] && v.l[i].need_fl;
 
       v.rename_out.rat.rsrc_a[2*i]   = instr[i].op.rden1 ? instr[i].raddr1 : 5'h0;

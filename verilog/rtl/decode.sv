@@ -1,3 +1,4 @@
+import configure::*;
 import constants::*;
 import wires::*;
 import functions::*;
@@ -14,24 +15,24 @@ module decode (
 
   decode_reg_type r, rin;
   decode_reg_type v;
-  logic           squash[0:3];
+  logic           squash[0:ISSUE_WIDTH-1];
 
   always_comb begin
 
     v = r;
 
-    for (int i = 0; i < 4; i++) begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
       v.instr[i].pc    = decode_in.ready[i] ? decode_in.pc[i] : 32'hFFFFFFFF;
       v.instr[i].instr = decode_in.ready[i] ? decode_in.instr[i] : 0;
     end
 
     if (stall == 1) begin
-      for (int i = 0; i < 4; i++) begin
+      for (int i = 0; i < ISSUE_WIDTH; i++) begin
         v.instr[i] = r.instr[i];
       end
     end
 
-    for (int i = 0; i < 4; i++) begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
       v.instr[i].npc = v.instr[i].pc + ((&v.instr[i].instr[1:0]) ? 4 : 2);
 
       v.instr[i].waddr  = v.instr[i].instr[11:7];
@@ -78,7 +79,7 @@ module decode (
       v.instr[i].bit_op      = decode_in.base_out[i].bit_op;
     end
 
-    for (int i = 0; i < 4; i++) begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
       decode_out.compress_in[i].instr = v.instr[i].instr;
 
       if (decode_in.compress_out[i].valid == 1) begin
@@ -106,7 +107,7 @@ module decode (
       end
     end
 
-    for (int i = 0; i < 4; i++) begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
       if (decode_in.ready[i] == 1) begin
         if (v.instr[i].op.valid == 0) begin
           v.instr[i].op.exception = 1;
@@ -116,7 +117,7 @@ module decode (
     end
 
     if (flush == 1) begin
-      for (int i = 0; i < 4; i++) begin
+      for (int i = 0; i < ISSUE_WIDTH; i++) begin
         v.instr[i] = init_instruction;
       end
     end
@@ -124,11 +125,11 @@ module decode (
     rin = v;
 
     squash[0] = 1'b0;
-    for (int i = 1; i < 4; i++) begin
+    for (int i = 1; i < ISSUE_WIDTH; i++) begin
       squash[i] = squash[i-1] | decode_in.btac_out.pred[i-1].taken;
     end
 
-    for (int i = 0; i < 4; i++) begin
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
       decode_out.instr[i]            = squash[i] ? init_instruction : r.instr[i];
       decode_out.instr[i].pred.taken = decode_in.btac_out.pred[i].taken;
       decode_out.instr[i].pred.taddr = decode_in.btac_out.pred[i].taddr;

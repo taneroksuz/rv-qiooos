@@ -7,22 +7,22 @@ package btac_wires;
   localparam T_DEPTH = $clog2(BHT_DEPTH);
 
   typedef struct packed {
-    logic [0 : 0]              wen;
-    logic [B_DEPTH-1 : 0]      waddr;
-    logic [3:0][B_DEPTH-1 : 0] raddr;
-    logic [64-B_DEPTH : 0]     wdata;
+    logic [0 : 0]                          wen;
+    logic [B_DEPTH-1 : 0]                  waddr;
+    logic [ISSUE_WIDTH-1:0][B_DEPTH-1 : 0] raddr;
+    logic [64-B_DEPTH : 0]                 wdata;
   } btb_in_type;
 
-  typedef struct packed {logic [3:0][64-B_DEPTH : 0] rdata;} btb_out_type;
+  typedef struct packed {logic [ISSUE_WIDTH-1:0][64-B_DEPTH : 0] rdata;} btb_out_type;
 
   typedef struct packed {
-    logic [0 : 0]              wen;
-    logic [T_DEPTH-1 : 0]      waddr;
-    logic [3:0][T_DEPTH-1 : 0] raddr;
-    logic [1 : 0]              wdata;
+    logic [0 : 0]                          wen;
+    logic [T_DEPTH-1 : 0]                  waddr;
+    logic [ISSUE_WIDTH-1:0][T_DEPTH-1 : 0] raddr;
+    logic [1 : 0]                          wdata;
   } bht_in_type;
 
-  typedef struct packed {logic [3:0][1 : 0] rdata;} bht_out_type;
+  typedef struct packed {logic [ISSUE_WIDTH-1:0][1 : 0] rdata;} bht_out_type;
 
 endpackage
 
@@ -45,7 +45,7 @@ module btb (
     if (btb_in.wen == 1) begin
       btb_array[btb_in.waddr] <= btb_in.wdata;
     end
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       btb_out.rdata[k] <= btb_array[btb_in.raddr[k]];
     end
   end
@@ -71,7 +71,7 @@ module bht (
     if (bht_in.wen == 1) begin
       bht_array[bht_in.waddr] <= bht_in.wdata;
     end
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       bht_out.rdata[k] <= bht_array[bht_in.raddr[k]];
     end
   end
@@ -104,17 +104,17 @@ module btac_ctrl (
   endfunction
 
   typedef struct packed {
-    logic [B_DEPTH-1 : 0]      waddr;
-    logic [3:0][B_DEPTH-1 : 0] raddr;
-    logic [64-B_DEPTH : 0]     wdata;
-    logic [0 : 0]              wen;
-    logic [3:0][31 : 0]        pc;
-    logic [3:0][31 : 0]        maddr;
-    logic [3:0][0 : 0]         miss;
-    logic [3:0][0 : 0]         hit;
-    logic [3:0][0 : 0]         valid;
-    logic [3:0][0 : 0]         branch;
-    logic [3:0][0 : 0]         match;
+    logic [B_DEPTH-1 : 0]                  waddr;
+    logic [ISSUE_WIDTH-1:0][B_DEPTH-1 : 0] raddr;
+    logic [64-B_DEPTH : 0]                 wdata;
+    logic [0 : 0]                          wen;
+    logic [ISSUE_WIDTH-1:0][31 : 0]        pc;
+    logic [ISSUE_WIDTH-1:0][31 : 0]        maddr;
+    logic [ISSUE_WIDTH-1:0][0 : 0]         miss;
+    logic [ISSUE_WIDTH-1:0][0 : 0]         hit;
+    logic [ISSUE_WIDTH-1:0][0 : 0]         valid;
+    logic [ISSUE_WIDTH-1:0][0 : 0]         branch;
+    logic [ISSUE_WIDTH-1:0][0 : 0]         match;
   } btb_reg_type;
 
   parameter btb_reg_type init_btb_reg = '{
@@ -132,11 +132,11 @@ module btac_ctrl (
   };
 
   typedef struct packed {
-    logic [T_DEPTH-1 : 0]      waddr;
-    logic [3:0][T_DEPTH-1 : 0] raddr;
-    logic [1 : 0]              wdata;
-    logic [0 : 0]              wen;
-    logic [3:0][1 : 0]         sat;
+    logic [T_DEPTH-1 : 0]                  waddr;
+    logic [ISSUE_WIDTH-1:0][T_DEPTH-1 : 0] raddr;
+    logic [1 : 0]                          wdata;
+    logic [0 : 0]                          wen;
+    logic [ISSUE_WIDTH-1:0][1 : 0]         sat;
   } bht_reg_type;
 
   parameter bht_reg_type init_bht_reg = '{
@@ -150,14 +150,14 @@ module btac_ctrl (
   btb_reg_type r_btb, rin_btb, v_btb;
   bht_reg_type r_bht, rin_bht, v_bht;
 
-  logic sel[0:3];
+  logic sel[0:ISSUE_WIDTH-1];
 
   always_comb begin
 
     v_btb = r_btb;
     v_bht = r_bht;
 
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v_btb.pc[k] = btac_in.get_pc[k];
       v_btb.raddr[k] = btac_in.get_pc[k][B_DEPTH:1];
       v_bht.raddr[k] = btac_in.get_pc[k][T_DEPTH:1];
@@ -172,13 +172,13 @@ module btac_ctrl (
       btac_out.pred[k].tsat = bht_out.rdata[k];
     end
 
-    for (int p = 0; p < 4; p++) begin
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
       v_btb.maddr[p] = 0;
       v_btb.miss[p]  = 0;
       v_btb.hit[p]   = 0;
     end
 
-    for (int p = 0; p < 4; p++) begin
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
       if (btac_in.upd_pred[p].taken == 1 && btac_in.upd_jump[p] == 1) begin
         v_btb.maddr[p] = btac_in.upd_addr[p];
         v_btb.miss[p]  = |(btac_in.upd_addr[p] ^ btac_in.upd_pred[p].taddr);
@@ -230,7 +230,7 @@ module btac_ctrl (
     rin_btb = v_btb;
     rin_bht = v_bht;
 
-    for (int p = 0; p < 4; p++) begin
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
       btac_out.pred_maddr[p] = v_btb.maddr[p];
       btac_out.pred_miss[p]  = v_btb.miss[p];
     end

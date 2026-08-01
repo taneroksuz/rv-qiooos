@@ -13,20 +13,20 @@ module msu (
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
-    cdb_type [1:0]                 cdb;
-    logic [1:0][ROB_ADDR_BITS-1:0] rob_wtag;
-    rob_entry_type [1:0]           rob_wentry;
-    logic [1:0]                    rob_wen;
-    mem_in_type [1:0]              dmem_in;
-    lsu_in_type [1:0]              lsu_in;
-    logic [1:0][0:0]               load_pending;
-    logic [1:0][ROB_ADDR_BITS-1:0] load_rob_tag;
-    logic [1:0][PRF_ADDR_BITS-1:0] load_pdest;
-    logic [1:0][31:0]              load_addr;
-    logic [1:0][0:0]               store_pending;
-    logic [1:0][0:0]               store_sent;
-    rob_entry_type [1:0]           store_entry;
-    logic [1:0][0:0]               load_sent;
+    cdb_type [MEM_ISSUE_WIDTH-1:0]                 cdb;
+    logic [MEM_ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] rob_wtag;
+    rob_entry_type [MEM_ISSUE_WIDTH-1:0]           rob_wentry;
+    logic [MEM_ISSUE_WIDTH-1:0]                    rob_wen;
+    mem_in_type [MEM_ISSUE_WIDTH-1:0]              dmem_in;
+    lsu_in_type [MEM_ISSUE_WIDTH-1:0]              lsu_in;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]               load_pending;
+    logic [MEM_ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] load_rob_tag;
+    logic [MEM_ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] load_pdest;
+    logic [MEM_ISSUE_WIDTH-1:0][31:0]              load_addr;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]               store_pending;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]               store_sent;
+    rob_entry_type [MEM_ISSUE_WIDTH-1:0]           store_entry;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]               load_sent;
   } msu_reg_type;
 
   localparam msu_reg_type init_msu_reg = '{
@@ -47,30 +47,30 @@ module msu (
   };
 
   msu_reg_type r, rin, v;
-  logic load_accept       [0:1];
-  logic load_ready        [0:1];
-  logic commit_store_valid[0:1];
-  logic load_busy[0:1], store_busy[0:1];
-  logic store_done        [0:1];
-  logic store_slot_free   [0:1];
-  logic slot_free_pre     [0:1];
-  logic commit_claims_slot[0:1];
-  logic slot_blocked      [0:1];
+  logic load_accept       [0:MEM_ISSUE_WIDTH-1];
+  logic load_ready        [0:MEM_ISSUE_WIDTH-1];
+  logic commit_store_valid[0:MEM_ISSUE_WIDTH-1];
+  logic load_busy[0:MEM_ISSUE_WIDTH-1], store_busy[0:MEM_ISSUE_WIDTH-1];
+  logic store_done        [0:MEM_ISSUE_WIDTH-1];
+  logic store_slot_free   [0:MEM_ISSUE_WIDTH-1];
+  logic slot_free_pre     [0:MEM_ISSUE_WIDTH-1];
+  logic commit_claims_slot[0:MEM_ISSUE_WIDTH-1];
+  logic slot_blocked      [0:MEM_ISSUE_WIDTH-1];
 
   always_comb begin
     v = r;
     if (flush) begin
-      for (int p = 0; p < 2; p++) begin
+      for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
         v.load_pending[p] = 1'b0;
         v.load_sent[p]    = 1'b0;
       end
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       v.lsu_in[p].ldata = msu_in.dmem_out[p].mem_rdata;
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       commit_store_valid[p] = msu_in.commit_store[p] && !msu_in.commit_entry[p].exception;
       load_busy[p]          = r.load_pending[p] && !msu_in.dmem_out[p].mem_ready;
       store_busy[p]         = r.store_pending[p] && !msu_in.dmem_out[p].mem_ready;
@@ -80,7 +80,7 @@ module msu (
 
     commit_claims_slot[0] = 1'b0;
     commit_claims_slot[1] = 1'b0;
-    for (int c = 0; c < 2; c++) begin
+    for (int c = 0; c < MEM_ISSUE_WIDTH; c++) begin
       if (commit_store_valid[c]) begin
         if (slot_free_pre[0] && !commit_claims_slot[0]) begin
           commit_claims_slot[0] = 1'b1;
@@ -90,7 +90,7 @@ module msu (
       end
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       slot_blocked[p] = load_busy[p] || store_busy[p] || commit_claims_slot[p];
       load_accept[p] = msu_in.issue_valid[p] && msu_in.issue[p].op.load && !slot_blocked[p] &&
           !flush;
@@ -98,7 +98,7 @@ module msu (
           !flush;
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       if (load_accept[p] && !msu_in.agu_out[p].exception) begin
         v.load_pending[p]      = 1'b1;
         v.load_sent[p]         = 1'b0;
@@ -110,14 +110,14 @@ module msu (
       end
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       if (store_done[p]) begin
         v.store_pending[p] = 1'b0;
         v.store_sent[p]    = 1'b0;
       end
       store_slot_free[p] = !v.store_pending[p];
     end
-    for (int c = 0; c < 2; c++) begin
+    for (int c = 0; c < MEM_ISSUE_WIDTH; c++) begin
       if (commit_store_valid[c]) begin
         if (store_slot_free[0]) begin
           v.store_pending[0] = 1'b1;
@@ -132,14 +132,14 @@ module msu (
         end
       end
     end
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       if (load_ready[p]) begin
         v.load_pending[p] = (load_accept[p] && !msu_in.agu_out[p].exception) ? 1'b1 : 1'b0;
         v.load_sent[p]    = 1'b0;
       end
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       v.dmem_in[p] = init_mem_in;
       if (v.store_pending[p] && !v.store_sent[p]) begin
         v.dmem_in[p].mem_valid = 1'b1;
@@ -160,7 +160,7 @@ module msu (
       end
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       v.cdb[p]        = init_cdb;
       v.rob_wtag[p]   = r.load_rob_tag[p];
       v.rob_wentry[p] = init_rob_entry;
@@ -185,7 +185,7 @@ module msu (
 
     rin = v;
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       msu_out.cdb[p]        = r.cdb[p];
       msu_out.rob_wtag[p]   = r.rob_wtag[p];
       msu_out.rob_wentry[p] = r.rob_wentry[p];

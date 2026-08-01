@@ -15,38 +15,38 @@ module cpu (
   input  logic        [63:0] mtime
 );
   timeunit 1ns; timeprecision 1ps;
-  cdb_type cdb[0:3], cdb_load[0:1];
-  cdb_type                     cdb_exec        [          0:1];
-  cdb_type                     cdb_commit      [          0:3];
+  cdb_type cdb[0:ISSUE_WIDTH-1], cdb_load[0:MEM_ISSUE_WIDTH-1];
+  cdb_type                     cdb_exec        [             0:1];
+  cdb_type                     cdb_commit      [ 0:ISSUE_WIDTH-1];
   csr_read_in_type             csr_rin;
-  alu_in_type                  alu_in          [          0:3];
-  alu_out_type                 alu_out         [          0:3];
-  bcu_in_type                  bcu_in          [          0:1];
-  bcu_out_type                 bcu_out         [          0:1];
-  mul_in_type                  mul_in          [          0:1];
-  mul_out_type                 mul_out         [          0:1];
+  alu_in_type                  alu_in          [   0:ALU_COUNT-1];
+  alu_out_type                 alu_out         [   0:ALU_COUNT-1];
+  bcu_in_type                  bcu_in          [   0:BCU_COUNT-1];
+  bcu_out_type                 bcu_out         [   0:BCU_COUNT-1];
+  mul_in_type                  mul_in          [   0:MUL_COUNT-1];
+  mul_out_type                 mul_out         [   0:MUL_COUNT-1];
   div_in_type                  div_in;
   div_out_type                 div_out;
-  bit_alu_in_type              bit_alu_in      [          0:1];
-  bit_alu_out_type             bit_alu_out     [          0:1];
+  bit_alu_in_type              bit_alu_in      [0:BITALU_COUNT-1];
+  bit_alu_out_type             bit_alu_out     [0:BITALU_COUNT-1];
   bit_clmul_in_type            bit_clmul_in;
   bit_clmul_out_type           bit_clmul_out;
-  csr_alu_in_type              csr_alu_in      [          0:1];
-  csr_alu_out_type             csr_alu_out     [          0:1];
-  lsu_in_type                  lsu_in          [          0:1];
-  lsu_out_type                 lsu_out         [          0:1];
+  csr_alu_in_type              csr_alu_in;
+  csr_alu_out_type             csr_alu_out;
+  lsu_in_type                  lsu_in          [   0:LSU_COUNT-1];
+  lsu_out_type                 lsu_out         [   0:LSU_COUNT-1];
   csr_out_type                 csr_out;
-  agu_in_type                  agu_in          [          0:3];
-  agu_out_type                 agu_out         [          0:3];
-  register_write_in_type       register_win    [          0:3];
+  agu_in_type                  agu_in          [   0:AGU_COUNT-1];
+  agu_out_type                 agu_out         [   0:AGU_COUNT-1];
+  register_write_in_type       register_win    [ 0:ISSUE_WIDTH-1];
   btac_in_type                 btac_in;
   btac_out_type                btac_out;
   buffer_in_type               buffer_in;
   buffer_out_type              buffer_out;
-  compress_in_type             compress_in     [          0:3];
-  compress_out_type            compress_out    [          0:3];
-  base_in_type                 base_in         [          0:3];
-  base_out_type                base_out        [          0:3];
+  compress_in_type             compress_in     [ 0:ISSUE_WIDTH-1];
+  compress_out_type            compress_out    [ 0:ISSUE_WIDTH-1];
+  base_in_type                 base_in         [ 0:ISSUE_WIDTH-1];
+  base_out_type                base_out        [ 0:ISSUE_WIDTH-1];
   fetch_in_type                fetch_in;
   fetch_out_type               fetch_out;
   decode_in_type               decode_in;
@@ -73,22 +73,21 @@ module cpu (
   commit_out_type              commit_out;
   cache_in_type                cache_in;
   cache_out_type               cache_out;
-  rob_entry_type               rob_entries_snap[0:ROB_DEPTH-1];
+  rob_entry_type               rob_entries_snap[   0:ROB_DEPTH-1];
   logic                  [0:0] commit_flush;
 
   assign fetch_in.csr_out    = csr_out;
   assign fetch_in.btac_out   = btac_out;
   assign fetch_in.cache_out  = cache_out;
   assign fetch_in.buffer_out = buffer_out;
-  assign fetch_in.entry[0]   = commit_out.commit_entry[0];
-  assign fetch_in.entry[1]   = commit_out.commit_entry[1];
-  assign fetch_in.entry[2]   = commit_out.commit_entry[2];
-  assign fetch_in.entry[3]   = commit_out.commit_entry[3];
-  assign buffer_in           = fetch_out.buffer_in;
-  assign btac_in             = fetch_out.btac_in;
-  assign cache_in            = fetch_out.cache_in;
-  assign csr_rin             = rs_int_out.csr_rin;
-  for (genvar i = 0; i < 4; i++) begin : g_decode_base
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_fetch_entry
+    assign fetch_in.entry[i] = commit_out.commit_entry[i];
+  end
+  assign buffer_in = fetch_out.buffer_in;
+  assign btac_in   = fetch_out.btac_in;
+  assign cache_in  = fetch_out.cache_in;
+  assign csr_rin   = rs_int_out.csr_rin;
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_decode_base
     assign decode_in.base_out[i]     = base_out[i];
     assign decode_in.compress_out[i] = compress_out[i];
     assign decode_in.pc[i]           = fetch_out.pc[i];
@@ -98,18 +97,24 @@ module cpu (
     assign compress_in[i]            = decode_out.compress_in[i];
   end
   assign decode_in.btac_out = btac_out;
-  for (genvar i = 0; i < 8; i++) begin : g_prf_raddr
+  for (genvar i = 0; i < 2 * ISSUE_WIDTH; i++) begin : g_prf_raddr
     assign prf_in.raddr[i] = rat_out.psrc[i];
   end
-  for (genvar i = 0; i < 4; i++) begin : g_prf_wport
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_prf_wport
     assign prf_in.waddr[i] = commit_out.prf_i.waddr[i];
     assign prf_in.wdata[i] = commit_out.prf_i.wdata[i];
     assign prf_in.wren[i]  = commit_out.prf_i.wren[i];
   end
-  for (genvar i = 0; i < 8; i++) begin : g_rat_rsrc
+  for (genvar i = 0; i < 2 * ISSUE_WIDTH; i++) begin : g_rat_rsrc
     assign rat_in.rsrc_a[i] = rename_out.rat.rsrc_a[i];
   end
-  for (genvar i = 0; i < 4; i++) begin : g_rat_wport
+  for (genvar i = 0; i < ALU_COUNT; i++) begin : g_eu_alu_in
+    assign alu_in[i] = eu_out.alu_in[i];
+  end
+  for (genvar i = 0; i < AGU_COUNT; i++) begin : g_eu_agu_in
+    assign agu_in[i] = eu_out.agu_in[i];
+  end
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_rat_wport
     assign rat_in.waddr_a[i]            = rename_out.rat.waddr_a[i];
     assign rat_in.waddr_p[i]            = rename_out.rat.waddr_p[i];
     assign rat_in.wren[i]               = rename_out.rat.wren[i];
@@ -133,33 +138,31 @@ module cpu (
     assign rename_in.rs_mem_alloc_ok[i] = rs_mem_out.alloc_ok[i];
     assign eu_in.int_issue[i]           = rs_int_out.issue[i];
     assign eu_in.int_issue_valid[i]     = rs_int_out.issue_valid[i];
-    assign alu_in[i]                    = eu_out.alu_in[i];
-    assign agu_in[i]                    = eu_out.agu_in[i];
   end
   assign rob_in.store_ready = msu_out.store_ready;
-  for (genvar i = 0; i < 4; i++) begin : g_rob_wport_int
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_rob_wport_int
     assign rob_in.write_tag[i]   = eu_out.rob_wtag[i];
     assign rob_in.write_entry[i] = eu_out.rob_wentry[i];
     assign rob_in.write_en[i]    = eu_out.rob_wen[i];
   end
-  for (genvar i = 0; i < 2; i++) begin : g_rob_wport_mem
-    assign rob_in.write_tag[4+i]   = msu_out.rob_wtag[i];
-    assign rob_in.write_entry[4+i] = msu_out.rob_wentry[i];
-    assign rob_in.write_en[4+i]    = msu_out.rob_wen[i];
-    assign rob_in.write_tag[6+i]   = eu_out.rob_wtag_store[i];
-    assign rob_in.write_entry[6+i] = eu_out.rob_wentry_store[i];
-    assign rob_in.write_en[6+i]    = eu_out.rob_wen_store[i];
+  for (genvar i = 0; i < MEM_ISSUE_WIDTH; i++) begin : g_rob_wport_mem
+    assign rob_in.write_tag[ISSUE_WIDTH+i]                   = msu_out.rob_wtag[i];
+    assign rob_in.write_entry[ISSUE_WIDTH+i]                 = msu_out.rob_wentry[i];
+    assign rob_in.write_en[ISSUE_WIDTH+i]                    = msu_out.rob_wen[i];
+    assign rob_in.write_tag[ISSUE_WIDTH+MEM_ISSUE_WIDTH+i]   = eu_out.rob_wtag_store[i];
+    assign rob_in.write_entry[ISSUE_WIDTH+MEM_ISSUE_WIDTH+i] = eu_out.rob_wentry_store[i];
+    assign rob_in.write_en[ISSUE_WIDTH+MEM_ISSUE_WIDTH+i]    = eu_out.rob_wen_store[i];
   end
   assign rob_in.cdb[0] = cdb[0];
   assign rob_in.cdb[1] = cdb[1];
-  for (genvar i = 0; i < 4; i++) begin : g_cdb_fanin
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_cdb_fanin
     assign rs_int_in.cdb[i]        = cdb[i];
     assign rs_mem_in.cdb[i]        = cdb[i];
     assign rename_in.cdb[i]        = cdb[i];
     assign rs_int_in.cdb_commit[i] = cdb_commit[i];
     assign rs_mem_in.cdb_commit[i] = cdb_commit[i];
   end
-  for (genvar i = 0; i < 2; i++) begin : g_cdb_load_fanin
+  for (genvar i = 0; i < MEM_ISSUE_WIDTH; i++) begin : g_cdb_load_fanin
     assign rs_int_in.cdb_load[i] = cdb_load[i];
     assign rs_mem_in.cdb_load[i] = cdb_load[i];
     assign rename_in.cdb_load[i] = cdb_load[i];
@@ -179,21 +182,29 @@ module cpu (
   assign rename_in.rs_int_has_two = rs_int_out.has_two_free;
   assign rename_in.rs_mem_full    = rs_mem_out.full;
   assign rename_in.rs_mem_has_two = rs_mem_out.has_two_free;
-  for (genvar i = 0; i < 2; i++) begin : g_mem_issue
+  for (genvar i = 0; i < MEM_ISSUE_WIDTH; i++) begin : g_mem_issue
     assign eu_in.mem_issue[i]       = rs_mem_out.issue[i];
     assign eu_in.mem_issue_valid[i] = rs_mem_out.issue_valid[i];
-    assign bcu_in[i]                = eu_out.bcu_in[i];
-    assign mul_in[i]                = eu_out.mul_in[i];
-    assign bit_alu_in[i]            = eu_out.bit_alu_in[i];
-    assign csr_alu_in[i]            = eu_out.csr_alu_in[i];
-    assign eu_in.bcu_out[i]         = bcu_out[i];
-    assign eu_in.mul_out[i]         = mul_out[i];
-    assign eu_in.bit_alu_out[i]     = bit_alu_out[i];
-    assign eu_in.csr_alu_out[i]     = csr_alu_out[i];
   end
-  assign eu_in.csr = csr_out;
-  for (genvar i = 0; i < 4; i++) begin : g_eu_alu_agu_out
+  for (genvar i = 0; i < BCU_COUNT; i++) begin : g_bcu_port
+    assign bcu_in[i]        = eu_out.bcu_in[i];
+    assign eu_in.bcu_out[i] = bcu_out[i];
+  end
+  for (genvar i = 0; i < MUL_COUNT; i++) begin : g_mul_port
+    assign mul_in[i]        = eu_out.mul_in[i];
+    assign eu_in.mul_out[i] = mul_out[i];
+  end
+  for (genvar i = 0; i < BITALU_COUNT; i++) begin : g_bitalu_port
+    assign bit_alu_in[i]        = eu_out.bit_alu_in[i];
+    assign eu_in.bit_alu_out[i] = bit_alu_out[i];
+  end
+  assign csr_alu_in        = eu_out.csr_alu_in;
+  assign eu_in.csr_alu_out = csr_alu_out;
+  assign eu_in.csr         = csr_out;
+  for (genvar i = 0; i < ALU_COUNT; i++) begin : g_eu_alu_out
     assign eu_in.alu_out[i] = alu_out[i];
+  end
+  for (genvar i = 0; i < AGU_COUNT; i++) begin : g_eu_agu_out
     assign eu_in.agu_out[i] = agu_out[i];
   end
   assign eu_in.div_out       = div_out;
@@ -202,7 +213,7 @@ module cpu (
   assign bit_clmul_in        = eu_out.bit_clmul_in;
   assign cdb_exec[0]         = eu_out.cdb[0];
   assign cdb_exec[1]         = eu_out.cdb[1];
-  for (genvar i = 0; i < 4; i++) begin : g_cdb_commit_derive
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_cdb_commit_derive
     assign cdb_commit[i].valid = commit_out.prf_i.wren[i];
     assign cdb_commit[i].tag   = commit_out.prf_i.waddr[i];
     assign cdb_commit[i].data  = commit_out.prf_i.wdata[i];
@@ -211,10 +222,10 @@ module cpu (
   assign cdb[1] = cdb_exec[1].valid ? cdb_exec[1] : cdb_commit[1];
   assign cdb[2] = eu_out.cdb[2];
   assign cdb[3] = eu_out.cdb[3];
-  for (genvar i = 0; i < 2; i++) begin : g_msu_mem_issue
+  for (genvar i = 0; i < MEM_ISSUE_WIDTH; i++) begin : g_msu_mem_issue
     assign msu_in.issue[i]        = eu_in.mem_issue[i];
     assign msu_in.issue_valid[i]  = eu_in.mem_issue_valid[i];
-    assign msu_in.agu_out[i]      = agu_out[2+i];
+    assign msu_in.agu_out[i]      = agu_out[AGU_BRANCH_COUNT+i];
     assign msu_in.lsu_out[i]      = lsu_out[i];
     assign msu_in.dmem_out[i]     = dmem_out[i];
     assign msu_in.commit_store[i] = commit_out.store_slot_valid[i];
@@ -223,87 +234,55 @@ module cpu (
     assign lsu_in[i]              = msu_out.lsu_in[i];
     assign cdb_load[i]            = msu_out.cdb[i];
   end
-  for (genvar i = 0; i < 4; i++) begin : g_commit_in
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_commit_in
     assign commit_in.commit[i] = rob_out.commit[i];
     assign commit_in.entry[i]  = rob_out.entry[i];
   end
   assign commit_in.commit_ctrl = rob_out.commit_ctrl;
   assign commit_in.csr_o       = csr_out;
   assign commit_in.btac_out    = btac_out;
-  for (genvar i = 0; i < 4; i++) begin : g_register_win
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_register_win
     assign register_win[i] = commit_out.register_win[i];
   end
-  assign commit_flush = clear | csr_out.trap | csr_out.mret | btac_out.pred_miss[0] |
-      btac_out.pred_miss[1] | btac_out.pred_miss[2] | btac_out.pred_miss[3] | commit_out.flush;
+  assign
+      commit_flush = clear | csr_out.trap | csr_out.mret | (|btac_out.pred_miss) | commit_out.flush;
 
-  alu alu0_comp (
-    .alu_in (alu_in[0]),
-    .alu_out(alu_out[0])
+  for (genvar i = 0; i < ALU_COUNT; i++) begin : g_alu_comp
+    alu alu_comp (
+      .alu_in (alu_in[i]),
+      .alu_out(alu_out[i])
+    );
+  end
+  for (genvar i = 0; i < AGU_COUNT; i++) begin : g_agu_comp
+    agu agu_comp (
+      .agu_in (agu_in[i]),
+      .agu_out(agu_out[i])
+    );
+  end
+  for (genvar i = 0; i < BCU_COUNT; i++) begin : g_bcu_comp
+    bcu bcu_comp (
+      .bcu_in (bcu_in[i]),
+      .bcu_out(bcu_out[i])
+    );
+  end
+  for (genvar i = 0; i < LSU_COUNT; i++) begin : g_lsu_comp
+    lsu lsu_comp (
+      .lsu_in (lsu_in[i]),
+      .lsu_out(lsu_out[i])
+    );
+  end
+  csr_alu csr_alu_comp (
+    .csr_alu_in (csr_alu_in),
+    .csr_alu_out(csr_alu_out)
   );
-  alu alu1_comp (
-    .alu_in (alu_in[1]),
-    .alu_out(alu_out[1])
-  );
-  alu alu2_comp (
-    .alu_in (alu_in[2]),
-    .alu_out(alu_out[2])
-  );
-  alu alu3_comp (
-    .alu_in (alu_in[3]),
-    .alu_out(alu_out[3])
-  );
-  agu agu0_comp (
-    .agu_in (agu_in[0]),
-    .agu_out(agu_out[0])
-  );
-  agu agu1_comp (
-    .agu_in (agu_in[1]),
-    .agu_out(agu_out[1])
-  );
-  agu agu2_comp (
-    .agu_in (agu_in[2]),
-    .agu_out(agu_out[2])
-  );
-  agu agu3_comp (
-    .agu_in (agu_in[3]),
-    .agu_out(agu_out[3])
-  );
-  bcu bcu0_comp (
-    .bcu_in (bcu_in[0]),
-    .bcu_out(bcu_out[0])
-  );
-  bcu bcu1_comp (
-    .bcu_in (bcu_in[1]),
-    .bcu_out(bcu_out[1])
-  );
-  lsu lsu0_comp (
-    .lsu_in (lsu_in[0]),
-    .lsu_out(lsu_out[0])
-  );
-  lsu lsu1_comp (
-    .lsu_in (lsu_in[1]),
-    .lsu_out(lsu_out[1])
-  );
-  csr_alu csr_alu0_comp (
-    .csr_alu_in (csr_alu_in[0]),
-    .csr_alu_out(csr_alu_out[0])
-  );
-  csr_alu csr_alu1_comp (
-    .csr_alu_in (csr_alu_in[1]),
-    .csr_alu_out(csr_alu_out[1])
-  );
-  mul mul0_comp (
-    .reset  (reset),
-    .clock  (clock),
-    .mul_in (mul_in[0]),
-    .mul_out(mul_out[0])
-  );
-  mul mul1_comp (
-    .reset  (reset),
-    .clock  (clock),
-    .mul_in (mul_in[1]),
-    .mul_out(mul_out[1])
-  );
+  for (genvar i = 0; i < MUL_COUNT; i++) begin : g_mul_comp
+    mul mul_comp (
+      .reset  (reset),
+      .clock  (clock),
+      .mul_in (mul_in[i]),
+      .mul_out(mul_out[i])
+    );
+  end
   div div_comp (
     .reset  (reset),
     .clock  (clock),
@@ -311,14 +290,12 @@ module cpu (
     .div_in (div_in),
     .div_out(div_out)
   );
-  bit_alu bit_alu0_comp (
-    .bit_alu_in (bit_alu_in[0]),
-    .bit_alu_out(bit_alu_out[0])
-  );
-  bit_alu bit_alu1_comp (
-    .bit_alu_in (bit_alu_in[1]),
-    .bit_alu_out(bit_alu_out[1])
-  );
+  for (genvar i = 0; i < BITALU_COUNT; i++) begin : g_bit_alu_comp
+    bit_alu bit_alu_comp (
+      .bit_alu_in (bit_alu_in[i]),
+      .bit_alu_out(bit_alu_out[i])
+    );
+  end
   bit_clmul bit_clmul_comp (
     .reset        (reset),
     .clock        (clock),
@@ -338,38 +315,18 @@ module cpu (
     .buffer_in (buffer_in),
     .buffer_out(buffer_out)
   );
-  base base0_comp (
-    .base_in (base_in[0]),
-    .base_out(base_out[0])
-  );
-  base base1_comp (
-    .base_in (base_in[1]),
-    .base_out(base_out[1])
-  );
-  base base2_comp (
-    .base_in (base_in[2]),
-    .base_out(base_out[2])
-  );
-  base base3_comp (
-    .base_in (base_in[3]),
-    .base_out(base_out[3])
-  );
-  compress compress0_comp (
-    .compress_in (compress_in[0]),
-    .compress_out(compress_out[0])
-  );
-  compress compress1_comp (
-    .compress_in (compress_in[1]),
-    .compress_out(compress_out[1])
-  );
-  compress compress2_comp (
-    .compress_in (compress_in[2]),
-    .compress_out(compress_out[2])
-  );
-  compress compress3_comp (
-    .compress_in (compress_in[3]),
-    .compress_out(compress_out[3])
-  );
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_base_comp
+    base base_comp (
+      .base_in (base_in[i]),
+      .base_out(base_out[i])
+    );
+  end
+  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_compress_comp
+    compress compress_comp (
+      .compress_in (compress_in[i]),
+      .compress_out(compress_out[i])
+    );
+  end
   register register_comp (
     .reset       (reset),
     .clock       (clock),

@@ -22,22 +22,22 @@ module rs_mem (
 
   rs_entry_type array[0:RS_MEM_DEPTH-1];
   rs_mem_reg_type r, rin, v;
-  rs_entry_type                     woken             [0:RS_MEM_DEPTH-1];
-  rs_entry_type                     cur_entry;
-  logic         [MEM_ADDR_BITS-1:0] sel_idx           [             0:1];
-  logic                             sel_found         [             0:1];
-  logic         [MEM_ADDR_BITS-1:0] free_idx          [             0:3];
-  logic                             free_found        [             0:3];
-  logic         [ROB_ADDR_BITS-1:0] best_age          [             0:1];
-  logic         [ROB_ADDR_BITS-1:0] cand_age;
-  logic         [    ROB_DEPTH-1:0] store_valid;
-  logic         [ROB_ADDR_BITS-1:0] store_age         [   0:ROB_DEPTH-1];
-  logic                             older_store_block;
-  logic         [MEM_ADDR_BITS-1:0] oldest_idx        [             0:1];
-  logic                             oldest_found      [             0:1];
-  logic                             oldest_ready      [             0:1];
-  logic         [              1:0] port_busy;
-  logic                             free_cond;
+  rs_entry_type                       woken             [   0:RS_MEM_DEPTH-1];
+  rs_entry_type                       cur_entry;
+  logic         [  MEM_ADDR_BITS-1:0] sel_idx           [0:MEM_ISSUE_WIDTH-1];
+  logic                               sel_found         [0:MEM_ISSUE_WIDTH-1];
+  logic         [  MEM_ADDR_BITS-1:0] free_idx          [    0:ISSUE_WIDTH-1];
+  logic                               free_found        [    0:ISSUE_WIDTH-1];
+  logic         [  ROB_ADDR_BITS-1:0] best_age          [0:MEM_ISSUE_WIDTH-1];
+  logic         [  ROB_ADDR_BITS-1:0] cand_age;
+  logic         [      ROB_DEPTH-1:0] store_valid;
+  logic         [  ROB_ADDR_BITS-1:0] store_age         [      0:ROB_DEPTH-1];
+  logic                               older_store_block;
+  logic         [  MEM_ADDR_BITS-1:0] oldest_idx        [0:MEM_ISSUE_WIDTH-1];
+  logic                               oldest_found      [0:MEM_ISSUE_WIDTH-1];
+  logic                               oldest_ready      [0:MEM_ISSUE_WIDTH-1];
+  logic         [MEM_ISSUE_WIDTH-1:0] port_busy;
+  logic                               free_cond;
 
   function automatic logic [ROB_ADDR_BITS-1:0] rob_age(input logic [ROB_ADDR_BITS-1:0] head,
                                                        input logic [ROB_ADDR_BITS-1:0] tag);
@@ -99,7 +99,7 @@ module rs_mem (
       store_age[j]   = rob_age(rs_in.rob_head, ROB_ADDR_BITS'(unsigned'(j)));
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       if (oldest_found[p]) begin
         older_store_block = 1'b0;
         if (woken[oldest_idx[p]].op.load) begin
@@ -136,7 +136,7 @@ module rs_mem (
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
       free_cond = (!woken[i].valid || (sel_found[0] && (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i))))
                    || (sel_found[1] && (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))));
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (free_cond && !free_found[k]) begin
           free_idx[k]   = MEM_ADDR_BITS'(unsigned'(i));
           free_found[k] = 1'b1;
@@ -145,14 +145,14 @@ module rs_mem (
       end
     end
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       rs_out.issue[p]       = sel_found[p] ? woken[sel_idx[p]] : init_rs_entry;
       rs_out.issue_valid[p] = sel_found[p];
     end
     rs_out.full         = (r.count >= (MEM_ADDR_BITS + 1)'(RS_MEM_DEPTH - 1));
     rs_out.has_two_free = (r.count <= (MEM_ADDR_BITS + 1)'(RS_MEM_DEPTH - 2));
-    for (int k = 0; k < 4; k++) begin
-      rs_out.alloc_ok[k] = (r.count <= (MEM_ADDR_BITS + 1)'(RS_MEM_DEPTH - 4));
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      rs_out.alloc_ok[k] = (r.count <= (MEM_ADDR_BITS + 1)'(RS_MEM_DEPTH - ISSUE_WIDTH));
     end
 
     if (flush) begin
@@ -161,13 +161,13 @@ module rs_mem (
       free_found = '{default: 1'b0};
       v          = init_rs_mem_reg;
     end else begin
-      for (int p = 0; p < 2; p++) begin
+      for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
         if (sel_found[p]) begin
           v.valid_bits[sel_idx[p]] = 1'b0;
           v.count                  = v.count - 1'b1;
         end
       end
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (rs_in.alloc[k] && free_found[k]) begin
           v.valid_bits[free_idx[k]] = 1'b1;
           v.count                   = v.count + 1'b1;

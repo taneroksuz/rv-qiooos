@@ -78,9 +78,9 @@ module buffer_ctrl (
     logic [W-1 : 0]                  diff;
     logic [W-1 : 0]                  count;
     logic [W-1 : 0]                  align;
-    logic [3:0][31 : 0]              pc;
-    logic [3:0][31 : 0]              instr;
-    logic [3 : 0]                    ready;
+    logic [ISSUE_WIDTH-1:0][31 : 0]  pc;
+    logic [ISSUE_WIDTH-1:0][31 : 0]  instr;
+    logic [ISSUE_WIDTH-1:0]          ready;
     logic [0 : 0]                    wen;
     logic [0 : 0]                    clear;
     logic [0 : 0]                    stall;
@@ -178,13 +178,13 @@ module buffer_ctrl (
       v.comp[k] = ~(&v.rdata[k][1:0]);
     end
 
-    for (int s = 0; s < 4; s++) begin
+    for (int s = 0; s < ISSUE_WIDTH; s++) begin
       v.pc[s]    = '0;
       v.instr[s] = '0;
       v.ready[s] = 0;
     end
 
-    for (int s = 0; s < 4; s++) begin
+    for (int s = 0; s < ISSUE_WIDTH; s++) begin
       base = slot_offset(v.comp, s);
       need = v.comp[base] ? 1 : 2;
       if (v.count > v.align + W'(base) + (v.comp[base] ? W'(0) : W'(1))) begin
@@ -213,7 +213,7 @@ module buffer_ctrl (
       v.stall = 0;
     end
 
-    for (int s = 0; s < 4; s++) begin
+    for (int s = 0; s < ISSUE_WIDTH; s++) begin
       buffer_out.pc[s]    = v.ready[s] ? v.pc[s] : 32'hFFFFFFFF;
       buffer_out.instr[s] = v.ready[s] ? v.instr[s] : 0;
       buffer_out.ready[s] = v.ready[s];

@@ -11,17 +11,17 @@ module commit (
 );
   timeunit 1ns; timeprecision 1ps;
   typedef struct packed {
-    register_write_in_type [3:0] register_win;
-    csr_write_in_type            csr_win;
-    csr_exception_in_type        csr_ein;
-    rat_in_type                  rat_i;
-    prf_in_type                  prf_i;
-    fl_in_type                   fl_i;
-    logic [0:0]                  flush_all;
-    logic [1:0][0:0]             commit_store;
-    rob_entry_type [3:0]         commit_entry;
-    logic [1:0][0:0]             store_slot_valid;
-    rob_entry_type [1:0]         store_slot_entry;
+    register_write_in_type [ISSUE_WIDTH-1:0] register_win;
+    csr_write_in_type                        csr_win;
+    csr_exception_in_type                    csr_ein;
+    rat_in_type                              rat_i;
+    prf_in_type                              prf_i;
+    fl_in_type                               fl_i;
+    logic [0:0]                              flush_all;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]         commit_store;
+    rob_entry_type [ISSUE_WIDTH-1:0]         commit_entry;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]         store_slot_valid;
+    rob_entry_type [MEM_ISSUE_WIDTH-1:0]     store_slot_entry;
   } commit_reg_type;
   localparam commit_reg_type init_commit_reg = '{
       register_win : '{default: '{wren : 0, waddr : 0, wdata : 0}},
@@ -38,23 +38,23 @@ module commit (
   };
   commit_reg_type r, rin;
   commit_reg_type v;
-  rob_entry_type  e               [0:3];
-  logic           c               [0:3];
-  logic           entry_flush     [0:3];
-  logic           do_commit       [0:3];
+  rob_entry_type  e               [    0:ISSUE_WIDTH-1];
+  logic           c               [    0:ISSUE_WIDTH-1];
+  logic           entry_flush     [    0:ISSUE_WIDTH-1];
+  logic           do_commit       [    0:ISSUE_WIDTH-1];
   logic           any_flush;
   logic           pc_set;
-  logic           store_slot_found[0:1];
-  int             store_slot_owner[0:1];
+  logic           store_slot_found[0:MEM_ISSUE_WIDTH-1];
+  int             store_slot_owner[0:MEM_ISSUE_WIDTH-1];
   always_comb begin
     v = init_commit_reg;
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       e[k] = commit_in.entry[k];
       c[k] = commit_in.commit[k];
     end
 
     any_flush = 1'b0;
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       do_commit[k]   = c[k] && !any_flush;
       entry_flush[k] = 1'b0;
       if (do_commit[k]) begin
@@ -67,14 +67,14 @@ module commit (
 
     v.flush_all = any_flush;
 
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       v.commit_store[p] = 1'b0;
       if (do_commit[p]) begin
         v.commit_store[p] = e[p].store;
       end
     end
 
-    for (int p = 0; p < 4; p++) begin
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
       v.commit_entry[p] = init_rob_entry;
       if (do_commit[p]) begin
         v.commit_entry[p] = e[p];
@@ -85,7 +85,7 @@ module commit (
     store_slot_found[1] = 1'b0;
     store_slot_owner[0] = 0;
     store_slot_owner[1] = 0;
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (do_commit[k] && e[k].store) begin
         if (!store_slot_found[0]) begin
           store_slot_owner[0] = k;
@@ -96,20 +96,20 @@ module commit (
         end
       end
     end
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       v.store_slot_valid[p] = store_slot_found[p];
       v.store_slot_entry[p] = store_slot_found[p] ? e[store_slot_owner[p]] : init_rob_entry;
     end
 
     pc_set = 1'b0;
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (do_commit[k] && !pc_set) begin
         v.csr_ein.pc = e[k].pc;
         pc_set       = 1'b1;
       end
     end
 
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (do_commit[k]) begin
         v.csr_ein.valid[k]      = 1'b1;
         v.register_win[k].wren  = e[k].wren;
@@ -154,10 +154,10 @@ module commit (
     commit_out.prf_i        = r.prf_i;
     commit_out.fl_i         = r.fl_i;
     commit_out.flush        = r.flush_all;
-    for (int p = 0; p < 4; p++) begin
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
       commit_out.commit_entry[p] = r.commit_entry[p];
     end
-    for (int p = 0; p < 2; p++) begin
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       commit_out.commit_store[p]     = r.commit_store[p];
       commit_out.store_slot_valid[p] = r.store_slot_valid[p];
       commit_out.store_slot_entry[p] = r.store_slot_entry[p];

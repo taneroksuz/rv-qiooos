@@ -12,15 +12,15 @@ module rs_int (
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
-    logic [RS_ADDR_BITS:0]        count;
-    logic [RS_INT_DEPTH-1:0]      valid_bits;
-    logic [3:0][RS_ADDR_BITS-1:0] sel_idx;
-    logic [3:0]                   sel_found;
-    logic [3:0][RS_ADDR_BITS-1:0] free_idx;
-    logic [3:0]                   free_found;
-    logic [3:0]                   csr_inflight;
-    logic [0:0]                   csr_drain;
-    rs_int_out_type               rs_o;
+    logic [RS_ADDR_BITS:0]                    count;
+    logic [RS_INT_DEPTH-1:0]                  valid_bits;
+    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0] sel_idx;
+    logic [ISSUE_WIDTH-1:0]                   sel_found;
+    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0] free_idx;
+    logic [ISSUE_WIDTH-1:0]                   free_found;
+    logic [3:0]                               csr_inflight;
+    logic [0:0]                               csr_drain;
+    rs_int_out_type                           rs_o;
   } rs_int_reg_type;
 
   localparam rs_int_out_type init_rs_int_out = '0;
@@ -43,7 +43,7 @@ module rs_int (
   logic         [RS_INT_DEPTH-1:0] ready_vec;
   rs_int_reg_type r, rin, v;
 
-  rs_entry_type issue_arr[0:3];
+  rs_entry_type issue_arr[0:ISSUE_WIDTH-1];
 
   int mul_budget, div_budget, clmul_budget, agu_budget, bcu_budget;
   int bitalu_budget, csralu_budget;
@@ -80,13 +80,13 @@ module rs_int (
     end
 
     begin
-      mul_budget    = 2;
-      div_budget    = 1;
-      clmul_budget  = 1;
-      agu_budget    = 2;
-      bcu_budget    = 2;
-      bitalu_budget = 2;
-      csralu_budget = 2;
+      mul_budget    = MUL_COUNT;
+      div_budget    = DIV_COUNT;
+      clmul_budget  = CLMUL_COUNT;
+      agu_budget    = AGU_BRANCH_COUNT;
+      bcu_budget    = BCU_COUNT;
+      bitalu_budget = BITALU_COUNT;
+      csralu_budget = CSR_ALU_COUNT;
       sel_count     = 0;
       csr_taken     = 1'b0;
 
@@ -103,7 +103,7 @@ module rs_int (
         else if (needs_agu) can_take = (agu_budget > 0);
         else can_take = 1'b1;
 
-        if (ready_vec[i] && (sel_count < 4) && !csr_taken) begin
+        if (ready_vec[i] && (sel_count < ISSUE_WIDTH) && !csr_taken) begin
           if (can_take) begin
             v.sel_idx[sel_count]   = RS_ADDR_BITS'(unsigned'(i));
             v.sel_found[sel_count] = 1'b1;
@@ -129,12 +129,12 @@ module rs_int (
 
     for (int i = 0; i < RS_INT_DEPTH; i++) begin
       issue_free = 1'b0;
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (v.sel_found[k] && (v.sel_idx[k] == RS_ADDR_BITS'(unsigned'(i)))) begin
           issue_free = 1'b1;
         end
       end
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if ((!woken[i].valid || issue_free) && !v.free_found[k]) begin
           v.free_idx[k]   = RS_ADDR_BITS'(unsigned'(i));
           v.free_found[k] = 1'b1;
@@ -143,7 +143,7 @@ module rs_int (
       end
     end
 
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       issue_arr[k]          = v.sel_found[k] ? woken[v.sel_idx[k]] : init_rs_entry;
       v.rs_o.issue[k]       = issue_arr[k];
       v.rs_o.issue_valid[k] = v.sel_found[k];
@@ -151,12 +151,12 @@ module rs_int (
 
     v.rs_o.full         = (r.count >= (RS_ADDR_BITS + 1)'(RS_INT_DEPTH - 1));
     v.rs_o.has_two_free = (r.count <= (RS_ADDR_BITS + 1)'(RS_INT_DEPTH - 2));
-    for (int k = 0; k < 4; k++) begin
-      v.rs_o.alloc_ok[k] = (r.count <= (RS_ADDR_BITS + 1)'(RS_INT_DEPTH - 4));
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      v.rs_o.alloc_ok[k] = (r.count <= (RS_ADDR_BITS + 1)'(RS_INT_DEPTH - ISSUE_WIDTH));
     end
 
     v.rs_o.csr_rin = '0;
-    for (int k = 0; k < 4; k++) begin
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (v.sel_found[k] && issue_arr[k].op.csreg) begin
         v.rs_o.csr_rin.crden  = 1'b1;
         v.rs_o.csr_rin.craddr = issue_arr[k].caddr;
@@ -170,20 +170,20 @@ module rs_int (
       v.free_found = '0;
       v.rs_o       = init_rs_int_out;
     end else begin
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (v.sel_found[k]) begin
           v.valid_bits[v.sel_idx[k]] = 1'b0;
           v.count                    = v.count - 1'b1;
         end
       end
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (rs_in.alloc[k] && v.free_found[k]) begin
           v.valid_bits[v.free_idx[k]] = 1'b1;
           v.count                     = v.count + 1'b1;
         end
       end
       v.csr_drain = 1'b0;
-      for (int k = 0; k < 4; k++) begin
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (v.sel_found[k] && issue_arr[k].op.csreg && issue_arr[k].op.cwren) begin
           v.csr_inflight = v.csr_inflight + 4'b1;
         end
