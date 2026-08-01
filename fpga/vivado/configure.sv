@@ -10,10 +10,31 @@ package configure;
   localparam RS_MEM_DEPTH = 4;
   localparam FLIST_DEPTH = PRF_DEPTH - ARCH_REGS;
 
-  localparam BUFFER_DEPTH = 4;
+  localparam ISSUE_WIDTH = 4;
+  localparam MEM_ISSUE_WIDTH = 2;
+
+  localparam ALU_COUNT = ISSUE_WIDTH;
+  localparam BCU_COUNT = 2;
+  localparam MUL_COUNT = 2;
+  localparam DIV_COUNT = 1;
+  localparam BITALU_COUNT = 2;
+  localparam CLMUL_COUNT = 1;
+  localparam CSR_ALU_COUNT = 1;
+  localparam LSU_COUNT = MEM_ISSUE_WIDTH;
+
+  localparam AGU_BRANCH_COUNT = 2;
+  localparam AGU_COUNT = AGU_BRANCH_COUNT + MEM_ISSUE_WIDTH;
 
   localparam TIM_WIDTH = 32;
   localparam TIM_DEPTH = 1024;
+
+  localparam CACHE_WIDTH = 32;
+  localparam CACHE_DEPTH = 1024;
+
+  localparam BUFFER_WIDTH = 2 * CACHE_WIDTH;
+  localparam BUFFER_DEPTH = 4;
+
+  localparam PC_INCREMENTS = 4 * CACHE_WIDTH;
 
   localparam RAM_DEPTH = 1;
 
