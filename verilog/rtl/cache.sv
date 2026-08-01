@@ -8,15 +8,16 @@ package cache_wires;
   localparam CTAG = 32 - CDEPTH - CWIDTH - 2;
 
   typedef struct packed {
-    logic [CDEPTH-1:0] addr;
-    logic [31:0]       data;
-    logic [0:0]        error;
+    logic [CDEPTH-1:0] raddr;
+    logic [CDEPTH-1:0] waddr;
     logic [0:0]        wren;
+    logic [31:0]       wdata;
+    logic [0:0]        werror;
   } cache_ram_in_type;
 
   typedef struct packed {
-    logic [31:0] data;
-    logic [0:0]  error;
+    logic [31:0] rdata;
+    logic [0:0]  rerror;
   } cache_ram_out_type;
 
   typedef struct packed {
@@ -59,9 +60,9 @@ module cache_ram (
 
   always_ff @(posedge clock) begin
     if (cache_ram_in.wren == 1) begin
-      ram[cache_ram_in.addr] <= {cache_ram_in.error, cache_ram_in.data};
+      ram[cache_ram_in.waddr] <= {cache_ram_in.werror, cache_ram_in.wdata};
     end
-    {cache_ram_out.error, cache_ram_out.data} <= ram[cache_ram_in.addr];
+    {cache_ram_out.rerror, cache_ram_out.rdata} <= ram[cache_ram_in.raddr];
   end
 
 endmodule
@@ -132,6 +133,7 @@ module cache_ctrl (
     logic [1:0]                mem_valid;
     logic [1:0][31:0]          mem_addr;
     logic [1:0]                mem_done;
+    logic [0:0]                mem_send;
     logic [CACHE_WIDTH*32-1:0] rdata;
     logic [CACHE_WIDTH-1:0]    error;
     logic [0:0]                ready;
@@ -164,10 +166,10 @@ module cache_ctrl (
     if (r_b.state == DONE) begin
       if (r_b.wen == 1) begin
         for (int w = 0; w < CACHE_WIDTH; w++) begin
-          cache_vec_in[w].wren  = 1;
-          cache_vec_in[w].addr  = r_b.addr;
-          cache_vec_in[w].data  = r_b.rdata[w*32+:32];
-          cache_vec_in[w].error = r_b.error[w];
+          cache_vec_in[w].wren   = 1;
+          cache_vec_in[w].waddr  = r_b.addr;
+          cache_vec_in[w].wdata  = r_b.rdata[w*32+:32];
+          cache_vec_in[w].werror = r_b.error[w];
         end
         cache_tag_in.wren   = 1;
         cache_tag_in.wvalid = 1;
@@ -179,7 +181,7 @@ module cache_ctrl (
     if (v_b.state == HIT) begin
       if (v_f.valid == 1) begin
         for (int w = 0; w < CACHE_WIDTH; w++) begin
-          cache_vec_in[w].addr = v_f.addr;
+          cache_vec_in[w].raddr = v_f.addr;
         end
       end
       cache_tag_in.raddr = v_f.addr;
@@ -207,8 +209,8 @@ module cache_ctrl (
           if (cache_tag_out.rvalid == 1 && cache_tag_out.rtag == r_f.tag) begin
             v_b.ready = 1;
             for (int w = 0; w < CACHE_WIDTH; w++) begin
-              v_b.rdata[w*32+:32] = cache_vec_out[w].data;
-              v_b.error[w]        = cache_vec_out[w].error;
+              v_b.rdata[w*32+:32] = cache_vec_out[w].rdata;
+              v_b.error[w]        = cache_vec_out[w].rerror;
             end
           end else begin
             v_b.state    = FILL;
@@ -222,11 +224,12 @@ module cache_ctrl (
       end
 
       FILL: begin
-        if (v_b.mem_done == 2'b00) begin
+        if (v_b.mem_send == 0) begin
           v_b.mem_valid[0] = 1;
           v_b.mem_addr[0]  = r_b.base + {{(30 - CWIDTH) {1'b0}}, r_b.wid, 2'b00};
           v_b.mem_valid[1] = 1;
           v_b.mem_addr[1]  = r_b.base + {{(30 - CWIDTH) {1'b0}}, r_b.wid + CWIDTH'(1), 2'b00};
+          v_b.mem_send     = 1;
         end
 
         if (mem_out[0].mem_ready == 1 && v_b.mem_done[0] == 0) begin
@@ -249,6 +252,7 @@ module cache_ctrl (
           end else begin
             v_b.wid = r_b.wid + 2;
           end
+          v_b.mem_send = 0;
         end
       end
 
