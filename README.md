@@ -11,6 +11,7 @@ This cpu is 8-stage quad-issue out-of-order superscalar processor.
 - Branch target cache with bimodal branch predictor
 ### Memory
 - Harvard bus architecture
+- Instruction Cache Memory
 - Instruction and Data Tightly Integrated Memory
 ### Peripheral
 - UART
@@ -28,7 +29,7 @@ The installation scripts of necessary tools are located in directory **tools**. 
 
 1. Clone the repository:
 ```console
-git clone --recurse-submodules https://github.com/taneroksuz/rv-diooos.git
+git clone --recurse-submodules https://github.com/taneroksuz/rv-qiooos.git
 ```
 
 2. Install necessary tools for compilation and simulation:
@@ -63,4 +64,4 @@ make verilator MAXTIME=1000
 ### Coremark Benchmark
 | Cycles | Iteration/s/MHz | Iteration |
 | ------ | --------------- | --------- |
-| 188800 |            5.30 |        10 |
+| 165200 |            6.05 |        10 |
