@@ -4,20 +4,20 @@ import wires::*;
 module clint #(
   parameter CLOCK_RATE
 ) (
-  input  logic                 reset,
-  input  logic                 clock,
-  input  mem_in_type           clint_in,
-  output mem_out_type          clint_out,
-  output logic        [63 : 0] clint_mtime,
-  output logic                 clint_msip,
-  output logic                 clint_mtip
+  input  logic               reset,
+  input  logic               clock,
+  input  mem_in_type         clint_in,
+  output mem_out_type        clint_out,
+  output logic        [63:0] clint_mtime,
+  output logic               clint_msip,
+  output logic               clint_mtip
 );
   timeunit 1ns; timeprecision 1ps;
 
   localparam DEPTH = $clog2(CLOCK_RATE);
   localparam FULL = CLOCK_RATE - 1;
 
-  logic [DEPTH-1 : 0] count = 0;
+  logic [DEPTH-1:0] count = 0;
 
   localparam clint_msip_start = 32'h0000;
   localparam clint_msip_end = clint_msip_start + 4;
@@ -26,21 +26,21 @@ module clint #(
   localparam clint_mtime_start = 32'hBFF8;
   localparam clint_mtime_end = clint_mtime_start + 8;
 
-  logic [63 : 0] mtimecmp = 0;
-  logic [63 : 0] mtime = 0;
+  logic [63:0] mtimecmp = 0;
+  logic [63:0] mtime = 0;
 
-  logic [0 : 0] mtip = 0;
-  logic [0 : 0] msip = 0;
+  logic [0:0] mtip = 0;
+  logic [0:0] msip = 0;
 
-  logic [0 : 0] enable = 0;
+  logic [0:0] enable = 0;
 
-  logic [31 : 0] rdata_ms = 0;
-  logic [31 : 0] rdata_mt = 0;
-  logic [31 : 0] rdata_mtc = 0;
+  logic [31:0] rdata_ms = 0;
+  logic [31:0] rdata_mt = 0;
+  logic [31:0] rdata_mtc = 0;
 
-  logic [0 : 0] ready_ms = 0;
-  logic [0 : 0] ready_mt = 0;
-  logic [0 : 0] ready_mtc = 0;
+  logic [0:0] ready_ms = 0;
+  logic [0:0] ready_mt = 0;
+  logic [0:0] ready_mtc = 0;
 
   always_ff @(posedge clock) begin
     if (reset == 0) begin

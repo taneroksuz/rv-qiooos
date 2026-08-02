@@ -11,11 +11,11 @@ module ram (
 
   localparam DEPTH = $clog2(RAM_DEPTH);
 
-  logic [31 : 0] ram_block[0:RAM_DEPTH-1];
+  logic [31:0] ram_block[0:RAM_DEPTH-1];
 
   mem_out_type mem_out = '0;
 
-  logic [31 : 0] counter = 0;
+  logic [31:0] counter = 0;
 
   initial begin
     $readmemh("ram.dat", ram_block);

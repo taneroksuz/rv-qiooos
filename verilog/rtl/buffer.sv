@@ -7,13 +7,13 @@ package buffer_wires;
   localparam BWIDTH = $clog2(BUFFER_WIDTH);
 
   typedef struct packed {
-    logic [BUFFER_WIDTH-1:0][0 : 0]        wen;
-    logic [BUFFER_WIDTH-1:0][BDEPTH-1 : 0] waddr;
-    logic [BUFFER_WIDTH-1:0][BDEPTH-1 : 0] raddr;
-    logic [BUFFER_WIDTH-1:0][47 : 0]       wdata;
+    logic [BUFFER_WIDTH-1:0][0:0]        wen;
+    logic [BUFFER_WIDTH-1:0][BDEPTH-1:0] waddr;
+    logic [BUFFER_WIDTH-1:0][BDEPTH-1:0] raddr;
+    logic [BUFFER_WIDTH-1:0][47:0]       wdata;
   } buffer_reg_in_type;
 
-  typedef struct packed {logic [BUFFER_WIDTH-1:0][47 : 0] rdata;} buffer_reg_out_type;
+  typedef struct packed {logic [BUFFER_WIDTH-1:0][47:0] rdata;} buffer_reg_out_type;
 
 endpackage
 
@@ -70,24 +70,24 @@ module buffer_ctrl (
   localparam [W-1:0] one = 1;
 
   typedef struct packed {
-    logic [BUFFER_WIDTH-1:0][47 : 0] wdata;
-    logic [BUFFER_WIDTH-1:0][47 : 0] rdata;
-    logic [BUFFER_WIDTH-1:0]         comp;
-    logic [W-1 : 0]                  wid;
-    logic [W-1 : 0]                  rid;
-    logic [W-1 : 0]                  diff;
-    logic [W-1 : 0]                  count;
-    logic [W-1 : 0]                  align;
-    logic [ISSUE_WIDTH-1:0][31 : 0]  pc;
-    logic [ISSUE_WIDTH-1:0][31 : 0]  instr;
-    logic [ISSUE_WIDTH-1:0]          ready;
-    logic [0 : 0]                    wen;
-    logic [0 : 0]                    clear;
-    logic [0 : 0]                    stall;
-    logic [BWIDTH-1:0]               rid_bank;
-    logic [BDEPTH-1:0]               rid_row;
-    logic [BDEPTH-1:0]               rid_row_p1;
-    logic [BDEPTH-1:0]               wid_row;
+    logic [BUFFER_WIDTH-1:0][47:0] wdata;
+    logic [BUFFER_WIDTH-1:0][47:0] rdata;
+    logic [BUFFER_WIDTH-1:0]       comp;
+    logic [W-1:0]                  wid;
+    logic [W-1:0]                  rid;
+    logic [W-1:0]                  diff;
+    logic [W-1:0]                  count;
+    logic [W-1:0]                  align;
+    logic [ISSUE_WIDTH-1:0][31:0]  pc;
+    logic [ISSUE_WIDTH-1:0][31:0]  instr;
+    logic [ISSUE_WIDTH-1:0]        ready;
+    logic [0:0]                    wen;
+    logic [0:0]                    clear;
+    logic [0:0]                    stall;
+    logic [BWIDTH-1:0]             rid_bank;
+    logic [BDEPTH-1:0]             rid_row;
+    logic [BDEPTH-1:0]             rid_row_p1;
+    logic [BDEPTH-1:0]             wid_row;
   } reg_type;
 
   parameter reg_type init_reg = '{

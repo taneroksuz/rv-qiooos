@@ -36,11 +36,11 @@ module bus (
   mem_out_type ibridge_out[0:1];
   mem_out_type dbridge_out[0:1];
 
-  logic [0 : 0] itim_rev[0:1];
-  logic [0 : 0] dtim_rev[0:1];
+  logic [0:0] itim_rev[0:1];
+  logic [0:0] dtim_rev[0:1];
 
-  logic [0 : 0] itim_rev_reg[0:1];
-  logic [0 : 0] dtim_rev_reg[0:1];
+  logic [0:0] itim_rev_reg[0:1];
+  logic [0:0] dtim_rev_reg[0:1];
 
   logic itim_hit_i[0:1], dtim_hit_i[0:1];
   logic itim_hit_d[0:1], dtim_hit_d[0:1];

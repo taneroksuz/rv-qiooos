@@ -18,16 +18,16 @@ module spi #(
   localparam FULL = CLOCK_RATE - 1;
 
   typedef struct packed {
-    logic [31 : 0] counter;
-    logic [7 : 0]  data;
-    logic [2 : 0]  state;
-    logic [0 : 0]  write;
-    logic [0 : 0]  read;
-    logic [5 : 0]  incr;
-    logic [0 : 0]  sclk;
-    logic [0 : 0]  ss;
-    logic [2 : 0]  dim;
-    logic [0 : 0]  ready;
+    logic [31:0] counter;
+    logic [7:0]  data;
+    logic [2:0]  state;
+    logic [0:0]  write;
+    logic [0:0]  read;
+    logic [5:0]  incr;
+    logic [0:0]  sclk;
+    logic [0:0]  ss;
+    logic [2:0]  dim;
+    logic [0:0]  ready;
   } register_type;
 
   register_type init_register = 0;

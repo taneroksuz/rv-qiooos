@@ -44,12 +44,12 @@ module uart_tx #(
       localparam FULL = CLOCK_RATE - 1;
 
       typedef struct packed {
-        logic [31 : 0] counter;
-        logic [7 : 0]  rdata_re;
-        logic [0 : 0]  ready_re;
-        logic [3 : 0]  state;
-        logic [9 : 0]  data;
-        logic [0 : 0]  ready;
+        logic [31:0] counter;
+        logic [7:0]  rdata_re;
+        logic [0:0]  ready_re;
+        logic [3:0]  state;
+        logic [9:0]  data;
+        logic [0:0]  ready;
       } register_type;
 
       register_type init_register = '{data : 10'h3FF, default: 0};

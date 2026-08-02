@@ -21,20 +21,20 @@ module sram #(
   localparam FULL = CLOCK_RATE - 1;
 
   typedef struct packed {
-    logic [31 : 0] counter;
-    logic [31 : 0] data;
-    logic [3 : 0]  strb;
-    logic [15 : 0] dq;
-    logic [17 : 0] addr;
-    logic [0 : 0]  ce_n;
-    logic [0 : 0]  we_n;
-    logic [0 : 0]  oe_n;
-    logic [0 : 0]  ub_n;
-    logic [0 : 0]  lb_n;
-    logic [1 : 0]  state;
-    logic [0 : 0]  write;
-    logic [0 : 0]  read;
-    logic [0 : 0]  ready;
+    logic [31:0] counter;
+    logic [31:0] data;
+    logic [3:0]  strb;
+    logic [15:0] dq;
+    logic [17:0] addr;
+    logic [0:0]  ce_n;
+    logic [0:0]  we_n;
+    logic [0:0]  oe_n;
+    logic [0:0]  ub_n;
+    logic [0:0]  lb_n;
+    logic [1:0]  state;
+    logic [0:0]  write;
+    logic [0:0]  read;
+    logic [0:0]  ready;
   } register_type;
 
   register_type init_register = 0;

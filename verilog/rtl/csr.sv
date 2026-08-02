@@ -17,13 +17,13 @@ module csr (
 
   csr_machine_reg_type csr_machine_reg;
 
-  logic [0 : 0] exception = 0;
-  logic [0 : 0] interrupt = 0;
-  logic [7 : 0] cause = 0;
-  logic [0 : 0] mret = 0;
+  logic [0:0] exception = 0;
+  logic [0:0] interrupt = 0;
+  logic [7:0] cause = 0;
+  logic [0:0] mret = 0;
 
-  logic [ 0 : 0] valid;
-  logic [63 : 0] incr;
+  logic [ 0:0] valid;
+  logic [63:0] incr;
 
   assign valid = csr_ein.valid[0] | csr_ein.valid[1] | csr_ein.valid[2] | csr_ein.valid[3];
 

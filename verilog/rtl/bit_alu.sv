@@ -7,32 +7,32 @@ module bit_alu (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  logic [31 : 0] rdata1;
-  logic [31 : 0] rdata2;
-  logic [31 : 0] result;
+  logic [31:0] rdata1;
+  logic [31:0] rdata2;
+  logic [31:0] result;
 
-  logic [1 : 0] index;
-  logic [1 : 0] op;
+  logic [1:0] index;
+  logic [1:0] op;
 
-  logic [31 : 0] res_shadd;
-  logic [31 : 0] res_andn;
-  logic [31 : 0] res_orn;
-  logic [31 : 0] res_xnor;
-  logic [31 : 0] res_clz;
-  logic [31 : 0] res_cpop;
-  logic [31 : 0] res_ctz;
-  logic [31 : 0] res_minmax;
-  logic [31 : 0] res_orcb;
-  logic [31 : 0] res_rev8;
-  logic [31 : 0] res_rol;
-  logic [31 : 0] res_ror;
-  logic [31 : 0] res_sextb;
-  logic [31 : 0] res_sexth;
-  logic [31 : 0] res_zexth;
-  logic [31 : 0] res_bclr;
-  logic [31 : 0] res_bext;
-  logic [31 : 0] res_binv;
-  logic [31 : 0] res_bset;
+  logic [31:0] res_shadd;
+  logic [31:0] res_andn;
+  logic [31:0] res_orn;
+  logic [31:0] res_xnor;
+  logic [31:0] res_clz;
+  logic [31:0] res_cpop;
+  logic [31:0] res_ctz;
+  logic [31:0] res_minmax;
+  logic [31:0] res_orcb;
+  logic [31:0] res_rev8;
+  logic [31:0] res_rol;
+  logic [31:0] res_ror;
+  logic [31:0] res_sextb;
+  logic [31:0] res_sexth;
+  logic [31:0] res_zexth;
+  logic [31:0] res_bclr;
+  logic [31:0] res_bext;
+  logic [31:0] res_binv;
+  logic [31:0] res_bset;
 
   zba_op_type bit_zba;
   zbb_op_type bit_zbb;

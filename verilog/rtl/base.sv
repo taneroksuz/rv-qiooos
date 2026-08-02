@@ -7,56 +7,56 @@ module base (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  logic [31 : 0] instr;
+  logic [31:0] instr;
 
-  logic [79 : 0] instr_str;
+  logic [79:0] instr_str;
 
-  logic [31 : 0] imm_c;
-  logic [31 : 0] imm_i;
-  logic [31 : 0] imm_s;
-  logic [31 : 0] imm_b;
-  logic [31 : 0] imm_u;
-  logic [31 : 0] imm_j;
-  logic [31 : 0] imm;
+  logic [31:0] imm_c;
+  logic [31:0] imm_i;
+  logic [31:0] imm_s;
+  logic [31:0] imm_b;
+  logic [31:0] imm_u;
+  logic [31:0] imm_j;
+  logic [31:0] imm;
 
-  logic [4 : 0] shamt;
+  logic [4:0] shamt;
 
-  logic [6 : 0] opcode;
-  logic [2 : 0] funct3;
-  logic [4 : 0] funct5;
-  logic [6 : 0] funct7;
+  logic [6:0] opcode;
+  logic [2:0] funct3;
+  logic [4:0] funct5;
+  logic [6:0] funct7;
 
-  logic [ 4 : 0] waddr;
-  logic [ 4 : 0] raddr1;
-  logic [11 : 0] caddr;
+  logic [ 4:0] waddr;
+  logic [ 4:0] raddr1;
+  logic [11:0] caddr;
 
-  logic [0 : 0] wren;
-  logic [0 : 0] rden1;
-  logic [0 : 0] rden2;
+  logic [0:0] wren;
+  logic [0:0] rden1;
+  logic [0:0] rden2;
 
-  logic [0 : 0] cwren;
-  logic [0 : 0] crden;
+  logic [0:0] cwren;
+  logic [0:0] crden;
 
-  logic [0 : 0] alunit;
-  logic [0 : 0] auipc;
-  logic [0 : 0] lui;
-  logic [0 : 0] jal;
-  logic [0 : 0] jalr;
-  logic [0 : 0] branch;
-  logic [0 : 0] load;
-  logic [0 : 0] store;
-  logic [0 : 0] nop;
-  logic [0 : 0] csreg;
-  logic [0 : 0] division;
-  logic [0 : 0] mult;
-  logic [0 : 0] bitm;
-  logic [0 : 0] bitc;
-  logic [0 : 0] fence;
-  logic [0 : 0] ecall;
-  logic [0 : 0] ebreak;
-  logic [0 : 0] mret;
-  logic [0 : 0] wfi;
-  logic [0 : 0] valid;
+  logic [0:0] alunit;
+  logic [0:0] auipc;
+  logic [0:0] lui;
+  logic [0:0] jal;
+  logic [0:0] jalr;
+  logic [0:0] branch;
+  logic [0:0] load;
+  logic [0:0] store;
+  logic [0:0] nop;
+  logic [0:0] csreg;
+  logic [0:0] division;
+  logic [0:0] mult;
+  logic [0:0] bitm;
+  logic [0:0] bitc;
+  logic [0:0] fence;
+  logic [0:0] ecall;
+  logic [0:0] ebreak;
+  logic [0:0] mret;
+  logic [0:0] wfi;
+  logic [0:0] valid;
 
   alu_op_type alu_op;
   bcu_op_type bcu_op;
@@ -67,10 +67,10 @@ module base (
   mul_op_type mul_op;
   bit_op_type bit_op;
 
-  logic [0 : 0] nonzero_waddr;
-  logic [0 : 0] nonzero_raddr1;
+  logic [0:0] nonzero_waddr;
+  logic [0:0] nonzero_raddr1;
 
-  logic [0 : 0] nonzero_imm_c;
+  logic [0:0] nonzero_imm_c;
 
   always_comb begin
 

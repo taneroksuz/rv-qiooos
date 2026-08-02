@@ -7,13 +7,13 @@ package tim_wires;
   localparam TWIDTH = $clog2(TIM_WIDTH);
 
   typedef struct packed {
-    logic [1:0][0 : 0]        en;
-    logic [1:0][TDEPTH-1 : 0] addr;
-    logic [1:0][3 : 0]        strb;
-    logic [1:0][31 : 0]       data;
+    logic [1:0][0:0]        en;
+    logic [1:0][TDEPTH-1:0] addr;
+    logic [1:0][3:0]        strb;
+    logic [1:0][31:0]       data;
   } tim_ram_in_type;
 
-  typedef struct packed {logic [1:0][31 : 0] data;} tim_ram_out_type;
+  typedef struct packed {logic [1:0][31:0] data;} tim_ram_out_type;
 
   typedef tim_ram_in_type tim_vec_in_type[TIM_WIDTH];
   typedef tim_ram_out_type tim_vec_out_type[TIM_WIDTH];

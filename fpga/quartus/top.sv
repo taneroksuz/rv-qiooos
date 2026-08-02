@@ -2,18 +2,18 @@ import configure::*;
 import wires::*;
 
 module top (
-  input           CLOCK_50_B5B,
-  input  [ 3 : 0] KEY,
-  output [ 9 : 0] LEDR,
-  input           UART_RX,
-  output          UART_TX,
-  output          SRAM_CE_n,
-  output          SRAM_WE_n,
-  output          SRAM_OE_n,
-  output          SRAM_UB_n,
-  output          SRAM_LB_n,
-  inout  [15 : 0] SRAM_D,
-  output [17 : 0] SRAM_A
+  input         CLOCK_50_B5B,
+  input  [ 3:0] KEY,
+  output [ 9:0] LEDR,
+  input         UART_RX,
+  output        UART_TX,
+  output        SRAM_CE_n,
+  output        SRAM_WE_n,
+  output        SRAM_OE_n,
+  output        SRAM_UB_n,
+  output        SRAM_LB_n,
+  inout  [15:0] SRAM_D,
+  output [17:0] SRAM_A
 );
 
   timeunit 1ns; timeprecision 1ps;

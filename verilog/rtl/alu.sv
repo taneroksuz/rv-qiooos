@@ -7,8 +7,8 @@ module alu (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  logic [31 : 0] rdata2;
-  logic [31 : 0] result;
+  logic [31:0] rdata2;
+  logic [31:0] result;
 
   always_comb begin
 

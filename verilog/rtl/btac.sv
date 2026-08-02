@@ -7,22 +7,22 @@ package btac_wires;
   localparam T_DEPTH = $clog2(BHT_DEPTH);
 
   typedef struct packed {
-    logic [0 : 0]                          wen;
-    logic [B_DEPTH-1 : 0]                  waddr;
-    logic [ISSUE_WIDTH-1:0][B_DEPTH-1 : 0] raddr;
-    logic [64-B_DEPTH : 0]                 wdata;
+    logic [0:0]                          wen;
+    logic [B_DEPTH-1:0]                  waddr;
+    logic [ISSUE_WIDTH-1:0][B_DEPTH-1:0] raddr;
+    logic [64-B_DEPTH:0]                 wdata;
   } btb_in_type;
 
-  typedef struct packed {logic [ISSUE_WIDTH-1:0][64-B_DEPTH : 0] rdata;} btb_out_type;
+  typedef struct packed {logic [ISSUE_WIDTH-1:0][64-B_DEPTH:0] rdata;} btb_out_type;
 
   typedef struct packed {
-    logic [0 : 0]                          wen;
-    logic [T_DEPTH-1 : 0]                  waddr;
-    logic [ISSUE_WIDTH-1:0][T_DEPTH-1 : 0] raddr;
-    logic [1 : 0]                          wdata;
+    logic [0:0]                          wen;
+    logic [T_DEPTH-1:0]                  waddr;
+    logic [ISSUE_WIDTH-1:0][T_DEPTH-1:0] raddr;
+    logic [1:0]                          wdata;
   } bht_in_type;
 
-  typedef struct packed {logic [ISSUE_WIDTH-1:0][1 : 0] rdata;} bht_out_type;
+  typedef struct packed {logic [ISSUE_WIDTH-1:0][1:0] rdata;} bht_out_type;
 
 endpackage
 
@@ -104,17 +104,17 @@ module btac_ctrl (
   endfunction
 
   typedef struct packed {
-    logic [B_DEPTH-1 : 0]                  waddr;
-    logic [ISSUE_WIDTH-1:0][B_DEPTH-1 : 0] raddr;
-    logic [64-B_DEPTH : 0]                 wdata;
-    logic [0 : 0]                          wen;
-    logic [ISSUE_WIDTH-1:0][31 : 0]        pc;
-    logic [ISSUE_WIDTH-1:0][31 : 0]        maddr;
-    logic [ISSUE_WIDTH-1:0][0 : 0]         miss;
-    logic [ISSUE_WIDTH-1:0][0 : 0]         hit;
-    logic [ISSUE_WIDTH-1:0][0 : 0]         valid;
-    logic [ISSUE_WIDTH-1:0][0 : 0]         branch;
-    logic [ISSUE_WIDTH-1:0][0 : 0]         match;
+    logic [B_DEPTH-1:0]                  waddr;
+    logic [ISSUE_WIDTH-1:0][B_DEPTH-1:0] raddr;
+    logic [64-B_DEPTH:0]                 wdata;
+    logic [0:0]                          wen;
+    logic [ISSUE_WIDTH-1:0][31:0]        pc;
+    logic [ISSUE_WIDTH-1:0][31:0]        maddr;
+    logic [ISSUE_WIDTH-1:0][0:0]         miss;
+    logic [ISSUE_WIDTH-1:0][0:0]         hit;
+    logic [ISSUE_WIDTH-1:0][0:0]         valid;
+    logic [ISSUE_WIDTH-1:0][0:0]         branch;
+    logic [ISSUE_WIDTH-1:0][0:0]         match;
   } btb_reg_type;
 
   parameter btb_reg_type init_btb_reg = '{
@@ -132,11 +132,11 @@ module btac_ctrl (
   };
 
   typedef struct packed {
-    logic [T_DEPTH-1 : 0]                  waddr;
-    logic [ISSUE_WIDTH-1:0][T_DEPTH-1 : 0] raddr;
-    logic [1 : 0]                          wdata;
-    logic [0 : 0]                          wen;
-    logic [ISSUE_WIDTH-1:0][1 : 0]         sat;
+    logic [T_DEPTH-1:0]                  waddr;
+    logic [ISSUE_WIDTH-1:0][T_DEPTH-1:0] raddr;
+    logic [1:0]                          wdata;
+    logic [0:0]                          wen;
+    logic [ISSUE_WIDTH-1:0][1:0]         sat;
   } bht_reg_type;
 
   parameter bht_reg_type init_bht_reg = '{
@@ -292,8 +292,8 @@ module btac (
     end else begin
 
       typedef struct packed {
-        logic [1:0][31 : 0] maddr;
-        logic [1:0][0 : 0]  miss;
+        logic [1:0][31:0] maddr;
+        logic [1:0][0:0]  miss;
       } reg_type;
 
       parameter reg_type init_reg = '{maddr : '{default: 0}, miss : '{default: 0}};
