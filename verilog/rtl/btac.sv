@@ -39,16 +39,23 @@ module btb (
 
   localparam B_DEPTH = $clog2(BTB_DEPTH);
 
-  logic [64-B_DEPTH:0] btb_array[0:BTB_DEPTH-1] = '{default: '0};
+  genvar i;
 
-  always_ff @(posedge clock) begin
-    if (btb_in.wen == 1) begin
-      btb_array[btb_in.waddr] <= btb_in.wdata;
+  generate
+    for (i = 0; i < ISSUE_WIDTH; i++) begin : gen_btb_bank
+      logic [64-B_DEPTH:0] btb_array[0:BTB_DEPTH-1] = '{default: '0};
+
+      always_ff @(posedge clock) begin
+        if (btb_in.wen == 1) begin
+          btb_array[btb_in.waddr] <= btb_in.wdata;
+        end
+      end
+
+      always_ff @(posedge clock) begin
+        btb_out.rdata[i] <= btb_array[btb_in.raddr[i]];
+      end
     end
-    for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      btb_out.rdata[k] <= btb_array[btb_in.raddr[k]];
-    end
-  end
+  endgenerate
 
 endmodule
 
@@ -65,16 +72,23 @@ module bht (
 
   localparam T_DEPTH = $clog2(BHT_DEPTH);
 
-  logic [1:0] bht_array[0:BHT_DEPTH-1] = '{default: '0};
+  genvar i;
 
-  always_ff @(posedge clock) begin
-    if (bht_in.wen == 1) begin
-      bht_array[bht_in.waddr] <= bht_in.wdata;
+  generate
+    for (i = 0; i < ISSUE_WIDTH; i++) begin : gen_bht_bank
+      logic [1:0] bht_array[0:BHT_DEPTH-1] = '{default: '0};
+
+      always_ff @(posedge clock) begin
+        if (bht_in.wen == 1) begin
+          bht_array[bht_in.waddr] <= bht_in.wdata;
+        end
+      end
+
+      always_ff @(posedge clock) begin
+        bht_out.rdata[i] <= bht_array[bht_in.raddr[i]];
+      end
     end
-    for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      bht_out.rdata[k] <= bht_array[bht_in.raddr[k]];
-    end
-  end
+  endgenerate
 
 endmodule
 
