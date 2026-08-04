@@ -67,12 +67,14 @@ module buffer_ctrl (
   localparam W = BDEPTH + BWIDTH;
   localparam TOTAL = BUFFER_WIDTH * (BUFFER_DEPTH - 2);
 
+  localparam WINDOW = 2 * ISSUE_WIDTH;
+
   localparam [W-1:0] one = 1;
 
   typedef struct packed {
     logic [BUFFER_WIDTH-1:0][47:0] wdata;
-    logic [BUFFER_WIDTH-1:0][47:0] rdata;
-    logic [BUFFER_WIDTH-1:0]       comp;
+    logic [WINDOW-1:0][47:0]       rdata;
+    logic [WINDOW-1:0]             comp;
     logic [W-1:0]                  wid;
     logic [W-1:0]                  rid;
     logic [W-1:0]                  diff;
@@ -113,7 +115,7 @@ module buffer_ctrl (
 
   reg_type r, rin, v;
 
-  function automatic int slot_offset(input logic [BUFFER_WIDTH-1:0] comp, input int slot);
+  function automatic int slot_offset(input logic [WINDOW-1:0] comp, input int slot);
     int off;
     off = 0;
     for (int k = 0; k < slot; k++) begin
@@ -163,7 +165,7 @@ module buffer_ctrl (
       buffer_reg_in.raddr[k] = (k < int'(v.rid_bank)) ? v.rid_row_p1 : v.rid_row;
     end
 
-    for (int j = 0; j < BUFFER_WIDTH; j++) begin
+    for (int j = 0; j < WINDOW; j++) begin
       v.rdata[j] = buffer_reg_out.rdata[(int'(v.rid_bank)+j)&(BUFFER_WIDTH-1)];
     end
 
@@ -174,7 +176,7 @@ module buffer_ctrl (
 
     v.diff = 0;
 
-    for (int k = 0; k < BUFFER_WIDTH; k++) begin
+    for (int k = 0; k < WINDOW; k++) begin
       v.comp[k] = ~(&v.rdata[k][1:0]);
     end
 
