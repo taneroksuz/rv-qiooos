@@ -96,7 +96,7 @@ module fetch (
       v.ipc = v.ipc + PC_INCREMENTS;
     end
 
-    fetch_out.buffer_in.pc    = v.ipc;
+    fetch_out.buffer_in.pc    = r.ipc;
     fetch_out.buffer_in.rdata = v.rdata;
     fetch_out.buffer_in.ready = v.ready;
     fetch_out.buffer_in.clear = v.flush;
