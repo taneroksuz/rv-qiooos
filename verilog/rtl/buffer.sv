@@ -108,7 +108,6 @@ module buffer_ctrl (
     logic [ISSUE_WIDTH-1:0][31:0] pc;
     logic [ISSUE_WIDTH-1:0][31:0] instr;
     logic [ISSUE_WIDTH-1:0]       ready;
-    logic [0:0]                   wen;
     logic [W-1:0]                 rid;
     logic [BWIDTH-1:0]            rid_bank;
     logic [BDEPTH-1:0]            rid_row;
@@ -126,7 +125,6 @@ module buffer_ctrl (
       pc : '{default: '0},
       instr : '{default: '0},
       ready : 0,
-      wen : 0,
       rid : 0,
       rid_bank : 0,
       rid_row : 0,
@@ -153,7 +151,8 @@ module buffer_ctrl (
 
     v_front = r_front;
 
-    v_front.rid = v_back.rid;
+    v_front.rid   = v_back.rid;
+    v_front.count = v_back.count;
 
     if (buffer_in.clear == 1) begin
       v_front.wid   = 0;
@@ -207,8 +206,6 @@ module buffer_ctrl (
 
     v_back = r_back;
 
-    v_back.wen = r_front.wen;
-
     v_back.count = r_front.count;
     v_back.align = r_front.align;
 
@@ -219,10 +216,6 @@ module buffer_ctrl (
 
     for (int j = 0; j < WINDOW; j++) begin
       v_back.rdata[j] = buffer_reg_out.rdata[(int'(v_back.rid_bank)+j)&(BUFFER_WIDTH-1)];
-    end
-
-    if (v_back.wen == 1) begin
-      v_back.count = v_back.count + BUFFER_WIDTH;
     end
 
     v_back.diff = 0;
