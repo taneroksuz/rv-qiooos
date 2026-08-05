@@ -134,6 +134,7 @@ module decode (
       decode_out.instr[i].pred.taken = decode_in.btac_out.pred[i].taken;
       decode_out.instr[i].pred.taddr = decode_in.btac_out.pred[i].taddr;
       decode_out.instr[i].pred.tsat  = decode_in.btac_out.pred[i].tsat;
+      decode_out.instr[i].pred.thist = decode_in.btac_out.pred[i].thist;
     end
 
   end

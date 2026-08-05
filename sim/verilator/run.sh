@@ -46,6 +46,7 @@ $VERILATOR --binary -j 0 --build-jobs 0 --trace-fst --trace-structs $TRACE_OPTS 
             $BASEDIR/verilog/rtl/csr.sv \
             $BASEDIR/verilog/rtl/buffer.sv \
             $BASEDIR/verilog/rtl/fetch.sv \
+            $BASEDIR/verilog/rtl/post_fetch.sv \
             $BASEDIR/verilog/rtl/decode.sv \
             $BASEDIR/verilog/rtl/arbiter.sv \
             $BASEDIR/verilog/rtl/bridge.sv \

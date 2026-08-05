@@ -1,6 +1,6 @@
 # RV-QIOOOS (RISC-V Quad-Issue Out-Of-Order Superscalar)
 
-This cpu is 8-stage quad-issue out-of-order superscalar processor.
+This cpu is 9-stage quad-issue out-of-order superscalar processor.
 
 ## SPECIFICATIONS
 
@@ -8,7 +8,7 @@ This cpu is 8-stage quad-issue out-of-order superscalar processor.
 - RV32-IMCB
 - Fast multiplication unit
 - Slow division unit
-- Branch target cache with bimodal branch predictor
+- Two level branch predictor
 ### Memory
 - Harvard bus architecture
 - Instruction Cache Memory

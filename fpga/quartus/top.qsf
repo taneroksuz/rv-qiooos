@@ -25,6 +25,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/register.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/csr.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/buffer.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/fetch.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/post_fetch.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/decode.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/arbiter.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../verilog/rtl/bridge.sv

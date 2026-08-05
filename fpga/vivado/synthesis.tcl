@@ -19,6 +19,7 @@ read_verilog -sv ../../verilog/rtl/register.sv
 read_verilog -sv ../../verilog/rtl/csr.sv
 read_verilog -sv ../../verilog/rtl/buffer.sv
 read_verilog -sv ../../verilog/rtl/fetch.sv
+read_verilog -sv ../../verilog/rtl/post_fetch.sv
 read_verilog -sv ../../verilog/rtl/decode.sv
 read_verilog -sv ../../verilog/rtl/arbiter.sv
 read_verilog -sv ../../verilog/rtl/bridge.sv

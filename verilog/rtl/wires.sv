@@ -380,12 +380,13 @@ package wires;
   typedef struct packed {logic [31:0] cdata;} csr_alu_out_type;
 
   typedef struct packed {
-    logic [0:0]  taken;
-    logic [31:0] taddr;
-    logic [1:0]  tsat;
+    logic [0:0]           taken;
+    logic [31:0]          taddr;
+    logic [1:0]           tsat;
+    logic [BHT_WIDTH-1:0] thist;
   } prediction_type;
 
-  localparam prediction_type init_prediction = '{taken: 0, taddr: 0, tsat: 0};
+  localparam prediction_type init_prediction = '{taken: 0, taddr: 0, tsat: 0, thist: 0};
 
   typedef struct packed {
     logic [ISSUE_WIDTH-1:0][31:0]     get_pc;
@@ -754,16 +755,13 @@ package wires;
   } fetch_state;
 
   typedef struct packed {
-    fetch_state                   state;
-    logic [31:0]                  ipc;
-    logic [CACHE_WIDTH*32-1:0]    rdata;
-    logic [0:0]                   ready;
-    logic [ISSUE_WIDTH-1:0][31:0] pc;
-    logic [ISSUE_WIDTH-1:0][31:0] instr;
-    logic [ISSUE_WIDTH-1:0][0:0]  lane_ready;
-    logic [0:0]                   valid;
-    logic [0:0]                   flush;
-    logic [0:0]                   stall;
+    fetch_state                state;
+    logic [31:0]               ipc;
+    logic [CACHE_WIDTH*32-1:0] rdata;
+    logic [0:0]                ready;
+    logic [0:0]                valid;
+    logic [0:0]                flush;
+    logic [0:0]                stall;
   } fetch_reg_type;
 
   localparam fetch_reg_type init_fetch_reg = '{
@@ -771,12 +769,21 @@ package wires;
       ipc: 0,
       rdata: 0,
       ready: 0,
-      pc: '{default: 0},
-      instr: '{default: 0},
-      lane_ready: '{default: 0},
       valid: 0,
       flush: 0,
       stall: 0
+  };
+
+  typedef struct packed {
+    logic [ISSUE_WIDTH-1:0][31:0] pc;
+    logic [ISSUE_WIDTH-1:0][31:0] instr;
+    logic [ISSUE_WIDTH-1:0][0:0]  ready;
+  } post_fetch_reg_type;
+
+  localparam post_fetch_reg_type init_post_fetch_reg = '{
+      pc: '{default: 32'hFFFFFFFF},
+      instr: '{default: 0},
+      ready: '{default: 0}
   };
 
   typedef struct packed {instruction_type [ISSUE_WIDTH-1:0] instr;} decode_reg_type;
@@ -1274,13 +1281,23 @@ package wires;
   } fetch_in_type;
 
   typedef struct packed {
-    buffer_in_type                buffer_in;
-    btac_in_type                  btac_in;
-    cache_in_type                 cache_in;
+    buffer_in_type buffer_in;
+    btac_in_type   btac_in;
+    cache_in_type  cache_in;
+  } fetch_out_type;
+
+  typedef struct packed {
+    btac_out_type                 btac_out;
     logic [ISSUE_WIDTH-1:0][31:0] pc;
     logic [ISSUE_WIDTH-1:0][31:0] instr;
     logic [ISSUE_WIDTH-1:0][0:0]  ready;
-  } fetch_out_type;
+  } post_fetch_in_type;
+
+  typedef struct packed {
+    logic [ISSUE_WIDTH-1:0][31:0] pc;
+    logic [ISSUE_WIDTH-1:0][31:0] instr;
+    logic [ISSUE_WIDTH-1:0][0:0]  ready;
+  } post_fetch_out_type;
 
   typedef struct packed {
     base_out_type [ISSUE_WIDTH-1:0]     base_out;
