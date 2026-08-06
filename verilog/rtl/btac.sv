@@ -20,10 +20,10 @@ package btac_wires;
     logic [0:0]                          wen;
     logic [H_DEPTH-1:0]                  waddr;
     logic [ISSUE_WIDTH-1:0][H_DEPTH-1:0] raddr;
-    logic [BHT_WIDTH-1:0]                wdata;
+    logic [T_DEPTH-1:0]                  wdata;
   } bht_in_type;
 
-  typedef struct packed {logic [ISSUE_WIDTH-1:0][BHT_WIDTH-1:0] rdata;} bht_out_type;
+  typedef struct packed {logic [ISSUE_WIDTH-1:0][T_DEPTH-1:0] rdata;} bht_out_type;
 
   typedef struct packed {
     logic [0:0]                          wen;
@@ -81,12 +81,13 @@ module bht (
   timeunit 1ns; timeprecision 1ps;
 
   localparam H_DEPTH = $clog2(BHT_DEPTH);
+  localparam T_DEPTH = $clog2(PHT_DEPTH);
 
   genvar i;
 
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : gen_bht_bank
-      logic [BHT_WIDTH-1:0] bht_array[0:BHT_DEPTH-1] = '{default: '0};
+      logic [T_DEPTH-1:0] bht_array[0:BHT_DEPTH-1] = '{default: '0};
 
       always_ff @(posedge clock) begin
         if (bht_in.wen == 1) begin
@@ -194,7 +195,7 @@ module btac_ctrl (
   typedef struct packed {
     logic [H_DEPTH-1:0]                  waddr;
     logic [ISSUE_WIDTH-1:0][H_DEPTH-1:0] raddr;
-    logic [BHT_WIDTH-1:0]                wdata;
+    logic [T_DEPTH-1:0]                  wdata;
     logic [0:0]                          wen;
   } bht_reg_type;
 
@@ -217,11 +218,11 @@ module btac_ctrl (
   };
 
   typedef struct packed {
-    logic [ISSUE_WIDTH-1:0][31:0]          taddr;
-    logic [ISSUE_WIDTH-1:0][0:0]           valid;
-    logic [ISSUE_WIDTH-1:0][0:0]           branch;
-    logic [ISSUE_WIDTH-1:0][0:0]           match;
-    logic [ISSUE_WIDTH-1:0][BHT_WIDTH-1:0] hist;
+    logic [ISSUE_WIDTH-1:0][31:0]        taddr;
+    logic [ISSUE_WIDTH-1:0][0:0]         valid;
+    logic [ISSUE_WIDTH-1:0][0:0]         branch;
+    logic [ISSUE_WIDTH-1:0][0:0]         match;
+    logic [ISSUE_WIDTH-1:0][T_DEPTH-1:0] hist;
   } pred_reg_type;
 
   parameter pred_reg_type init_pred_reg = '{
@@ -232,19 +233,39 @@ module btac_ctrl (
       hist : '{default: 0}
   };
 
+  typedef struct packed {
+    logic [ISSUE_WIDTH-1:0][31:0]        taddr;
+    logic [ISSUE_WIDTH-1:0][0:0]         valid;
+    logic [ISSUE_WIDTH-1:0][0:0]         branch;
+    logic [ISSUE_WIDTH-1:0][0:0]         match;
+    logic [ISSUE_WIDTH-1:0][T_DEPTH-1:0] hist;
+    logic [ISSUE_WIDTH-1:0][1:0]         tsat;
+  } pred_out_type;
+
+  parameter pred_out_type init_pred_out_reg = '{
+      taddr : '{default: 0},
+      valid : '{default: 0},
+      branch : '{default: 0},
+      match : '{default: 0},
+      hist : '{default: 0},
+      tsat : '{default: 0}
+  };
+
   btb_reg_type r_btb, rin_btb, v_btb;
   bht_reg_type r_bht, rin_bht, v_bht;
   pht_reg_type r_pht, rin_pht, v_pht;
   pred_reg_type r_pred, rin_pred, v_pred;
+  pred_out_type r_pred_out, rin_pred_out, v_pred_out;
 
   logic sel[0:ISSUE_WIDTH-1];
 
   always_comb begin
 
-    v_btb  = r_btb;
-    v_bht  = r_bht;
-    v_pht  = r_pht;
-    v_pred = r_pred;
+    v_btb      = r_btb;
+    v_bht      = r_bht;
+    v_pht      = r_pht;
+    v_pred     = r_pred;
+    v_pred_out = r_pred_out;
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v_btb.pc[k]     = btac_in.get_pc[k];
@@ -265,16 +286,25 @@ module btac_ctrl (
       v_pred.match[k]  = v_btb.match[k];
       v_pred.hist[k]   = bht_out.rdata[k];
 
-      v_pht.raddr[k]  = bht_out.rdata[k][T_DEPTH-1:0];
+      v_pht.raddr[k]  = v_pred.hist[k];
       pht_in.raddr[k] = v_pht.raddr[k];
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      btac_out.pred[k].taddr = r_pred.taddr[k];
-      btac_out.pred[k].taken = r_pred.branch[k] ? pht_out.rdata[k][1] & r_pred.match[k] &
-          r_pred.valid[k] : r_pred.match[k] & r_pred.valid[k];
-      btac_out.pred[k].tsat = pht_out.rdata[k];
-      btac_out.pred[k].thist = r_pred.hist[k];
+      v_pred_out.taddr[k]  = r_pred.taddr[k];
+      v_pred_out.valid[k]  = r_pred.valid[k];
+      v_pred_out.branch[k] = r_pred.branch[k];
+      v_pred_out.match[k]  = r_pred.match[k];
+      v_pred_out.hist[k]   = r_pred.hist[k];
+      v_pred_out.tsat[k]   = pht_out.rdata[k];
+    end
+
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      btac_out.pred[k].taddr = r_pred_out.taddr[k];
+      btac_out.pred[k].taken = r_pred_out.branch[k] ? v_pred_out.tsat[k][1] & r_pred_out.match[k] &
+          r_pred_out.valid[k] : r_pred_out.match[k] & r_pred_out.valid[k];
+      btac_out.pred[k].tsat = v_pred_out.tsat[k];
+      btac_out.pred[k].thist = r_pred_out.hist[k];
     end
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
@@ -329,10 +359,10 @@ module btac_ctrl (
     v_bht.wen = v_pht.wen;
     v_bht.waddr = sel[0] ? btac_in.upd_pc[0][H_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][H_DEPTH:1] :
         sel[2] ? btac_in.upd_pc[2][H_DEPTH:1] : btac_in.upd_pc[3][H_DEPTH:1];
-    v_bht.wdata = sel[0] ? {btac_in.upd_pred[0].thist[BHT_WIDTH-2:0], btac_in.upd_jump[0]} :
-        sel[1] ? {btac_in.upd_pred[1].thist[BHT_WIDTH-2:0], btac_in.upd_jump[1]} :
-        sel[2] ? {btac_in.upd_pred[2].thist[BHT_WIDTH-2:0], btac_in.upd_jump[2]} :
-        {btac_in.upd_pred[3].thist[BHT_WIDTH-2:0], btac_in.upd_jump[3]};
+    v_bht.wdata = sel[0] ? {btac_in.upd_pred[0].thist[T_DEPTH-2:0], btac_in.upd_jump[0]} :
+        sel[1] ? {btac_in.upd_pred[1].thist[T_DEPTH-2:0], btac_in.upd_jump[1]} :
+        sel[2] ? {btac_in.upd_pred[2].thist[T_DEPTH-2:0], btac_in.upd_jump[2]} :
+        {btac_in.upd_pred[3].thist[T_DEPTH-2:0], btac_in.upd_jump[3]};
 
     btb_in.wen   = v_btb.wen;
     btb_in.waddr = v_btb.waddr;
@@ -344,10 +374,11 @@ module btac_ctrl (
     pht_in.waddr = v_pht.waddr;
     pht_in.wdata = v_pht.wdata;
 
-    rin_btb  = v_btb;
-    rin_bht  = v_bht;
-    rin_pht  = v_pht;
-    rin_pred = v_pred;
+    rin_btb      = v_btb;
+    rin_bht      = v_bht;
+    rin_pht      = v_pht;
+    rin_pred     = v_pred;
+    rin_pred_out = v_pred_out;
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
       btac_out.pred_maddr[p] = v_btb.maddr[p];
@@ -358,15 +389,17 @@ module btac_ctrl (
 
   always_ff @(posedge clock) begin
     if (reset == 0) begin
-      r_btb  <= init_btb_reg;
-      r_bht  <= init_bht_reg;
-      r_pht  <= init_pht_reg;
-      r_pred <= init_pred_reg;
+      r_btb      <= init_btb_reg;
+      r_bht      <= init_bht_reg;
+      r_pht      <= init_pht_reg;
+      r_pred     <= init_pred_reg;
+      r_pred_out <= init_pred_out_reg;
     end else begin
-      r_btb  <= rin_btb;
-      r_bht  <= rin_bht;
-      r_pht  <= rin_pht;
-      r_pred <= rin_pred;
+      r_btb      <= rin_btb;
+      r_bht      <= rin_bht;
+      r_pht      <= rin_pht;
+      r_pred     <= rin_pred;
+      r_pred_out <= rin_pred_out;
     end
   end
 

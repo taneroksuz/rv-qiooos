@@ -42,7 +42,6 @@ package configure;
   localparam BTB_DEPTH = 512;
   localparam PHT_DEPTH = 1024;
   localparam BHT_DEPTH = 512;
-  localparam BHT_WIDTH = $clog2(PHT_DEPTH);
 
   localparam ROM_BASE = 32'h00000000;
   localparam ROM_MASK = 32'hFFFFFF80;

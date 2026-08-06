@@ -8,6 +8,7 @@ package wires;
   localparam RS_ADDR_BITS = $clog2(RS_INT_DEPTH);
   localparam FL_CNT_BITS = $clog2(FLIST_DEPTH) + 1;
   localparam FL_IDX_BITS = $clog2(FLIST_DEPTH);
+  localparam T_DEPTH = $clog2(PHT_DEPTH);
 
   typedef struct packed {
     logic [0:0] bit_sh1add;
@@ -380,10 +381,10 @@ package wires;
   typedef struct packed {logic [31:0] cdata;} csr_alu_out_type;
 
   typedef struct packed {
-    logic [0:0]           taken;
-    logic [31:0]          taddr;
-    logic [1:0]           tsat;
-    logic [BHT_WIDTH-1:0] thist;
+    logic [0:0]         taken;
+    logic [31:0]        taddr;
+    logic [1:0]         tsat;
+    logic [T_DEPTH-1:0] thist;
   } prediction_type;
 
   localparam prediction_type init_prediction = '{taken: 0, taddr: 0, tsat: 0, thist: 0};
