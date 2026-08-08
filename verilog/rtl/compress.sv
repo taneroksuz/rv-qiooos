@@ -86,18 +86,7 @@ module compress (
     imm_sdsp = {23'b0, instr[9:7], instr[12:10], 3'b0};
     imm_lsdr = {24'b0, instr[6:5], instr[12:10], 3'b0};
 
-    imm_j = {
-      {20{instr[12]}},
-      instr[12],
-      instr[8],
-      instr[10:9],
-      instr[6],
-      instr[7],
-      instr[2],
-      instr[11],
-      instr[5:3],
-      1'b0
-    };
+    imm_j = {{20{instr[12]}}, instr[12], instr[8], instr[10:9], instr[6], instr[7], instr[2], instr[11], instr[5:3], 1'b0};
     imm_b = {{23{instr[12]}}, instr[12], instr[6:5], instr[2], instr[11:10], instr[4:3], 1'b0};
     imm_w = {22'b0, instr[10:7], instr[12:11], instr[5], instr[6], 2'b0};
     imm_i = {{26{instr[12]}}, instr[12], instr[6:2]};

@@ -252,8 +252,7 @@ module cpu (
   for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_register_win
     assign register_win[i] = commit_out.register_win[i];
   end
-  assign
-      commit_flush = clear | csr_out.trap | csr_out.mret | (|btac_out.pred_miss) | commit_out.flush;
+  assign commit_flush = clear | csr_out.trap | csr_out.mret | (|btac_out.pred_miss) | commit_out.flush;
 
   for (genvar i = 0; i < ALU_COUNT; i++) begin : g_alu_comp
     alu alu_comp (

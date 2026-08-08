@@ -29,22 +29,7 @@ module msu (
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               load_sent;
   } msu_reg_type;
 
-  localparam msu_reg_type init_msu_reg = '{
-      cdb            : '{default: init_cdb},
-      rob_wtag       : '{default: '0},
-      rob_wentry     : '{default: init_rob_entry},
-      rob_wen        : '{default: 1'b0},
-      dmem_in        : '{default: init_mem_in},
-      lsu_in         : '{default: '{ldata : 32'h0, byteenable : 4'h0, lsu_op : init_lsu_op}},
-      load_pending   : '{default: 1'b0},
-      load_sent      : '{default: 1'b0},
-      load_rob_tag   : '{default: '0},
-      load_pdest     : '{default: '0},
-      load_addr      : '{default: '0},
-      store_pending  : '{default: 1'b0},
-      store_sent     : '{default: 1'b0},
-      store_entry    : '{default: init_rob_entry}
-  };
+  localparam msu_reg_type init_msu_reg = '{cdb            : '{default: init_cdb}, rob_wtag       : '{default: '0}, rob_wentry     : '{default: init_rob_entry}, rob_wen        : '{default: 1'b0}, dmem_in        : '{default: init_mem_in}, lsu_in         : '{default: '{ldata : 32'h0, byteenable : 4'h0, lsu_op : init_lsu_op}}, load_pending   : '{default: 1'b0}, load_sent      : '{default: 1'b0}, load_rob_tag   : '{default: '0}, load_pdest     : '{default: '0}, load_addr      : '{default: '0}, store_pending  : '{default: 1'b0}, store_sent     : '{default: 1'b0}, store_entry    : '{default: init_rob_entry}};
 
   msu_reg_type r, rin, v;
   logic load_accept       [0:MEM_ISSUE_WIDTH-1];
@@ -92,10 +77,8 @@ module msu (
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       slot_blocked[p] = load_busy[p] || store_busy[p] || commit_claims_slot[p];
-      load_accept[p] = msu_in.issue_valid[p] && msu_in.issue[p].op.load && !slot_blocked[p] &&
-          !flush;
-      load_ready[p] = r.load_pending[p] && !r.store_pending[p] && msu_in.dmem_out[p].mem_ready &&
-          !flush;
+      load_accept[p]  = msu_in.issue_valid[p] && msu_in.issue[p].op.load && !slot_blocked[p] && !flush;
+      load_ready[p]   = r.load_pending[p] && !r.store_pending[p] && msu_in.dmem_out[p].mem_ready && !flush;
     end
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
@@ -197,9 +180,8 @@ module msu (
         msu_out.lsu_in[p].lsu_op     = r.lsu_in[p].lsu_op;
       end
     end
-    msu_out.load_busy = {slot_blocked[1], slot_blocked[0]};
-    msu_out.store_ready = !(r.store_pending[0] || r.store_pending[1]) &&
-        !(msu_in.commit_store[0] || msu_in.commit_store[1]);
+    msu_out.load_busy   = {slot_blocked[1], slot_blocked[0]};
+    msu_out.store_ready = !(r.store_pending[0] || r.store_pending[1]) && !(msu_in.commit_store[0] || msu_in.commit_store[1]);
   end
 
   always_ff @(posedge clock) begin

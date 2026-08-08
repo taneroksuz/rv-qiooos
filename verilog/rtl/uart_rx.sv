@@ -24,14 +24,7 @@ module uart_rx #(
     logic [0:0]  ready;
   } register_type;
 
-  register_type init_register = '{
-      counter : 0,
-      rdata_re : 0,
-      ready_re : 0,
-      state : 0,
-      data : 0,
-      ready : 0
-  };
+  register_type init_register = '{counter : 0, rdata_re : 0, ready_re : 0, state : 0, data : 0, ready : 0};
 
   register_type r, rin, v;
 

@@ -99,11 +99,9 @@ module rename (
         end
       end
 
-      lanes[0].can_dispatch = instr_valid[0] && v.rob_ok && lanes[0].rs_ok && lanes[0].fl_ok &&
-          !flush;
+      lanes[0].can_dispatch = instr_valid[0] && v.rob_ok && lanes[0].rs_ok && lanes[0].fl_ok && !flush;
       for (int i = 1; i < ISSUE_WIDTH; i++) begin
-        lanes[i].can_dispatch = instr_valid[i] && lanes[i-1].can_dispatch && v.rob_ok &&
-            lanes[i].rs_ok && lanes[i].fl_ok && !flush;
+        lanes[i].can_dispatch = instr_valid[i] && lanes[i-1].can_dispatch && v.rob_ok && lanes[i].rs_ok && lanes[i].fl_ok && !flush;
       end
 
       v.stall = 1'b0;
@@ -130,46 +128,28 @@ module rename (
       end
 
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
-        lanes[i].e = init_rs_entry;
-        lanes[i].e.valid = can_dispatch_final[i] && !lanes[i].is_mem;
-        lanes[i].e.psrc1 = psrc_arr[2*i];
-        lanes[i].e.psrc2 = psrc_arr[2*i+1];
-        lanes[i].e.src1_ready = !instr[i].op.rden1 || src_ready(
-            psrc_arr[2*i], psrc_valid_arr[2*i] && prf_rvalid_arr[2*i], rename_in.cdb, cdb_load_any);
-        lanes[i].e.src2_ready = !instr[i].op.rden2 || src_ready(
-          psrc_arr[2*i+1],
-          psrc_valid_arr[2*i+1] && prf_rvalid_arr[2*i+1],
-          rename_in.cdb,
-          cdb_load_any
-        );
-        lanes[i].e.rdata1 = instr[i].op.rden1 ? prf_or_cdb(
-          psrc_arr[2*i],
-          psrc_valid_arr[2*i] && prf_rvalid_arr[2*i],
-          prf_rdata_arr[2*i],
-          rename_in.cdb,
-          cdb_load_any
-        ) : 32'h0;
-        lanes[i].e.rdata2 = instr[i].op.rden2 ? prf_or_cdb(
-          psrc_arr[2*i+1],
-          psrc_valid_arr[2*i+1] && prf_rvalid_arr[2*i+1],
-          prf_rdata_arr[2*i+1],
-          rename_in.cdb,
-          cdb_load_any
-        ) : 32'h0;
-        lanes[i].e.pdest = lanes[i].pdest;
-        lanes[i].e.rob_tag = rob_tag[i];
-        lanes[i].e.imm = instr[i].imm;
-        lanes[i].e.pc = instr[i].pc;
-        lanes[i].e.npc = instr[i].npc;
-        lanes[i].e.caddr = instr[i].caddr;
-        lanes[i].e.op = instr[i].op;
-        lanes[i].e.alu_op = instr[i].alu_op;
-        lanes[i].e.bcu_op = instr[i].bcu_op;
-        lanes[i].e.lsu_op = instr[i].lsu_op;
-        lanes[i].e.csr_op = instr[i].csr_op;
-        lanes[i].e.div_op = instr[i].div_op;
-        lanes[i].e.mul_op = instr[i].mul_op;
-        lanes[i].e.bit_op = instr[i].bit_op;
+        lanes[i].e            = init_rs_entry;
+        lanes[i].e.valid      = can_dispatch_final[i] && !lanes[i].is_mem;
+        lanes[i].e.psrc1      = psrc_arr[2*i];
+        lanes[i].e.psrc2      = psrc_arr[2*i+1];
+        lanes[i].e.src1_ready = !instr[i].op.rden1 || src_ready(psrc_arr[2*i], psrc_valid_arr[2*i] && prf_rvalid_arr[2*i], rename_in.cdb, cdb_load_any);
+        lanes[i].e.src2_ready = !instr[i].op.rden2 || src_ready(psrc_arr[2*i+1], psrc_valid_arr[2*i+1] && prf_rvalid_arr[2*i+1], rename_in.cdb, cdb_load_any);
+        lanes[i].e.rdata1     = instr[i].op.rden1 ? prf_or_cdb(psrc_arr[2*i], psrc_valid_arr[2*i] && prf_rvalid_arr[2*i], prf_rdata_arr[2*i], rename_in.cdb, cdb_load_any) : 32'h0;
+        lanes[i].e.rdata2     = instr[i].op.rden2 ? prf_or_cdb(psrc_arr[2*i+1], psrc_valid_arr[2*i+1] && prf_rvalid_arr[2*i+1], prf_rdata_arr[2*i+1], rename_in.cdb, cdb_load_any) : 32'h0;
+        lanes[i].e.pdest      = lanes[i].pdest;
+        lanes[i].e.rob_tag    = rob_tag[i];
+        lanes[i].e.imm        = instr[i].imm;
+        lanes[i].e.pc         = instr[i].pc;
+        lanes[i].e.npc        = instr[i].npc;
+        lanes[i].e.caddr      = instr[i].caddr;
+        lanes[i].e.op         = instr[i].op;
+        lanes[i].e.alu_op     = instr[i].alu_op;
+        lanes[i].e.bcu_op     = instr[i].bcu_op;
+        lanes[i].e.lsu_op     = instr[i].lsu_op;
+        lanes[i].e.csr_op     = instr[i].csr_op;
+        lanes[i].e.div_op     = instr[i].div_op;
+        lanes[i].e.mul_op     = instr[i].mul_op;
+        lanes[i].e.bit_op     = instr[i].bit_op;
 
         lanes[i].em       = lanes[i].e;
         lanes[i].em.valid = can_dispatch_final[i] && lanes[i].is_mem;
@@ -190,8 +170,7 @@ module rename (
 
       v.rename_out.rat.waddr_a[i] = instr[i].waddr;
       v.rename_out.rat.waddr_p[i] = v.l[i].pdest;
-      v.rename_out.rat.wren[i] = can_dispatch_final[i] && instr[i].op.wren &&
-          (instr[i].waddr != 5'h0);
+      v.rename_out.rat.wren[i]    = can_dispatch_final[i] && instr[i].op.wren && (instr[i].waddr != 5'h0);
 
       v.rename_out.rob_alloc[i] = can_dispatch_final[i];
 

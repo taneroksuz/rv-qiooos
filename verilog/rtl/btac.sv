@@ -178,19 +178,7 @@ module btac_ctrl (
     logic [ISSUE_WIDTH-1:0][0:0]         match;
   } btb_reg_type;
 
-  parameter btb_reg_type init_btb_reg = '{
-      waddr : 0,
-      raddr : '{default: 0},
-      wdata : 0,
-      wen : 0,
-      pc : '{default: 0},
-      maddr : '{default: 0},
-      miss : '{default: 0},
-      hit : '{default: 0},
-      valid : '{default: 0},
-      branch : '{default: 0},
-      match : '{default: 0}
-  };
+  parameter btb_reg_type init_btb_reg = '{waddr : 0, raddr : '{default: 0}, wdata : 0, wen : 0, pc : '{default: 0}, maddr : '{default: 0}, miss : '{default: 0}, hit : '{default: 0}, valid : '{default: 0}, branch : '{default: 0}, match : '{default: 0}};
 
   typedef struct packed {
     logic [H_DEPTH-1:0]                  waddr;
@@ -209,13 +197,7 @@ module btac_ctrl (
     logic [ISSUE_WIDTH-1:0][1:0]         sat;
   } pht_reg_type;
 
-  parameter pht_reg_type init_pht_reg = '{
-      waddr : 0,
-      raddr : '{default: 0},
-      wdata : 0,
-      wen : 0,
-      sat : '{default: 0}
-  };
+  parameter pht_reg_type init_pht_reg = '{waddr : 0, raddr : '{default: 0}, wdata : 0, wen : 0, sat : '{default: 0}};
 
   typedef struct packed {
     logic [ISSUE_WIDTH-1:0][31:0]        taddr;
@@ -225,19 +207,14 @@ module btac_ctrl (
     logic [ISSUE_WIDTH-1:0][T_DEPTH-1:0] hist;
   } pred_reg_type;
 
-  parameter pred_reg_type init_pred_reg = '{
-      taddr : '{default: 0},
-      valid : '{default: 0},
-      branch : '{default: 0},
-      match : '{default: 0},
-      hist : '{default: 0}
-  };
+  parameter pred_reg_type init_pred_reg = '{taddr : '{default: 0}, valid : '{default: 0}, branch : '{default: 0}, match : '{default: 0}, hist : '{default: 0}};
 
   btb_reg_type r_btb, rin_btb, v_btb;
   bht_reg_type r_bht, rin_bht, v_bht;
   pht_reg_type r_pht, rin_pht, v_pht;
   pred_reg_type r_pred, rin_pred, v_pred;
 
+  logic get[0:ISSUE_WIDTH-1];
   logic sel[0:ISSUE_WIDTH-1];
 
   always_comb begin
@@ -271,11 +248,11 @@ module btac_ctrl (
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      btac_out.pred[k].taddr = r_pred.taddr[k];
-      btac_out.pred[k].taken = r_pred.branch[k] ? pht_out.rdata[k][1] & r_pred.match[k] &
-          r_pred.valid[k] : r_pred.match[k] & r_pred.valid[k];
-      btac_out.pred[k].tsat = pht_out.rdata[k];
-      btac_out.pred[k].thist = r_pred.hist[k];
+      get[k]                 = r_pred.match[k] & r_pred.valid[k];
+      btac_out.pred[k].taddr = get[k] ? r_pred.taddr[k] : 0;
+      btac_out.pred[k].taken = get[k] ? (r_pred.branch[k] ? pht_out.rdata[k][1] : 1) : 0;
+      btac_out.pred[k].tsat  = get[k] ? (r_pred.branch[k] ? pht_out.rdata[k] : 3) : 0;
+      btac_out.pred[k].thist = get[k] ? r_pred.hist[k] : 0;
     end
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
@@ -294,8 +271,7 @@ module btac_ctrl (
         v_btb.maddr[p] = btac_in.upd_addr[p];
         v_btb.miss[p]  = 1;
       end
-      if (btac_in.upd_branch[p] == 1 && btac_in.upd_pred[p].taken == 1 &&
-          btac_in.upd_jump[p] == 0) begin
+      if (btac_in.upd_branch[p] == 1 && btac_in.upd_pred[p].taken == 1 && btac_in.upd_jump[p] == 0) begin
         v_btb.maddr[p] = btac_in.upd_npc[p];
         v_btb.miss[p]  = 1;
       end
@@ -306,34 +282,21 @@ module btac_ctrl (
     sel[2] = v_btb.hit[2] | v_btb.miss[2];
     sel[3] = v_btb.hit[3] | v_btb.miss[3];
 
-    v_btb.wen = sel[0] | sel[1] | sel[2] | sel[3];
-    v_btb.waddr = sel[0] ? btac_in.upd_pc[0][B_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][B_DEPTH:1] :
-        sel[2] ? btac_in.upd_pc[2][B_DEPTH:1] : btac_in.upd_pc[3][B_DEPTH:1];
-    v_btb.wdata = sel[0] ?
-        {1'b1, btac_in.upd_branch[0], btac_in.upd_pc[0][31:B_DEPTH+1], v_btb.maddr[0]} :
-        sel[1] ? {1'b1, btac_in.upd_branch[1], btac_in.upd_pc[1][31:B_DEPTH+1], v_btb.maddr[1]} :
-        sel[2] ? {1'b1, btac_in.upd_branch[2], btac_in.upd_pc[2][31:B_DEPTH+1], v_btb.maddr[2]} :
-        {1'b1, btac_in.upd_branch[3], btac_in.upd_pc[3][31:B_DEPTH+1], v_btb.maddr[3]};
+    v_btb.wen   = sel[0] | sel[1] | sel[2] | sel[3];
+    v_btb.waddr = sel[0] ? btac_in.upd_pc[0][B_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][B_DEPTH:1] : sel[2] ? btac_in.upd_pc[2][B_DEPTH:1] : btac_in.upd_pc[3][B_DEPTH:1];
+    v_btb.wdata = sel[0] ? {1'b1, btac_in.upd_branch[0], btac_in.upd_pc[0][31:B_DEPTH+1], v_btb.maddr[0]} : sel[1] ? {1'b1, btac_in.upd_branch[1], btac_in.upd_pc[1][31:B_DEPTH+1], v_btb.maddr[1]} : sel[2] ? {1'b1, btac_in.upd_branch[2], btac_in.upd_pc[2][31:B_DEPTH+1], v_btb.maddr[2]} : {1'b1, btac_in.upd_branch[3], btac_in.upd_pc[3][31:B_DEPTH+1], v_btb.maddr[3]};
 
-    v_pht.wen = (sel[0] & btac_in.upd_branch[0]) | (sel[1] & btac_in.upd_branch[1]) |
-        (sel[2] & btac_in.upd_branch[2]) | (sel[3] & btac_in.upd_branch[3]);
-    v_pht.waddr = sel[0] ? btac_in.upd_pred[0].thist[T_DEPTH-1:0] :
-        sel[1] ? btac_in.upd_pred[1].thist[T_DEPTH-1:0] :
-        sel[2] ? btac_in.upd_pred[2].thist[T_DEPTH-1:0] : btac_in.upd_pred[3].thist[T_DEPTH-1:0];
+    v_pht.wen    = (sel[0] & btac_in.upd_branch[0]) | (sel[1] & btac_in.upd_branch[1]) | (sel[2] & btac_in.upd_branch[2]) | (sel[3] & btac_in.upd_branch[3]);
+    v_pht.waddr  = sel[0] ? btac_in.upd_pred[0].thist[T_DEPTH-1:0] : sel[1] ? btac_in.upd_pred[1].thist[T_DEPTH-1:0] : sel[2] ? btac_in.upd_pred[2].thist[T_DEPTH-1:0] : btac_in.upd_pred[3].thist[T_DEPTH-1:0];
     v_pht.sat[0] = saturation(btac_in.upd_pred[0].tsat, btac_in.upd_jump[0]);
     v_pht.sat[1] = saturation(btac_in.upd_pred[1].tsat, btac_in.upd_jump[1]);
     v_pht.sat[2] = saturation(btac_in.upd_pred[2].tsat, btac_in.upd_jump[2]);
     v_pht.sat[3] = saturation(btac_in.upd_pred[3].tsat, btac_in.upd_jump[3]);
-    v_pht.wdata = sel[0] ? v_pht.sat[0] :
-        sel[1] ? v_pht.sat[1] : sel[2] ? v_pht.sat[2] : v_pht.sat[3];
+    v_pht.wdata  = sel[0] ? v_pht.sat[0] : sel[1] ? v_pht.sat[1] : sel[2] ? v_pht.sat[2] : v_pht.sat[3];
 
-    v_bht.wen = v_pht.wen;
-    v_bht.waddr = sel[0] ? btac_in.upd_pc[0][H_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][H_DEPTH:1] :
-        sel[2] ? btac_in.upd_pc[2][H_DEPTH:1] : btac_in.upd_pc[3][H_DEPTH:1];
-    v_bht.wdata = sel[0] ? {btac_in.upd_pred[0].thist[T_DEPTH-2:0], btac_in.upd_jump[0]} :
-        sel[1] ? {btac_in.upd_pred[1].thist[T_DEPTH-2:0], btac_in.upd_jump[1]} :
-        sel[2] ? {btac_in.upd_pred[2].thist[T_DEPTH-2:0], btac_in.upd_jump[2]} :
-        {btac_in.upd_pred[3].thist[T_DEPTH-2:0], btac_in.upd_jump[3]};
+    v_bht.wen   = v_pht.wen;
+    v_bht.waddr = sel[0] ? btac_in.upd_pc[0][H_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][H_DEPTH:1] : sel[2] ? btac_in.upd_pc[2][H_DEPTH:1] : btac_in.upd_pc[3][H_DEPTH:1];
+    v_bht.wdata = sel[0] ? {btac_in.upd_pred[0].thist[T_DEPTH-2:0], btac_in.upd_jump[0]} : sel[1] ? {btac_in.upd_pred[1].thist[T_DEPTH-2:0], btac_in.upd_jump[1]} : sel[2] ? {btac_in.upd_pred[2].thist[T_DEPTH-2:0], btac_in.upd_jump[2]} : {btac_in.upd_pred[3].thist[T_DEPTH-2:0], btac_in.upd_jump[3]};
 
     btb_in.wen   = v_btb.wen;
     btb_in.waddr = v_btb.waddr;

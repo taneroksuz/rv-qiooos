@@ -23,20 +23,20 @@ module rob (
 
   rob_entry_type array[0:ROB_DEPTH-1];
   rob_reg_type r, rin, v;
-  rob_entry_type h[0:ISSUE_WIDTH-1];
-  rob_entry_type alloc_entry_w[0:ISSUE_WIDTH-1];
-  logic h_done[0:ISSUE_WIDTH-1];
-  logic h_stop[0:ISSUE_WIDTH-1];
-  logic commit[0:ISSUE_WIDTH-1];
-  int store_count;
-  logic [ISSUE_WIDTH-1:0] alloc_ok;
-  logic [ROB_ADDR_BITS-1:0] tail_idx[0:ISSUE_WIDTH-1];
-  logic [ROB_ADDR_BITS-1:0] head_idx[0:ISSUE_WIDTH-1];
-  logic [ROB_ADDR_BITS-1:0] wtag[0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
-  rob_entry_type wentry[0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
-  logic wen[0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
-  logic wv[0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
-  logic h_hit[0:ISSUE_WIDTH-1][0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
+  rob_entry_type                     h            [                  0:ISSUE_WIDTH-1];
+  rob_entry_type                     alloc_entry_w[                  0:ISSUE_WIDTH-1];
+  logic                              h_done       [                  0:ISSUE_WIDTH-1];
+  logic                              h_stop       [                  0:ISSUE_WIDTH-1];
+  logic                              commit       [                  0:ISSUE_WIDTH-1];
+  int                                store_count;
+  logic          [  ISSUE_WIDTH-1:0] alloc_ok;
+  logic          [ROB_ADDR_BITS-1:0] tail_idx     [                  0:ISSUE_WIDTH-1];
+  logic          [ROB_ADDR_BITS-1:0] head_idx     [                  0:ISSUE_WIDTH-1];
+  logic          [ROB_ADDR_BITS-1:0] wtag         [0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
+  rob_entry_type                     wentry       [0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
+  logic                              wen          [0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
+  logic                              wv           [0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
+  logic                              h_hit        [                  0:ISSUE_WIDTH-1] [0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
 
   always_comb begin
     v = r;
@@ -124,8 +124,7 @@ module rob (
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       h_done[k] = h[k].valid && h[k].done && (r.count >= (ROB_ADDR_BITS + 1)'(k + 1));
-      h_stop[k] = h[k].exception || h[k].mret || (h[k].jump && (h[k].npc != h[k].pnpc)) ||
-          h[k].fence || h[k].wfi || h[k].ecall || h[k].ebreak || h[k].csreg;
+      h_stop[k] = h[k].exception || h[k].mret || (h[k].jump && (h[k].npc != h[k].pnpc)) || h[k].fence || h[k].wfi || h[k].ecall || h[k].ebreak || h[k].csreg;
     end
 
     rob_out = init_rob_out;
@@ -148,8 +147,7 @@ module rob (
       store_count = store_count + 1;
     end
     for (int k = 1; k < ISSUE_WIDTH; k++) begin
-      commit[k] = h_done[k] && commit[k-1] && !h_stop[k-1] &&
-          (!h[k].store || (store_count < MEM_ISSUE_WIDTH));
+      commit[k] = h_done[k] && commit[k-1] && !h_stop[k-1] && (!h[k].store || (store_count < MEM_ISSUE_WIDTH));
       if (commit[k] && h[k].store) begin
         store_count = store_count + 1;
       end
@@ -225,9 +223,7 @@ module rob (
             array[wtag[p]].etval     <= wentry[p].etval;
           end
         end
-        for (
-            int p = ISSUE_WIDTH + MEM_ISSUE_WIDTH; p < ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH; p++
-        ) begin
+        for (int p = ISSUE_WIDTH + MEM_ISSUE_WIDTH; p < ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH; p++) begin
           if (wen[p] && rin.valid_bits[wtag[p]]) begin
             array[wtag[p]].done       <= 1'b1;
             array[wtag[p]].store_addr <= wentry[p].store_addr;

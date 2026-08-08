@@ -24,8 +24,7 @@ module fetch (
     v.stall = fetch_in.buffer_out.stall;
 
     v.flush = |fetch_in.btac_out.pred_miss;
-    v.flush = v.flush | fetch_in.btac_out.pred[0].taken | fetch_in.btac_out.pred[1].taken |
-        fetch_in.btac_out.pred[2].taken | fetch_in.btac_out.pred[3].taken;
+    v.flush = v.flush | fetch_in.btac_out.pred[0].taken | fetch_in.btac_out.pred[1].taken | fetch_in.btac_out.pred[2].taken | fetch_in.btac_out.pred[3].taken;
     v.flush = v.flush | fetch_in.csr_out.trap | fetch_in.csr_out.mret;
 
     if (fetch_in.cache_out.mem_ready == 1) begin

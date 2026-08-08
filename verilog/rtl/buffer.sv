@@ -43,9 +43,7 @@ module buffer_reg (
         end
       end
       always_comb begin
-        buffer_reg_out.rdata[i] = (buffer_reg_in.wen[i] == 1 &&
-                                   buffer_reg_in.raddr[i] == buffer_reg_in.waddr[i]) ?
-            buffer_reg_in.wdata[i] : buffer_reg_array[buffer_reg_in.raddr[i]];
+        buffer_reg_out.rdata[i] = (buffer_reg_in.wen[i] == 1 && buffer_reg_in.raddr[i] == buffer_reg_in.waddr[i]) ? buffer_reg_in.wdata[i] : buffer_reg_array[buffer_reg_in.raddr[i]];
       end
     end
   endgenerate
@@ -92,26 +90,7 @@ module buffer_ctrl (
     logic [BDEPTH-1:0]             wid_row;
   } reg_type;
 
-  parameter reg_type init_reg = '{
-      wdata : '{default: '0},
-      rdata : '{default: '0},
-      comp : 0,
-      wid : 0,
-      rid : 0,
-      diff : 0,
-      count : 0,
-      align : 0,
-      pc : '{default: '0},
-      instr : '{default: '0},
-      ready : 0,
-      wen : 0,
-      clear : 0,
-      stall : 0,
-      rid_bank : 0,
-      rid_row : 0,
-      rid_row_p1 : 0,
-      wid_row : 0
-  };
+  parameter reg_type init_reg = '{wdata : '{default: '0}, rdata : '{default: '0}, comp : 0, wid : 0, rid : 0, diff : 0, count : 0, align : 0, pc : '{default: '0}, instr : '{default: '0}, ready : 0, wen : 0, clear : 0, stall : 0, rid_bank : 0, rid_row : 0, rid_row_p1 : 0, wid_row : 0};
 
   reg_type r, rin, v;
 

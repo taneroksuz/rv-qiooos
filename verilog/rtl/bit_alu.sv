@@ -103,8 +103,7 @@ module bit_alu (
       result = res_cpop;
     end else if (bit_zbb.bit_ctz == 1) begin
       result = res_ctz;
-    end else
-        if ((bit_zbb.bit_max | bit_zbb.bit_maxu | bit_zbb.bit_min | bit_zbb.bit_minu) == 1) begin
+    end else if ((bit_zbb.bit_max | bit_zbb.bit_maxu | bit_zbb.bit_min | bit_zbb.bit_minu) == 1) begin
       result = res_minmax;
     end else if (bit_zbb.bit_orcb == 1) begin
       result = res_orcb;

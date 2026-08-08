@@ -25,17 +25,7 @@ module rs_int (
 
   localparam rs_int_out_type init_rs_int_out = '0;
 
-  localparam rs_int_reg_type init_rs_int_reg = '{
-      count: '0,
-      valid_bits: '0,
-      sel_idx: '0,
-      sel_found: '0,
-      free_idx: '0,
-      free_found: '0,
-      csr_inflight: '0,
-      csr_drain: 1'b0,
-      rs_o: init_rs_int_out
-  };
+  localparam rs_int_reg_type init_rs_int_reg = '{count: '0, valid_bits: '0, sel_idx: '0, sel_found: '0, free_idx: '0, free_found: '0, csr_inflight: '0, csr_drain: 1'b0, rs_o: init_rs_int_out};
 
   rs_entry_type                    array     [0:RS_INT_DEPTH-1];
   rs_entry_type                    view      [0:RS_INT_DEPTH-1];
@@ -61,22 +51,19 @@ module rs_int (
     v.rs_o       = init_rs_int_out;
 
     for (int i = 0; i < RS_INT_DEPTH; i++) begin
-      view[i] = r.valid_bits[i] ? array[i] : init_rs_entry;
+      view[i]       = r.valid_bits[i] ? array[i] : init_rs_entry;
       view[i].valid = r.valid_bits[i];
-      woken[i] = rs_wakeup(view[i], rs_in.cdb[0]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb[1]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb[2]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb[3]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_load[0]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_load[1]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[0]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[1]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[2]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[3]);
-      ready_vec[i] = woken[i].valid & woken[i].src1_ready &
-          woken[i].src2_ready & ~rs_in.div_busy & ~rs_in.clmul_busy & ~(
-          woken[i].op.csreg & (r.csr_inflight > 0)) & ~(woken[i].op.csreg & r.csr_drain) & ~(
-          woken[i].op.csreg & (woken[i].rob_tag != rs_in.rob_head));
+      woken[i]      = rs_wakeup(view[i], rs_in.cdb[0]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb[1]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb[2]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb[3]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb_load[0]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb_load[1]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb_commit[0]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb_commit[1]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb_commit[2]);
+      woken[i]      = rs_wakeup(woken[i], rs_in.cdb_commit[3]);
+      ready_vec[i]  = woken[i].valid & woken[i].src1_ready & woken[i].src2_ready & ~rs_in.div_busy & ~rs_in.clmul_busy & ~(woken[i].op.csreg & (r.csr_inflight > 0)) & ~(woken[i].op.csreg & r.csr_drain) & ~(woken[i].op.csreg & (woken[i].rob_tag != rs_in.rob_head));
     end
 
     begin
@@ -211,23 +198,15 @@ module rs_int (
   always_ff @(posedge clock) begin
     if (reset != 0) begin
       for (int i = 0; i < RS_INT_DEPTH; i++) begin
-        if (rs_in.alloc[0] && rin.free_found[0] &&
-            (rin.free_idx[0] == RS_ADDR_BITS'(unsigned'(i)))) begin
+        if (rs_in.alloc[0] && rin.free_found[0] && (rin.free_idx[0] == RS_ADDR_BITS'(unsigned'(i)))) begin
           array[i] <= rs_in.entry[0];
-        end else if (rs_in.alloc[1] && rin.free_found[1] &&
-                     (rin.free_idx[1] == RS_ADDR_BITS'(unsigned'(i)))) begin
+        end else if (rs_in.alloc[1] && rin.free_found[1] && (rin.free_idx[1] == RS_ADDR_BITS'(unsigned'(i)))) begin
           array[i] <= rs_in.entry[1];
-        end else if (rs_in.alloc[2] && rin.free_found[2] &&
-                     (rin.free_idx[2] == RS_ADDR_BITS'(unsigned'(i)))) begin
+        end else if (rs_in.alloc[2] && rin.free_found[2] && (rin.free_idx[2] == RS_ADDR_BITS'(unsigned'(i)))) begin
           array[i] <= rs_in.entry[2];
-        end else if (rs_in.alloc[3] && rin.free_found[3] &&
-                     (rin.free_idx[3] == RS_ADDR_BITS'(unsigned'(i)))) begin
+        end else if (rs_in.alloc[3] && rin.free_found[3] && (rin.free_idx[3] == RS_ADDR_BITS'(unsigned'(i)))) begin
           array[i] <= rs_in.entry[3];
-        end else if (r.valid_bits[i] && rin.valid_bits[i] &&
-                     !((rin.sel_found[0] && (rin.sel_idx[0] == RS_ADDR_BITS'(unsigned'(i)))) ||
-                       (rin.sel_found[1] && (rin.sel_idx[1] == RS_ADDR_BITS'(unsigned'(i)))) ||
-                       (rin.sel_found[2] && (rin.sel_idx[2] == RS_ADDR_BITS'(unsigned'(i)))) ||
-                       (rin.sel_found[3] && (rin.sel_idx[3] == RS_ADDR_BITS'(unsigned'(i)))))) begin
+        end else if (r.valid_bits[i] && rin.valid_bits[i] && !((rin.sel_found[0] && (rin.sel_idx[0] == RS_ADDR_BITS'(unsigned'(i)))) || (rin.sel_found[1] && (rin.sel_idx[1] == RS_ADDR_BITS'(unsigned'(i)))) || (rin.sel_found[2] && (rin.sel_idx[2] == RS_ADDR_BITS'(unsigned'(i)))) || (rin.sel_found[3] && (rin.sel_idx[3] == RS_ADDR_BITS'(unsigned'(i)))))) begin
           array[i] <= woken[i];
         end
       end

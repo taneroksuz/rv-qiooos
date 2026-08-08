@@ -5,11 +5,11 @@ start=`date +%s`
 
 FORMAT_FLAGS=(
   --inplace
-  --column_limit=100
+  --column_limit=1000
   --indentation_spaces=2
   --wrap_spaces=4
   --line_break_penalty=2
-  --over_column_limit_penalty=100
+  --over_column_limit_penalty=1000
   --try_wrap_long_lines=true
   --wrap_end_else_clauses=false
   --port_declarations_alignment=align

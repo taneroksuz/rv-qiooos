@@ -23,19 +23,7 @@ module commit (
     logic [MEM_ISSUE_WIDTH-1:0][0:0]         store_slot_valid;
     rob_entry_type [MEM_ISSUE_WIDTH-1:0]     store_slot_entry;
   } commit_reg_type;
-  localparam commit_reg_type init_commit_reg = '{
-      register_win : '{default: '{wren : 0, waddr : 0, wdata : 0}},
-      csr_win       : init_csr_write_in,
-      csr_ein       : init_csr_exception_in,
-      rat_i         : init_rat_in,
-      prf_i         : init_prf_in,
-      fl_i          : init_fl_in,
-      flush_all     : 0,
-      commit_store  : '{default: 0},
-      commit_entry  : '{default: init_rob_entry},
-      store_slot_valid : '{default: 0},
-      store_slot_entry : '{default: init_rob_entry}
-  };
+  localparam commit_reg_type init_commit_reg = '{register_win : '{default: '{wren : 0, waddr : 0, wdata : 0}}, csr_win       : init_csr_write_in, csr_ein       : init_csr_exception_in, rat_i         : init_rat_in, prf_i         : init_prf_in, fl_i          : init_fl_in, flush_all     : 0, commit_store  : '{default: 0}, commit_entry  : '{default: init_rob_entry}, store_slot_valid : '{default: 0}, store_slot_entry : '{default: init_rob_entry}};
   commit_reg_type r, rin;
   commit_reg_type v;
   rob_entry_type  e               [    0:ISSUE_WIDTH-1];
@@ -58,9 +46,7 @@ module commit (
       do_commit[k]   = c[k] && !any_flush;
       entry_flush[k] = 1'b0;
       if (do_commit[k]) begin
-        entry_flush[k] = e[k].exception | e[k].mret |
-            (!e[k].branch ? e[k].jump & (~e[k].pred.taken | (e[k].npc != e[k].pred.taddr)) : 0) |
-            (e[k].branch ? e[k].jump ^ e[k].pred.taken : 0);
+        entry_flush[k] = e[k].exception | e[k].mret | (!e[k].branch ? e[k].jump & (~e[k].pred.taken | (e[k].npc != e[k].pred.taddr)) : 0) | (e[k].branch ? e[k].jump ^ e[k].pred.taken : 0);
       end
       any_flush = any_flush | entry_flush[k];
     end

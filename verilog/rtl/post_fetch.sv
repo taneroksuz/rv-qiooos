@@ -22,8 +22,7 @@ module post_fetch (
 
     v = r;
 
-    clear = post_fetch_in.btac_out.pred[0].taken | post_fetch_in.btac_out.pred[1].taken |
-        post_fetch_in.btac_out.pred[2].taken | post_fetch_in.btac_out.pred[3].taken;
+    clear = post_fetch_in.btac_out.pred[0].taken | post_fetch_in.btac_out.pred[1].taken | post_fetch_in.btac_out.pred[2].taken | post_fetch_in.btac_out.pred[3].taken;
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
       v.pc[i]    = post_fetch_in.pc[i];

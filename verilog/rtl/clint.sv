@@ -106,8 +106,7 @@ module clint #(
       rdata_mtc <= 0;
       ready_mtc <= 0;
       if (clint_in.mem_valid == 1) begin
-        if (clint_in.mem_addr >= clint_mtimecmp_start &&
-            clint_in.mem_addr < clint_mtimecmp_end) begin
+        if (clint_in.mem_addr >= clint_mtimecmp_start && clint_in.mem_addr < clint_mtimecmp_end) begin
           if (|clint_in.mem_wstrb == 0) begin
             if (clint_in.mem_addr[2] == 0) begin
               rdata_mtc <= mtimecmp[31:0];
@@ -155,8 +154,7 @@ module clint #(
     end
   end
 
-  assign clint_out.mem_rdata = (ready_ms == 1) ?
-      rdata_ms : (ready_mt == 1) ? rdata_mt : (ready_mtc == 1) ? rdata_mtc : 0;
+  assign clint_out.mem_rdata = (ready_ms == 1) ? rdata_ms : (ready_mt == 1) ? rdata_mt : (ready_mtc == 1) ? rdata_mtc : 0;
   assign clint_out.mem_error = 0;
   assign clint_out.mem_ready = ready_ms | ready_mt | ready_mtc;
 

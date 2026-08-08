@@ -61,22 +61,7 @@ module dram (
     state_t       state;
   } register_in_type;
 
-  register_in_type init_register_in = '{
-      mem_valid : 0,
-      mem_instr : 0,
-      mem_mode : 0,
-      mem_addr : 0,
-      mem_wdata : 0,
-      mem_wstrb : 0,
-      app_addr : 0,
-      app_cmd : 0,
-      app_en : 0,
-      app_wdf_data : 0,
-      app_wdf_end : 0,
-      app_wdf_mask : 0,
-      app_wdf_wren : 0,
-      state : stIdle
-  };
+  register_in_type init_register_in = '{mem_valid : 0, mem_instr : 0, mem_mode : 0, mem_addr : 0, mem_wdata : 0, mem_wstrb : 0, app_addr : 0, app_cmd : 0, app_en : 0, app_wdf_data : 0, app_wdf_end : 0, app_wdf_mask : 0, app_wdf_wren : 0, state : stIdle};
 
   typedef struct packed {
     logic         app_rdy;

@@ -18,14 +18,7 @@ module fl (
     logic [FL_CNT_BITS-1:0] comm_count;
     logic [FLIST_DEPTH-1:0] list_written;
   } fl_reg_type;
-  localparam fl_reg_type init_fl_reg = '{
-      spec_head: '0,
-      comm_head: '0,
-      tail: FL_CNT_BITS'(FLIST_DEPTH),
-      spec_count: FL_CNT_BITS'(FLIST_DEPTH),
-      comm_count: FL_CNT_BITS'(FLIST_DEPTH),
-      list_written: '0
-  };
+  localparam fl_reg_type init_fl_reg = '{spec_head: '0, comm_head: '0, tail: FL_CNT_BITS'(FLIST_DEPTH), spec_count: FL_CNT_BITS'(FLIST_DEPTH), comm_count: FL_CNT_BITS'(FLIST_DEPTH), list_written: '0};
 
   logic [PRF_ADDR_BITS-1:0] list[0:FLIST_DEPTH-1];
   fl_reg_type r, rin, v;
@@ -56,9 +49,8 @@ module fl (
 
     fl_out = '0;
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
-      fl_out.alloc_tag[i] = r.list_written[alloc_slot[i]] ?
-          list[alloc_slot[i]] : (PRF_ADDR_BITS'(ARCH_REGS) + PRF_ADDR_BITS'(alloc_slot[i]));
-      fl_out.alloc_ok[i] = (r.spec_count >= FL_CNT_BITS'(i + 1));
+      fl_out.alloc_tag[i] = r.list_written[alloc_slot[i]] ? list[alloc_slot[i]] : (PRF_ADDR_BITS'(ARCH_REGS) + PRF_ADDR_BITS'(alloc_slot[i]));
+      fl_out.alloc_ok[i]  = (r.spec_count >= FL_CNT_BITS'(i + 1));
     end
     fl_out.empty   = (r.spec_count == '0);
     fl_out.has_two = fl_out.alloc_ok[1];

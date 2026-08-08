@@ -19,8 +19,7 @@ module bit_clmul (
 
     case (r.state)
       0: begin
-        if ((bit_clmul_in.enable & (bit_clmul_in.op.bit_clmul_ | bit_clmul_in.op.bit_clmulh |
-                                    bit_clmul_in.op.bit_clmulr)) == 1) begin
+        if ((bit_clmul_in.enable & (bit_clmul_in.op.bit_clmul_ | bit_clmul_in.op.bit_clmulh | bit_clmul_in.op.bit_clmulr)) == 1) begin
           v.state = 1;
         end
         v.ready = 0;

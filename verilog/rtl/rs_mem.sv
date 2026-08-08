@@ -39,8 +39,7 @@ module rs_mem (
   logic         [MEM_ISSUE_WIDTH-1:0] port_busy;
   logic                               free_cond;
 
-  function automatic logic [ROB_ADDR_BITS-1:0] rob_age(input logic [ROB_ADDR_BITS-1:0] head,
-                                                       input logic [ROB_ADDR_BITS-1:0] tag);
+  function automatic logic [ROB_ADDR_BITS-1:0] rob_age(input logic [ROB_ADDR_BITS-1:0] head, input logic [ROB_ADDR_BITS-1:0] tag);
     rob_age = tag - head;
   endfunction
 
@@ -109,8 +108,7 @@ module rs_mem (
             end
           end
         end
-        oldest_ready[p] = woken[oldest_idx[p]].src1_ready && woken[oldest_idx[p]].src2_ready &&
-            (woken[oldest_idx[p]].op.store || (woken[oldest_idx[p]].op.load && !older_store_block));
+        oldest_ready[p] = woken[oldest_idx[p]].src1_ready && woken[oldest_idx[p]].src2_ready && (woken[oldest_idx[p]].op.store || (woken[oldest_idx[p]].op.load && !older_store_block));
       end
     end
     sel_found[0] = 1'b0;
@@ -134,8 +132,7 @@ module rs_mem (
     end
 
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-      free_cond = (!woken[i].valid || (sel_found[0] && (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i))))
-                   || (sel_found[1] && (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))));
+      free_cond = (!woken[i].valid || (sel_found[0] && (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) || (sel_found[1] && (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))));
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (free_cond && !free_found[k]) begin
           free_idx[k]   = MEM_ADDR_BITS'(unsigned'(i));
@@ -189,21 +186,15 @@ module rs_mem (
     if (reset != 0) begin
       if (!flush) begin
         for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-          if (rs_in.alloc[0] && free_found[0] &&
-              (free_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) begin
+          if (rs_in.alloc[0] && free_found[0] && (free_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) begin
             array[i] <= rs_in.entry[0];
-          end else if (rs_in.alloc[1] && free_found[1] &&
-                       (free_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))) begin
+          end else if (rs_in.alloc[1] && free_found[1] && (free_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))) begin
             array[i] <= rs_in.entry[1];
-          end else if (rs_in.alloc[2] && free_found[2] &&
-                       (free_idx[2] == MEM_ADDR_BITS'(unsigned'(i)))) begin
+          end else if (rs_in.alloc[2] && free_found[2] && (free_idx[2] == MEM_ADDR_BITS'(unsigned'(i)))) begin
             array[i] <= rs_in.entry[2];
-          end else if (rs_in.alloc[3] && free_found[3] &&
-                       (free_idx[3] == MEM_ADDR_BITS'(unsigned'(i)))) begin
+          end else if (rs_in.alloc[3] && free_found[3] && (free_idx[3] == MEM_ADDR_BITS'(unsigned'(i)))) begin
             array[i] <= rs_in.entry[3];
-          end else if (r.valid_bits[i] && rin.valid_bits[i] &&
-                       !(sel_found[0] && (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) &&
-                       !(sel_found[1] && (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i))))) begin
+          end else if (r.valid_bits[i] && rin.valid_bits[i] && !(sel_found[0] && (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) && !(sel_found[1] && (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i))))) begin
             array[i] <= woken[i];
           end
         end
