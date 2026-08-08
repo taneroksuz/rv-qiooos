@@ -756,17 +756,23 @@ package wires;
   } fetch_state;
 
   typedef struct packed {
-    fetch_state                state;
-    logic [31:0]               ipc;
-    logic [CACHE_WIDTH*32-1:0] rdata;
-    logic [0:0]                ready;
-    logic [0:0]                valid;
-    logic [0:0]                flush;
-    logic [0:0]                stall;
+    fetch_state                   state;
+    logic [ISSUE_WIDTH-1:0][31:0] pc;
+    logic [ISSUE_WIDTH-1:0][31:0] instr;
+    logic [ISSUE_WIDTH-1:0][0:0]  lane_ready;
+    logic [31:0]                  ipc;
+    logic [CACHE_WIDTH*32-1:0]    rdata;
+    logic [0:0]                   ready;
+    logic [0:0]                   valid;
+    logic [0:0]                   flush;
+    logic [0:0]                   stall;
   } fetch_reg_type;
 
   localparam fetch_reg_type init_fetch_reg = '{
       state: IDLE,
+      pc: '{default: 32'hFFFFFFFF},
+      instr: '{default: 0},
+      lane_ready: '{default: 0},
       ipc: 0,
       rdata: 0,
       ready: 0,
@@ -1282,9 +1288,12 @@ package wires;
   } fetch_in_type;
 
   typedef struct packed {
-    buffer_in_type buffer_in;
-    btac_in_type   btac_in;
-    cache_in_type  cache_in;
+    buffer_in_type                buffer_in;
+    btac_in_type                  btac_in;
+    cache_in_type                 cache_in;
+    logic [ISSUE_WIDTH-1:0][31:0] pc;
+    logic [ISSUE_WIDTH-1:0][31:0] instr;
+    logic [ISSUE_WIDTH-1:0][0:0]  ready;
   } fetch_out_type;
 
   typedef struct packed {

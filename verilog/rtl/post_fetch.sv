@@ -50,9 +50,9 @@ module post_fetch (
     rin = v;
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
-      post_fetch_out.pc[i]    = v.pc[i];
-      post_fetch_out.instr[i] = v.instr[i];
-      post_fetch_out.ready[i] = v.ready[i];
+      post_fetch_out.pc[i]    = r.pc[i];
+      post_fetch_out.instr[i] = r.instr[i];
+      post_fetch_out.ready[i] = r.ready[i];
     end
 
   end

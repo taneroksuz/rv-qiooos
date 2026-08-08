@@ -85,23 +85,15 @@ module cpu (
   for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_fetch_entry
     assign fetch_in.entry[i] = commit_out.commit_entry[i];
   end
-  assign buffer_in = fetch_out.buffer_in;
-  assign cache_in  = fetch_out.cache_in;
-  assign csr_rin   = rs_int_out.csr_rin;
-  for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_btac_in
-    assign btac_in.get_pc[i]     = post_fetch_out.pc[i];
-    assign btac_in.upd_pc[i]     = fetch_out.btac_in.upd_pc[i];
-    assign btac_in.upd_npc[i]    = fetch_out.btac_in.upd_npc[i];
-    assign btac_in.upd_addr[i]   = fetch_out.btac_in.upd_addr[i];
-    assign btac_in.upd_jump[i]   = fetch_out.btac_in.upd_jump[i];
-    assign btac_in.upd_branch[i] = fetch_out.btac_in.upd_branch[i];
-    assign btac_in.upd_pred[i]   = fetch_out.btac_in.upd_pred[i];
-  end
+  assign buffer_in              = fetch_out.buffer_in;
+  assign btac_in                = fetch_out.btac_in;
+  assign cache_in               = fetch_out.cache_in;
+  assign csr_rin                = rs_int_out.csr_rin;
   assign post_fetch_in.btac_out = btac_out;
   for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_post_fetch
-    assign post_fetch_in.pc[i]    = buffer_out.pc[i];
-    assign post_fetch_in.instr[i] = buffer_out.instr[i];
-    assign post_fetch_in.ready[i] = buffer_out.ready[i];
+    assign post_fetch_in.pc[i]    = fetch_out.pc[i];
+    assign post_fetch_in.instr[i] = fetch_out.instr[i];
+    assign post_fetch_in.ready[i] = fetch_out.ready[i];
   end
   for (genvar i = 0; i < ISSUE_WIDTH; i++) begin : g_decode_base
     assign decode_in.base_out[i]     = base_out[i];

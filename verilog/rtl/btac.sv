@@ -233,39 +233,19 @@ module btac_ctrl (
       hist : '{default: 0}
   };
 
-  typedef struct packed {
-    logic [ISSUE_WIDTH-1:0][31:0]        taddr;
-    logic [ISSUE_WIDTH-1:0][0:0]         valid;
-    logic [ISSUE_WIDTH-1:0][0:0]         branch;
-    logic [ISSUE_WIDTH-1:0][0:0]         match;
-    logic [ISSUE_WIDTH-1:0][T_DEPTH-1:0] hist;
-    logic [ISSUE_WIDTH-1:0][1:0]         tsat;
-  } pred_out_type;
-
-  parameter pred_out_type init_pred_out_reg = '{
-      taddr : '{default: 0},
-      valid : '{default: 0},
-      branch : '{default: 0},
-      match : '{default: 0},
-      hist : '{default: 0},
-      tsat : '{default: 0}
-  };
-
   btb_reg_type r_btb, rin_btb, v_btb;
   bht_reg_type r_bht, rin_bht, v_bht;
   pht_reg_type r_pht, rin_pht, v_pht;
   pred_reg_type r_pred, rin_pred, v_pred;
-  pred_out_type r_pred_out, rin_pred_out, v_pred_out;
 
   logic sel[0:ISSUE_WIDTH-1];
 
   always_comb begin
 
-    v_btb      = r_btb;
-    v_bht      = r_bht;
-    v_pht      = r_pht;
-    v_pred     = r_pred;
-    v_pred_out = r_pred_out;
+    v_btb  = r_btb;
+    v_bht  = r_bht;
+    v_pht  = r_pht;
+    v_pred = r_pred;
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v_btb.pc[k]     = btac_in.get_pc[k];
@@ -291,20 +271,11 @@ module btac_ctrl (
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      v_pred_out.taddr[k]  = r_pred.taddr[k];
-      v_pred_out.valid[k]  = r_pred.valid[k];
-      v_pred_out.branch[k] = r_pred.branch[k];
-      v_pred_out.match[k]  = r_pred.match[k];
-      v_pred_out.hist[k]   = r_pred.hist[k];
-      v_pred_out.tsat[k]   = pht_out.rdata[k];
-    end
-
-    for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      btac_out.pred[k].taddr = r_pred_out.taddr[k];
-      btac_out.pred[k].taken = r_pred_out.branch[k] ? v_pred_out.tsat[k][1] & r_pred_out.match[k] &
-          r_pred_out.valid[k] : r_pred_out.match[k] & r_pred_out.valid[k];
-      btac_out.pred[k].tsat = v_pred_out.tsat[k];
-      btac_out.pred[k].thist = r_pred_out.hist[k];
+      btac_out.pred[k].taddr = r_pred.taddr[k];
+      btac_out.pred[k].taken = r_pred.branch[k] ? pht_out.rdata[k][1] & r_pred.match[k] &
+          r_pred.valid[k] : r_pred.match[k] & r_pred.valid[k];
+      btac_out.pred[k].tsat = pht_out.rdata[k];
+      btac_out.pred[k].thist = r_pred.hist[k];
     end
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
@@ -374,11 +345,10 @@ module btac_ctrl (
     pht_in.waddr = v_pht.waddr;
     pht_in.wdata = v_pht.wdata;
 
-    rin_btb      = v_btb;
-    rin_bht      = v_bht;
-    rin_pht      = v_pht;
-    rin_pred     = v_pred;
-    rin_pred_out = v_pred_out;
+    rin_btb  = v_btb;
+    rin_bht  = v_bht;
+    rin_pht  = v_pht;
+    rin_pred = v_pred;
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
       btac_out.pred_maddr[p] = v_btb.maddr[p];
@@ -389,17 +359,15 @@ module btac_ctrl (
 
   always_ff @(posedge clock) begin
     if (reset == 0) begin
-      r_btb      <= init_btb_reg;
-      r_bht      <= init_bht_reg;
-      r_pht      <= init_pht_reg;
-      r_pred     <= init_pred_reg;
-      r_pred_out <= init_pred_out_reg;
+      r_btb  <= init_btb_reg;
+      r_bht  <= init_bht_reg;
+      r_pht  <= init_pht_reg;
+      r_pred <= init_pred_reg;
     end else begin
-      r_btb      <= rin_btb;
-      r_bht      <= rin_bht;
-      r_pht      <= rin_pht;
-      r_pred     <= rin_pred;
-      r_pred_out <= rin_pred_out;
+      r_btb  <= rin_btb;
+      r_bht  <= rin_bht;
+      r_pht  <= rin_pht;
+      r_pred <= rin_pred;
     end
   end
 
