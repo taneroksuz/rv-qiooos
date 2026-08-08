@@ -255,6 +255,10 @@ module btac_ctrl (
       btac_out.pred[k].thist = get[k] ? r_pred.hist[k] : 0;
     end
 
+    if ((|r_btb.miss) == 1) begin
+      btac_out = init_btac_out;
+    end
+
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
       v_btb.maddr[p] = 0;
       v_btb.miss[p]  = 0;

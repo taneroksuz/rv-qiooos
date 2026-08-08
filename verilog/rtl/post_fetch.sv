@@ -36,6 +36,7 @@ module post_fetch (
         v.instr[i] = r.instr[i];
         v.ready[i] = r.ready[i];
       end
+      clear = 0;
     end
 
     if ((flush | clear) == 1) begin
