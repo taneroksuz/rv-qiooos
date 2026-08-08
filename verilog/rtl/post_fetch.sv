@@ -16,13 +16,13 @@ module post_fetch (
   post_fetch_reg_type r, rin;
   post_fetch_reg_type v;
 
-  logic squash;
+  logic clear;
 
   always_comb begin
 
     v = r;
 
-    squash = post_fetch_in.btac_out.pred[0].taken | post_fetch_in.btac_out.pred[1].taken |
+    clear = post_fetch_in.btac_out.pred[0].taken | post_fetch_in.btac_out.pred[1].taken |
         post_fetch_in.btac_out.pred[2].taken | post_fetch_in.btac_out.pred[3].taken;
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
@@ -39,7 +39,7 @@ module post_fetch (
       end
     end
 
-    if ((flush | squash) == 1) begin
+    if ((flush | clear) == 1) begin
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         v.pc[i]    = 32'hFFFFFFFF;
         v.instr[i] = 0;
