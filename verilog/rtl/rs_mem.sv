@@ -149,8 +149,6 @@ module rs_mem (
       rs_out.issue[p]       = sel_found[p] ? woken[sel_idx[p]] : init_rs_entry;
       rs_out.issue_valid[p] = sel_found[p];
     end
-    rs_out.full         = (r.count >= (MEM_ADDR_BITS + 1)'(RS_MEM_DEPTH - 1));
-    rs_out.has_two_free = (r.count <= (MEM_ADDR_BITS + 1)'(RS_MEM_DEPTH - 2));
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       rs_out.alloc_ok[k] = (r.count <= (MEM_ADDR_BITS + 1)'(RS_MEM_DEPTH - ISSUE_WIDTH));
     end

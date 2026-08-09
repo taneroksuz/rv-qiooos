@@ -124,7 +124,8 @@ module buffer_ctrl (
     return off;
   endfunction
 
-  int base, need;
+  int         base;
+  logic [1:0] need;
 
   always_comb begin
 

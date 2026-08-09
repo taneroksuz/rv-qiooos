@@ -157,7 +157,6 @@ module cpu (
       assign eu_in.int_issue_valid[i]     = rs_int_out.issue_valid[i];
     end
   endgenerate
-  assign rob_in.store_ready = msu_out.store_ready;
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_rob_wport_int
       assign rob_in.write_tag[i]   = eu_out.rob_wtag[i];
@@ -175,8 +174,6 @@ module cpu (
       assign rob_in.write_en[ISSUE_WIDTH+MEM_ISSUE_WIDTH+i]    = eu_out.rob_wen_store[i];
     end
   endgenerate
-  assign rob_in.cdb[0] = cdb[0];
-  assign rob_in.cdb[1] = cdb[1];
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_cdb_fanin
       assign rs_int_in.cdb[i]        = cdb[i];
@@ -193,21 +190,15 @@ module cpu (
       assign rename_in.cdb_load[i] = cdb_load[i];
     end
   endgenerate
-  assign rs_int_in.div_busy       = eu_out.div_busy;
-  assign rs_int_in.clmul_busy     = eu_out.clmul_busy;
-  assign rs_int_in.csr_commit     = commit_out.csr_win.cwren;
-  assign rs_int_in.rob_head       = rob_out.head_ptr;
-  assign rs_mem_in.rob_head       = rob_out.head_ptr;
-  assign rs_mem_in.load_busy      = msu_out.load_busy;
-  assign rename_in.rob_full       = rob_out.full;
-  assign rename_in.rob_has_two    = rob_out.has_two_free;
-  assign rename_in.rat            = rat_out;
-  assign rename_in.prf            = prf_out;
-  assign rename_in.fl             = fl_out;
-  assign rename_in.rs_int_full    = rs_int_out.full;
-  assign rename_in.rs_int_has_two = rs_int_out.has_two_free;
-  assign rename_in.rs_mem_full    = rs_mem_out.full;
-  assign rename_in.rs_mem_has_two = rs_mem_out.has_two_free;
+  assign rs_int_in.div_busy   = eu_out.div_busy;
+  assign rs_int_in.clmul_busy = eu_out.clmul_busy;
+  assign rs_int_in.csr_commit = commit_out.csr_win.cwren;
+  assign rs_int_in.rob_head   = rob_out.head_ptr;
+  assign rs_mem_in.rob_head   = rob_out.head_ptr;
+  assign rs_mem_in.load_busy  = msu_out.load_busy;
+  assign rename_in.rat        = rat_out;
+  assign rename_in.prf        = prf_out;
+  assign rename_in.fl         = fl_out;
   generate
     for (i = 0; i < MEM_ISSUE_WIDTH; i++) begin : g_mem_issue
       assign eu_in.mem_issue[i]       = rs_mem_out.issue[i];
@@ -282,9 +273,6 @@ module cpu (
       assign commit_in.entry[i]        = rob_out.entry[i];
     end
   endgenerate
-  assign commit_in.commit_ctrl = rob_out.commit_ctrl;
-  assign commit_in.csr_o       = csr_out;
-  assign commit_in.btac_out    = btac_out;
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_register_win
       assign register_win[i] = commit_out.register_win[i];
@@ -427,7 +415,6 @@ module cpu (
   prf prf_comp (
     .reset  (reset),
     .clock  (clock),
-    .flush  (commit_flush),
     .prf_in (prf_in),
     .prf_out(prf_out)
   );
@@ -469,8 +456,6 @@ module cpu (
     .rs_out     (rs_mem_out)
   );
   rename rename_comp (
-    .reset     (reset),
-    .clock     (clock),
     .flush     (commit_flush),
     .rename_in (rename_in),
     .rename_out(rename_out)

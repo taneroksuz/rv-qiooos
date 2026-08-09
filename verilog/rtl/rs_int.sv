@@ -149,8 +149,6 @@ module rs_int (
       v.rs_o.issue_valid[k] = v.sel_found[k];
     end
 
-    v.rs_o.full         = (r.count >= (RS_ADDR_BITS + 1)'(RS_INT_DEPTH - 1));
-    v.rs_o.has_two_free = (r.count <= (RS_ADDR_BITS + 1)'(RS_INT_DEPTH - 2));
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v.rs_o.alloc_ok[k] = (r.count <= (RS_ADDR_BITS + 1)'(RS_INT_DEPTH - ISSUE_WIDTH));
     end

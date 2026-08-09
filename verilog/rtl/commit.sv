@@ -18,7 +18,6 @@ module commit (
     prf_in_type                              prf_i;
     fl_in_type                               fl_i;
     logic [0:0]                              flush_all;
-    logic [MEM_ISSUE_WIDTH-1:0][0:0]         commit_store;
     rob_entry_type [ISSUE_WIDTH-1:0]         commit_entry;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]         store_slot_valid;
     rob_entry_type [MEM_ISSUE_WIDTH-1:0]     store_slot_entry;
@@ -31,7 +30,6 @@ module commit (
       prf_i         : init_prf_in,
       fl_i          : init_fl_in,
       flush_all     : 0,
-      commit_store  : '{default: 0},
       commit_entry  : '{default: init_rob_entry},
       store_slot_valid : '{default: 0},
       store_slot_entry : '{default: init_rob_entry}
@@ -66,13 +64,6 @@ module commit (
     end
 
     v.flush_all = any_flush;
-
-    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
-      v.commit_store[p] = 1'b0;
-      if (do_commit[p]) begin
-        v.commit_store[p] = e[p].store;
-      end
-    end
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
       v.commit_entry[p] = init_rob_entry;
@@ -158,7 +149,6 @@ module commit (
       commit_out.commit_entry[p] = r.commit_entry[p];
     end
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
-      commit_out.commit_store[p]     = r.commit_store[p];
       commit_out.store_slot_valid[p] = r.store_slot_valid[p];
       commit_out.store_slot_entry[p] = r.store_slot_entry[p];
     end

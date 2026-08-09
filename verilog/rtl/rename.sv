@@ -3,8 +3,6 @@ import constants::*;
 import wires::*;
 import functions::*;
 module rename (
-  input  logic           reset,
-  input  logic           clock,
   input  logic           flush,
   input  rename_in_type  rename_in,
   output rename_out_type rename_out

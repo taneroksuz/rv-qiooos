@@ -198,8 +198,6 @@ module msu (
       end
     end
     msu_out.load_busy = {slot_blocked[1], slot_blocked[0]};
-    msu_out.store_ready = !(r.store_pending[0] || r.store_pending[1]) &&
-        !(msu_in.commit_store[0] || msu_in.commit_store[1]);
   end
 
   always_ff @(posedge clock) begin

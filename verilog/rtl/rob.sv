@@ -130,11 +130,7 @@ module rob (
 
     rob_out = init_rob_out;
     if (!flush) begin
-      rob_out.head_ptr     = r.head;
-      rob_out.tail_ptr     = r.tail_ptr;
-      rob_out.full         = (r.count >= ROB_DEPTH - 1);
-      rob_out.has_two_free = (r.count <= ROB_DEPTH - 2);
-      rob_out.stall        = rob_out.full;
+      rob_out.head_ptr = r.head;
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         rob_out.alloc_tag[i] = r.tail_ptr + ROB_ADDR_BITS'(i);
         rob_out.alloc_ok[i]  = (r.count <= ROB_DEPTH - ISSUE_WIDTH);
