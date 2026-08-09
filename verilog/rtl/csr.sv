@@ -41,7 +41,7 @@ module csr (
       csr_out.cdata = csr_win.cdata;
     end else if (csr_rin.crden == 1) begin
       case (csr_rin.craddr)
-        csr_misa: csr_out.cdata = 32'h40001124;
+        csr_misa: csr_out.cdata = 32'h40001104;
         csr_mvendorid: csr_out.cdata = 32'h00000000;
         csr_marchid: csr_out.cdata = 32'h00000000;
         csr_mimpid: csr_out.cdata = 32'h00000000;
@@ -111,10 +111,26 @@ module csr (
         csr_mcycleh: csr_out.cdata = csr_machine_reg.mcycle[63:32];
         csr_minstret: csr_out.cdata = csr_machine_reg.minstret[31:0];
         csr_minstreth: csr_out.cdata = csr_machine_reg.minstret[63:32];
-        csr_tselect: csr_out.cdata = 32'h1;
-        csr_tdata1: csr_out.cdata = csr_machine_reg.tdata1;
-        csr_tdata2: csr_out.cdata = csr_machine_reg.tdata2;
-        csr_tcontrol: csr_out.cdata = csr_machine_reg.tcontrol;
+        csr_pmpcfg0: csr_out.cdata = csr_machine_reg.pmpcfg[0];
+        csr_pmpcfg1: csr_out.cdata = csr_machine_reg.pmpcfg[1];
+        csr_pmpcfg2: csr_out.cdata = csr_machine_reg.pmpcfg[2];
+        csr_pmpcfg3: csr_out.cdata = csr_machine_reg.pmpcfg[3];
+        csr_pmpaddr0: csr_out.cdata = csr_machine_reg.pmpaddr[0];
+        csr_pmpaddr1: csr_out.cdata = csr_machine_reg.pmpaddr[1];
+        csr_pmpaddr2: csr_out.cdata = csr_machine_reg.pmpaddr[2];
+        csr_pmpaddr3: csr_out.cdata = csr_machine_reg.pmpaddr[3];
+        csr_pmpaddr4: csr_out.cdata = csr_machine_reg.pmpaddr[4];
+        csr_pmpaddr5: csr_out.cdata = csr_machine_reg.pmpaddr[5];
+        csr_pmpaddr6: csr_out.cdata = csr_machine_reg.pmpaddr[6];
+        csr_pmpaddr7: csr_out.cdata = csr_machine_reg.pmpaddr[7];
+        csr_pmpaddr8: csr_out.cdata = csr_machine_reg.pmpaddr[8];
+        csr_pmpaddr9: csr_out.cdata = csr_machine_reg.pmpaddr[9];
+        csr_pmpaddr10: csr_out.cdata = csr_machine_reg.pmpaddr[10];
+        csr_pmpaddr11: csr_out.cdata = csr_machine_reg.pmpaddr[11];
+        csr_pmpaddr12: csr_out.cdata = csr_machine_reg.pmpaddr[12];
+        csr_pmpaddr13: csr_out.cdata = csr_machine_reg.pmpaddr[13];
+        csr_pmpaddr14: csr_out.cdata = csr_machine_reg.pmpaddr[14];
+        csr_pmpaddr15: csr_out.cdata = csr_machine_reg.pmpaddr[15];
         default: csr_out.cdata = 0;
       endcase
     end else begin
@@ -192,13 +208,29 @@ module csr (
           csr_mcycle: csr_machine_reg.mcycle[31:0] <= csr_win.cdata;
           csr_mcycleh: csr_machine_reg.mcycle[63:32] <= csr_win.cdata;
           csr_minstret:
-          csr_machine_reg.minstret <= {csr_machine_reg.minstret[63:32], csr_win.cdata} + incr;
+          csr_machine_reg.minstret <= {csr_machine_reg.minstret[63:32], csr_win.cdata};
           csr_minstreth:
-          csr_machine_reg.minstret <= {csr_win.cdata, csr_machine_reg.minstret[31:0]} + incr;
-          csr_tselect: csr_machine_reg.tselect <= csr_win.cdata;
-          csr_tdata1: csr_machine_reg.tdata1 <= csr_win.cdata;
-          csr_tdata2: csr_machine_reg.tdata2 <= csr_win.cdata;
-          csr_tcontrol: csr_machine_reg.tcontrol <= csr_win.cdata;
+          csr_machine_reg.minstret <= {csr_win.cdata, csr_machine_reg.minstret[31:0]};
+          csr_pmpcfg0: csr_machine_reg.pmpcfg[0] <= csr_win.cdata;
+          csr_pmpcfg1: csr_machine_reg.pmpcfg[1] <= csr_win.cdata;
+          csr_pmpcfg2: csr_machine_reg.pmpcfg[2] <= csr_win.cdata;
+          csr_pmpcfg3: csr_machine_reg.pmpcfg[3] <= csr_win.cdata;
+          csr_pmpaddr0: csr_machine_reg.pmpaddr[0] <= csr_win.cdata;
+          csr_pmpaddr1: csr_machine_reg.pmpaddr[1] <= csr_win.cdata;
+          csr_pmpaddr2: csr_machine_reg.pmpaddr[2] <= csr_win.cdata;
+          csr_pmpaddr3: csr_machine_reg.pmpaddr[3] <= csr_win.cdata;
+          csr_pmpaddr4: csr_machine_reg.pmpaddr[4] <= csr_win.cdata;
+          csr_pmpaddr5: csr_machine_reg.pmpaddr[5] <= csr_win.cdata;
+          csr_pmpaddr6: csr_machine_reg.pmpaddr[6] <= csr_win.cdata;
+          csr_pmpaddr7: csr_machine_reg.pmpaddr[7] <= csr_win.cdata;
+          csr_pmpaddr8: csr_machine_reg.pmpaddr[8] <= csr_win.cdata;
+          csr_pmpaddr9: csr_machine_reg.pmpaddr[9] <= csr_win.cdata;
+          csr_pmpaddr10: csr_machine_reg.pmpaddr[10] <= csr_win.cdata;
+          csr_pmpaddr11: csr_machine_reg.pmpaddr[11] <= csr_win.cdata;
+          csr_pmpaddr12: csr_machine_reg.pmpaddr[12] <= csr_win.cdata;
+          csr_pmpaddr13: csr_machine_reg.pmpaddr[13] <= csr_win.cdata;
+          csr_pmpaddr14: csr_machine_reg.pmpaddr[14] <= csr_win.cdata;
+          csr_pmpaddr15: csr_machine_reg.pmpaddr[15] <= csr_win.cdata;
           default: ;
         endcase
       end else begin

@@ -430,9 +430,10 @@ module eu (
         v.rob_wentry[0].npc = agu_result_lane[0];
         v.rob_wentry[0].branch = int_issue[0].op.branch;
         v.rob_wentry[0].jump = int_issue[0].op.jal | int_issue[0].op.jalr | branch_taken_lane[0];
-        v.rob_wentry[0].exception = int_issue[0].op.ecall | int_issue[0].op.ebreak |
-            agu_exception_lane[0];
-        v.rob_wentry[0].ecause = int_issue[0].op.ecall ? except_env_call_user :
+        v.rob_wentry[0].exception = int_issue[0].op.exception | int_issue[0].op.ecall |
+            int_issue[0].op.ebreak | agu_exception_lane[0];
+        v.rob_wentry[0].ecause = int_issue[0].op.exception ? except_illegal_instruction :
+            int_issue[0].op.ecall ? except_env_call_user :
             int_issue[0].op.ebreak ? except_breakpoint : agu_ecause_lane[0];
         v.rob_wentry[0].etval = agu_etval_lane[0];
         v.rob_wentry[0].cwdata = csr_result_lane[0];
@@ -468,9 +469,10 @@ module eu (
         v.rob_wentry[1].npc = agu_result_lane[1];
         v.rob_wentry[1].branch = int_issue[1].op.branch;
         v.rob_wentry[1].jump = int_issue[1].op.jal | int_issue[1].op.jalr | branch_taken_lane[1];
-        v.rob_wentry[1].exception = int_issue[1].op.ecall | int_issue[1].op.ebreak |
-            agu_exception_lane[1];
-        v.rob_wentry[1].ecause = int_issue[1].op.ecall ? except_env_call_user :
+        v.rob_wentry[1].exception = int_issue[1].op.exception | int_issue[1].op.ecall |
+            int_issue[1].op.ebreak | agu_exception_lane[1];
+        v.rob_wentry[1].ecause = int_issue[1].op.exception ? except_illegal_instruction :
+            int_issue[1].op.ecall ? except_env_call_user :
             int_issue[1].op.ebreak ? except_breakpoint : agu_ecause_lane[1];
         v.rob_wentry[1].etval = agu_etval_lane[1];
         v.rob_wentry[1].cwdata = csr_result_lane[1];
@@ -489,9 +491,10 @@ module eu (
           v.rob_wentry[l].npc = agu_result_lane[l];
           v.rob_wentry[l].branch = int_issue[l].op.branch;
           v.rob_wentry[l].jump = int_issue[l].op.jal | int_issue[l].op.jalr | branch_taken_lane[l];
-          v.rob_wentry[l].exception = int_issue[l].op.ecall | int_issue[l].op.ebreak |
-              agu_exception_lane[l];
-          v.rob_wentry[l].ecause = int_issue[l].op.ecall ? except_env_call_user :
+          v.rob_wentry[l].exception = int_issue[l].op.exception | int_issue[l].op.ecall |
+              int_issue[l].op.ebreak | agu_exception_lane[l];
+          v.rob_wentry[l].ecause = int_issue[l].op.exception ? except_illegal_instruction :
+              int_issue[l].op.ecall ? except_env_call_user :
               int_issue[l].op.ebreak ? except_breakpoint : agu_ecause_lane[l];
           v.rob_wentry[l].etval = agu_etval_lane[l];
           v.rob_wentry[l].cwdata = csr_result_lane[l];

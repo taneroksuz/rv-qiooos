@@ -103,17 +103,17 @@ module commit (
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (do_commit[k]) begin
         v.csr_ein.valid[k]      = 1'b1;
-        v.register_win[k].wren  = e[k].wren;
+        v.register_win[k].wren  = e[k].wren & ~e[k].exception;
         v.register_win[k].waddr = e[k].adest;
         v.register_win[k].wdata = e[k].result;
-        v.prf_i.wren[k]         = e[k].wren;
+        v.prf_i.wren[k]         = e[k].wren & ~e[k].exception;
         v.prf_i.waddr[k]        = e[k].pdest;
         v.prf_i.wdata[k]        = e[k].result;
         v.rat_i.commit_addr[k]  = e[k].adest;
         v.rat_i.commit_tag[k]   = e[k].pdest;
-        v.rat_i.commit_valid[k] = e[k].wren;
+        v.rat_i.commit_valid[k] = e[k].wren & ~e[k].exception;
         v.fl_i.free_tag[k]      = e[k].old_pdest;
-        v.fl_i.free_en[k]       = e[k].wren;
+        v.fl_i.free_en[k]       = e[k].wren & ~e[k].exception;
         if (e[k].cwren) begin
           v.csr_win.cwren  = 1'b1;
           v.csr_win.cwaddr = e[k].caddr;

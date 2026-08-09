@@ -638,6 +638,8 @@ package wires;
     logic [31:0]         tdata1;
     logic [31:0]         tdata2;
     logic [31:0]         tcontrol;
+    logic [3:0][31:0]    pmpcfg;
+    logic [15:0][31:0]   pmpaddr;
   } csr_machine_reg_type;
 
   localparam csr_machine_reg_type init_csr_machine_reg = '{
@@ -654,7 +656,9 @@ package wires;
       tselect: 0,
       tdata1: 0,
       tdata2: 0,
-      tcontrol: 0
+      tcontrol: 0,
+      pmpcfg: '{default: 0},
+      pmpaddr: '{default: 0}
   };
 
   typedef struct packed {
