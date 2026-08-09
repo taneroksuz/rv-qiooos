@@ -77,7 +77,7 @@ module testbench ();
   wire [31:0] commit_cwdata[0:ISSUE_WIDTH-1];
 
   for (genvar k = 0; k < ISSUE_WIDTH; k++) begin : g_commit_wires
-    assign commit_valid[k]  = testbench.soc_comp.cpu_comp.commit_in.commit[k];
+    assign commit_valid[k]  = testbench.soc_comp.cpu_comp.commit_in.commit_valid[k];
     assign commit_pc[k]     = testbench.soc_comp.cpu_comp.commit_in.entry[k].pc;
     assign commit_waddr[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].adest;
     assign commit_wdata[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].result;

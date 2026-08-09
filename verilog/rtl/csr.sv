@@ -1,3 +1,4 @@
+import configure::*;
 import constants::*;
 import wires::*;
 
@@ -28,7 +29,10 @@ module csr (
   assign valid = csr_ein.valid[0] | csr_ein.valid[1] | csr_ein.valid[2] | csr_ein.valid[3];
 
   always_comb begin
-    incr = 64'($countones(csr_ein.valid));
+    incr = 64'd0;
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      incr = incr + 64'(csr_ein.valid[k]);
+    end
   end
 
   always_comb begin

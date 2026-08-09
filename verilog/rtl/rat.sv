@@ -103,7 +103,7 @@ module rat (
       eff[r] = flush ? comm[rsrc_a[r]] : spec[rsrc_a[r]];
       if (!flush) begin
         for (int c = 0; c < ISSUE_WIDTH; c++) begin
-          if (rat_in.commit_en[c] && (rat_in.commit_addr[c] != 5'h0) &&
+          if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) &&
               (rsrc_a[r] == rat_in.commit_addr[c]) &&
               (eff[r][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
             eff[r] = {1'b1, rat_in.commit_tag[c]};
@@ -149,7 +149,7 @@ module rat (
       end
 
       for (int c = 0; c < ISSUE_WIDTH; c++) begin
-        if (rat_in.commit_en[c] && (rat_in.commit_addr[c] != 5'h0)) begin
+        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0)) begin
           comm[rat_in.commit_addr[c]] <= {1'b1, rat_in.commit_tag[c]};
           if (flush) begin
             spec[rat_in.commit_addr[c]] <= {1'b1, rat_in.commit_tag[c]};

@@ -954,7 +954,7 @@ package wires;
     logic [ISSUE_WIDTH-1:0][0:0]               wren;
     logic [ISSUE_WIDTH-1:0][4:0]               commit_addr;
     logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] commit_tag;
-    logic [ISSUE_WIDTH-1:0][0:0]               commit_en;
+    logic [ISSUE_WIDTH-1:0][0:0]               commit_valid;
   } rat_in_type;
 
   typedef struct packed {
@@ -986,7 +986,7 @@ package wires;
     logic [ISSUE_WIDTH-1:0][0:0]               alloc_ok;
     commit_type                                commit_ctrl;
     rob_entry_type [ISSUE_WIDTH-1:0]           entry;
-    logic [ISSUE_WIDTH-1:0][0:0]               commit;
+    logic [ISSUE_WIDTH-1:0][0:0]               commit_valid;
     logic [0:0]                                stall;
   } rob_out_type;
 
@@ -1142,7 +1142,7 @@ package wires;
   };
 
   typedef struct packed {
-    logic [ISSUE_WIDTH-1:0][0:0]     commit;
+    logic [ISSUE_WIDTH-1:0][0:0]     commit_valid;
     commit_type                      commit_ctrl;
     rob_entry_type [ISSUE_WIDTH-1:0] entry;
     csr_out_type                     csr_o;
@@ -1150,7 +1150,7 @@ package wires;
   } commit_in_type;
 
   localparam commit_in_type init_commit_in = '{
-      commit: '{default: 0},
+      commit_valid: '{default: 0},
       commit_ctrl: init_commit,
       entry: '{default: init_rob_entry},
       csr_o: '{trap: 0, mret: 0, mtvec: 0, mepc: 0, cdata: 0, fs: 0},

@@ -50,7 +50,7 @@ module commit (
     v = init_commit_reg;
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       e[k] = commit_in.entry[k];
-      c[k] = commit_in.commit[k];
+      c[k] = commit_in.commit_valid[k];
     end
 
     any_flush = 1'b0;
@@ -120,7 +120,7 @@ module commit (
         v.prf_i.wdata[k]        = e[k].result;
         v.rat_i.commit_addr[k]  = e[k].adest;
         v.rat_i.commit_tag[k]   = e[k].pdest;
-        v.rat_i.commit_en[k]    = e[k].wren;
+        v.rat_i.commit_valid[k] = e[k].wren;
         v.fl_i.free_tag[k]      = e[k].old_pdest;
         v.fl_i.free_en[k]       = e[k].wren;
         if (e[k].cwren) begin

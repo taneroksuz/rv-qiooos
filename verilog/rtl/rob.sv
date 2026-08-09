@@ -155,7 +155,7 @@ module rob (
       end
     end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      rob_out.commit[k] = flush ? 1'b0 : commit[k];
+      rob_out.commit_valid[k] = flush ? 1'b0 : commit[k];
     end
 
     if (flush) begin
