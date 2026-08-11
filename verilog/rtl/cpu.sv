@@ -78,6 +78,13 @@ module cpu (
 
   genvar i;
 
+  always_comb begin
+    commit_flush = clear | csr_out.trap | csr_out.mret | (|btac_out.pred_miss) | commit_out.flush;
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
+      commit_flush = commit_flush | fetch_in.entry[p].fence;
+    end
+  end
+
   assign fetch_in.csr_out    = csr_out;
   assign fetch_in.btac_out   = btac_out;
   assign fetch_in.cache_out  = cache_out;
@@ -278,8 +285,6 @@ module cpu (
       assign register_win[i] = commit_out.register_win[i];
     end
   endgenerate
-  assign
-      commit_flush = clear | csr_out.trap | csr_out.mret | (|btac_out.pred_miss) | commit_out.flush;
 
   generate
     for (i = 0; i < ALU_COUNT; i++) begin : g_alu_comp

@@ -739,6 +739,7 @@ package wires;
   typedef struct packed {
     logic [0:0]  mem_valid;
     logic [31:0] mem_addr;
+    logic [0:0]  mem_fence;
   } cache_in_type;
 
   localparam cache_in_type init_cache_in = '{default: '0};
@@ -767,6 +768,7 @@ package wires;
     logic [ISSUE_WIDTH-1:0][0:0]  lane_ready;
     logic [0:0]                   valid;
     logic [0:0]                   flush;
+    logic [0:0]                   fence;
     logic [0:0]                   stall;
   } fetch_reg_type;
 
@@ -780,6 +782,7 @@ package wires;
       lane_ready: '{default: 0},
       valid: 0,
       flush: 0,
+      fence: 0,
       stall: 0
   };
 

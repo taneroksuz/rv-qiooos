@@ -20,10 +20,16 @@ module fetch (
 
     v = r;
 
+    v.fence = 0;
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
+      v.fence = v.fence | fetch_in.entry[p].fence;
+    end
+
     v.valid = 0;
     v.stall = fetch_in.buffer_out.stall;
 
-    v.flush = |fetch_in.btac_out.pred_miss;
+    v.flush = v.fence;
+    v.flush = v.flush | (|fetch_in.btac_out.pred_miss);
     v.flush = v.flush | fetch_in.btac_out.pred[0].taken | fetch_in.btac_out.pred[1].taken |
         fetch_in.btac_out.pred[2].taken | fetch_in.btac_out.pred[3].taken;
     v.flush = v.flush | fetch_in.csr_out.trap | fetch_in.csr_out.mret;
@@ -90,6 +96,14 @@ module fetch (
       v.ipc = fetch_in.csr_out.mtvec;
     end else if (fetch_in.csr_out.mret == 1) begin
       v.ipc = fetch_in.csr_out.mepc;
+    end else if (fetch_in.entry[0].fence) begin
+      v.ipc = fetch_in.entry[0].pnpc;
+    end else if (fetch_in.entry[1].fence) begin
+      v.ipc = fetch_in.entry[1].pnpc;
+    end else if (fetch_in.entry[2].fence) begin
+      v.ipc = fetch_in.entry[2].pnpc;
+    end else if (fetch_in.entry[3].fence) begin
+      v.ipc = fetch_in.entry[3].pnpc;
     end else if (fetch_in.btac_out.pred_miss[0]) begin
       v.ipc = fetch_in.btac_out.pred_maddr[0];
     end else if (fetch_in.btac_out.pred_miss[1]) begin
@@ -118,6 +132,7 @@ module fetch (
 
     fetch_out.cache_in.mem_valid = v.valid;
     fetch_out.cache_in.mem_addr  = v.ipc;
+    fetch_out.cache_in.mem_fence = v.fence;
 
     for (int s = 0; s < ISSUE_WIDTH; s++) begin
       fetch_out.btac_in.get_pc[s] = v.pc[s];

@@ -117,9 +117,10 @@ module cache_ctrl (
   } front_type;
 
   typedef enum logic [1:0] {
-    HIT  = 2'd0,
-    FILL = 2'd1,
-    DONE = 2'd2
+    HIT   = 2'd0,
+    FILL  = 2'd1,
+    DONE  = 2'd2,
+    FLUSH = 2'd3
   } cache_state;
 
   typedef struct packed {
@@ -137,6 +138,10 @@ module cache_ctrl (
     logic [CACHE_WIDTH*32-1:0] rdata;
     logic [CACHE_WIDTH-1:0]    error;
     logic [0:0]                ready;
+    logic [0:0]                fence_pending;
+    logic [CTAG-1:0]           tag_pending;
+    logic [CDEPTH-1:0]         addr_pending;
+    logic [CDEPTH-1:0]         flush_addr;
   } back_type;
 
   parameter front_type init_front = 0;
@@ -178,6 +183,13 @@ module cache_ctrl (
       end
     end
 
+    if (r_b.state == FLUSH) begin
+      cache_tag_in.wren   = 1;
+      cache_tag_in.wvalid = 0;
+      cache_tag_in.wtag   = '0;
+      cache_tag_in.waddr  = r_b.flush_addr;
+    end
+
     if (v_b.state == HIT) begin
       if (v_f.valid == 1) begin
         for (int w = 0; w < CACHE_WIDTH; w++) begin
@@ -200,12 +212,22 @@ module cache_ctrl (
     v_b.mem_valid[0] = 0;
     v_b.mem_valid[1] = 0;
 
+    if (cache_in.mem_fence == 1) begin
+      v_b.fence_pending = 1;
+      v_b.tag_pending   = cache_in.mem_addr[31:(CDEPTH+CWIDTH+2)];
+      v_b.addr_pending  = cache_in.mem_addr[(CDEPTH+CWIDTH+1):(CWIDTH+2)];
+    end
+
     cache_out = init_cache_out;
 
     case (r_b.state)
 
       HIT: begin
-        if (r_f.valid == 1) begin
+        if (v_b.fence_pending == 1) begin
+          v_b.state         = FLUSH;
+          v_b.flush_addr    = '0;
+          v_b.fence_pending = 0;
+        end else if (r_f.valid == 1) begin
           if (cache_tag_out.rvalid == 1 && cache_tag_out.rtag == r_f.tag) begin
             v_b.ready = 1;
             for (int w = 0; w < CACHE_WIDTH; w++) begin
@@ -259,6 +281,19 @@ module cache_ctrl (
       DONE: begin
         v_b.ready = 1;
         v_b.state = HIT;
+      end
+
+      FLUSH: begin
+        if (r_b.flush_addr == CDEPTH'(CACHE_DEPTH - 1)) begin
+          v_b.state    = FILL;
+          v_b.wid      = 0;
+          v_b.tag      = v_b.tag_pending;
+          v_b.addr     = v_b.addr_pending;
+          v_b.base     = {v_b.tag_pending, v_b.addr_pending, {CWIDTH{1'b0}}, 2'b00};
+          v_b.mem_done = 2'b00;
+        end else begin
+          v_b.flush_addr = r_b.flush_addr + CDEPTH'(1);
+        end
       end
 
       default: begin
