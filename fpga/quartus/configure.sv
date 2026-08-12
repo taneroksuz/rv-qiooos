@@ -18,7 +18,6 @@ package configure;
   localparam MUL_COUNT = 2;
   localparam DIV_COUNT = 1;
   localparam BITALU_COUNT = 2;
-  localparam CLMUL_COUNT = 1;
   localparam CSR_ALU_COUNT = 1;
   localparam LSU_COUNT = MEM_ISSUE_WIDTH;
 

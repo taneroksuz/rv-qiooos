@@ -29,8 +29,6 @@ module cpu (
   div_out_type                 div_out;
   bit_alu_in_type              bit_alu_in      [0:BITALU_COUNT-1];
   bit_alu_out_type             bit_alu_out     [0:BITALU_COUNT-1];
-  bit_clmul_in_type            bit_clmul_in;
-  bit_clmul_out_type           bit_clmul_out;
   csr_alu_in_type              csr_alu_in;
   csr_alu_out_type             csr_alu_out;
   lsu_in_type                  lsu_in          [   0:LSU_COUNT-1];
@@ -198,7 +196,6 @@ module cpu (
     end
   endgenerate
   assign rs_int_in.div_busy   = eu_out.div_busy;
-  assign rs_int_in.clmul_busy = eu_out.clmul_busy;
   assign rs_int_in.csr_commit = commit_out.csr_win.cwren;
   assign rs_int_in.rob_head   = rob_out.head_ptr;
   assign rs_mem_in.rob_head   = rob_out.head_ptr;
@@ -243,12 +240,10 @@ module cpu (
       assign eu_in.agu_out[i] = agu_out[i];
     end
   endgenerate
-  assign eu_in.div_out       = div_out;
-  assign eu_in.bit_clmul_out = bit_clmul_out;
-  assign div_in              = eu_out.div_in;
-  assign bit_clmul_in        = eu_out.bit_clmul_in;
-  assign cdb_exec[0]         = eu_out.cdb[0];
-  assign cdb_exec[1]         = eu_out.cdb[1];
+  assign eu_in.div_out = div_out;
+  assign div_in        = eu_out.div_in;
+  assign cdb_exec[0]   = eu_out.cdb[0];
+  assign cdb_exec[1]   = eu_out.cdb[1];
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_cdb_commit_derive
       assign cdb_commit[i].valid = commit_out.prf_i.wren[i];
@@ -347,13 +342,6 @@ module cpu (
       );
     end
   endgenerate
-  bit_clmul bit_clmul_comp (
-    .reset        (reset),
-    .clock        (clock),
-    .flush        (commit_flush),
-    .bit_clmul_in (bit_clmul_in),
-    .bit_clmul_out(bit_clmul_out)
-  );
   btac btac_comp (
     .reset   (reset),
     .clock   (clock),

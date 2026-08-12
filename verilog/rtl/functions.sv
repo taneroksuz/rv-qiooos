@@ -246,7 +246,7 @@ package functions;
   endfunction
   function automatic logic [31:0] eu_result;
     input rs_entry_type e;
-    input logic [31:0] alu_r, agu_r, mul_r, div_r, bit_r, csr_r, bc_r;
+    input logic [31:0] alu_r, agu_r, mul_r, div_r, bit_r, csr_r;
     begin
       if (e.op.alunit) eu_result = alu_r;
       else if (e.op.lui) eu_result = e.imm;
@@ -256,7 +256,6 @@ package functions;
       else if (e.op.mult) eu_result = mul_r;
       else if (e.op.division) eu_result = div_r;
       else if (e.op.bitm) eu_result = bit_r;
-      else if (e.op.bitc) eu_result = bc_r;
       else if (e.op.csreg) eu_result = csr_r;
       else eu_result = alu_r;
     end
@@ -265,11 +264,9 @@ package functions;
     input rs_entry_type e;
     input logic valid;
     input div_out_type dv;
-    input bit_clmul_out_type bc;
     begin
       if (!valid) eu_done = 0;
       else if (e.op.division) eu_done = dv.ready;
-      else if (e.op.bitc) eu_done = bc.ready;
       else eu_done = 1;
     end
   endfunction

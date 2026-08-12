@@ -63,7 +63,6 @@ module decode (
       v.instr[i].op.division = decode_in.base_out[i].division;
       v.instr[i].op.mult     = decode_in.base_out[i].mult;
       v.instr[i].op.bitm     = decode_in.base_out[i].bitm;
-      v.instr[i].op.bitc     = decode_in.base_out[i].bitc;
       v.instr[i].op.fence    = decode_in.base_out[i].fence;
       v.instr[i].op.ecall    = decode_in.base_out[i].ecall;
       v.instr[i].op.ebreak   = decode_in.base_out[i].ebreak;

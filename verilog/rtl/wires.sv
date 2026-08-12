@@ -58,14 +58,6 @@ package wires;
   };
 
   typedef struct packed {
-    logic [0:0] bit_clmul_;
-    logic [0:0] bit_clmulh;
-    logic [0:0] bit_clmulr;
-  } zbc_op_type;
-
-  localparam zbc_op_type init_zbc_op = '{bit_clmul_: 0, bit_clmulh: 0, bit_clmulr: 0};
-
-  typedef struct packed {
     logic [0:0] bit_bclr;
     logic [0:0] bit_bext;
     logic [0:0] bit_binv;
@@ -77,20 +69,16 @@ package wires;
   typedef struct packed {
     logic [0:0] bit_imm;
     logic [0:0] bit_alu_;
-    logic [0:0] bit_clmul_;
     zba_op_type bit_zba;
     zbb_op_type bit_zbb;
-    zbc_op_type bit_zbc;
     zbs_op_type bit_zbs;
   } bit_op_type;
 
   localparam bit_op_type init_bit_op = '{
       bit_imm: 0,
       bit_alu_: 0,
-      bit_clmul_: 0,
       bit_zba: init_zba_op,
       bit_zbb: init_zbb_op,
-      bit_zbc: init_zbc_op,
       bit_zbs: init_zbs_op
   };
 
@@ -103,42 +91,6 @@ package wires;
   } bit_alu_in_type;
 
   typedef struct packed {logic [31:0] result;} bit_alu_out_type;
-
-  typedef struct packed {
-    logic [31:0] rdata1;
-    logic [31:0] rdata2;
-    logic [0:0]  enable;
-    zbc_op_type  op;
-  } bit_clmul_in_type;
-
-  typedef struct packed {
-    logic [31:0] result;
-    logic [0:0]  ready;
-  } bit_clmul_out_type;
-
-  typedef struct packed {
-    logic [1:0]  state;
-    logic [4:0]  counter;
-    logic [5:0]  index;
-    logic [31:0] rdata1;
-    logic [31:0] rdata2;
-    logic [31:0] swap;
-    logic [31:0] result;
-    logic [0:0]  ready;
-    zbc_op_type  op;
-  } bit_clmul_reg_type;
-
-  localparam bit_clmul_reg_type init_bit_clmul_reg = '{
-      state: 0,
-      counter: 0,
-      index: 0,
-      rdata1: 0,
-      rdata2: 0,
-      swap: 0,
-      result: 0,
-      ready: 0,
-      op: init_zbc_op
-  };
 
   typedef struct packed {
     logic [0:0] alu_add;
@@ -428,7 +380,6 @@ package wires;
     logic [0:0] division;
     logic [0:0] mult;
     logic [0:0] bitm;
-    logic [0:0] bitc;
     logic [0:0] fence;
     logic [0:0] ecall;
     logic [0:0] ebreak;
@@ -458,7 +409,6 @@ package wires;
       division: 0,
       mult: 0,
       bitm: 0,
-      bitc: 0,
       fence: 0,
       ecall: 0,
       ebreak: 0,
@@ -1002,7 +952,6 @@ package wires;
     cdb_type [MEM_ISSUE_WIDTH-1:0]  cdb_load;
     cdb_type [ISSUE_WIDTH-1:0]      cdb_commit;
     logic [0:0]                     div_busy;
-    logic [0:0]                     clmul_busy;
     logic [0:0]                     csr_commit;
     logic [ROB_ADDR_BITS-1:0]       rob_head;
   } rs_int_in_type;
@@ -1058,7 +1007,6 @@ package wires;
     mul_out_type [MUL_COUNT-1:0]        mul_out;
     div_out_type                        div_out;
     bit_alu_out_type [BITALU_COUNT-1:0] bit_alu_out;
-    bit_clmul_out_type                  bit_clmul_out;
     csr_alu_out_type                    csr_alu_out;
   } eu_in_type;
 
@@ -1069,7 +1017,6 @@ package wires;
     mul_in_type [MUL_COUNT-1:0]                    mul_in;
     div_in_type                                    div_in;
     bit_alu_in_type [BITALU_COUNT-1:0]             bit_alu_in;
-    bit_clmul_in_type                              bit_clmul_in;
     csr_alu_in_type                                csr_alu_in;
     cdb_type [ISSUE_WIDTH-1:0]                     cdb;
     logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0]     rob_wtag;
@@ -1079,7 +1026,6 @@ package wires;
     rob_entry_type [MEM_ISSUE_WIDTH-1:0]           rob_wentry_store;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               rob_wen_store;
     logic [0:0]                                    div_busy;
-    logic [0:0]                                    clmul_busy;
   } eu_out_type;
 
   typedef struct packed {
@@ -1176,7 +1122,6 @@ package wires;
     logic [0:0]  division;
     logic [0:0]  mult;
     logic [0:0]  bitm;
-    logic [0:0]  bitc;
     logic [0:0]  fence;
     logic [0:0]  ecall;
     logic [0:0]  ebreak;

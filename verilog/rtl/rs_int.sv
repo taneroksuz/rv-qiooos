@@ -45,7 +45,7 @@ module rs_int (
 
   rs_entry_type issue_arr[0:ISSUE_WIDTH-1];
 
-  int mul_budget, div_budget, clmul_budget, agu_budget, bcu_budget;
+  int mul_budget, div_budget, agu_budget, bcu_budget;
   int bitalu_budget, csralu_budget;
   int   sel_count;
   logic csr_taken;
@@ -73,16 +73,14 @@ module rs_int (
       woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[1]);
       woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[2]);
       woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[3]);
-      ready_vec[i] = woken[i].valid & woken[i].src1_ready &
-          woken[i].src2_ready & ~rs_in.div_busy & ~rs_in.clmul_busy & ~(
-          woken[i].op.csreg & (r.csr_inflight > 0)) & ~(woken[i].op.csreg & r.csr_drain) & ~(
+      ready_vec[i] = woken[i].valid & woken[i].src1_ready & woken[i].src2_ready & ~rs_in.div_busy
+          & ~(woken[i].op.csreg & (r.csr_inflight > 0)) & ~(woken[i].op.csreg & r.csr_drain) & ~(
           woken[i].op.csreg & (woken[i].rob_tag != rs_in.rob_head));
     end
 
     begin
       mul_budget    = MUL_COUNT;
       div_budget    = DIV_COUNT;
-      clmul_budget  = CLMUL_COUNT;
       agu_budget    = AGU_BRANCH_COUNT;
       bcu_budget    = BCU_COUNT;
       bitalu_budget = BITALU_COUNT;
@@ -96,7 +94,6 @@ module rs_int (
 
         if (woken[i].op.mult) can_take = (mul_budget > 0);
         else if (woken[i].op.division) can_take = (div_budget > 0);
-        else if (woken[i].op.bitc) can_take = (clmul_budget > 0);
         else if (woken[i].op.bitm) can_take = (bitalu_budget > 0);
         else if (woken[i].op.csreg) can_take = (csralu_budget > 0);
         else if (needs_bcu) can_take = (agu_budget > 0) && (bcu_budget > 0);
@@ -111,7 +108,6 @@ module rs_int (
 
             if (woken[i].op.mult) mul_budget = mul_budget - 1;
             else if (woken[i].op.division) div_budget = div_budget - 1;
-            else if (woken[i].op.bitc) clmul_budget = clmul_budget - 1;
             else if (woken[i].op.bitm) bitalu_budget = bitalu_budget - 1;
             else if (woken[i].op.csreg) begin
               csralu_budget = csralu_budget - 1;

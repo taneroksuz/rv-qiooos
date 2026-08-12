@@ -22,8 +22,6 @@ module eu (
     logic [MEM_ISSUE_WIDTH-1:0]                    rob_wen_store;
     rs_entry_type                                  div_pending;
     logic [0:0]                                    div_pending_valid;
-    rs_entry_type                                  clmul_pending;
-    logic [0:0]                                    clmul_pending_valid;
   } eu_reg_type;
 
   localparam eu_reg_type init_eu_reg = '{
@@ -35,9 +33,7 @@ module eu (
       rob_wentry_store  : '{default: init_rob_entry},
       rob_wen_store     : '{default: 1'b0},
       div_pending        : init_rs_entry,
-      div_pending_valid  : 0,
-      clmul_pending      : init_rs_entry,
-      clmul_pending_valid: 0
+      div_pending_valid  : 0
   };
 
   eu_reg_type r, rin;
@@ -75,8 +71,7 @@ module eu (
   logic        csr_found;
   logic [31:0] mstore_data[0:MEM_ISSUE_WIDTH-1];
 
-  logic div_issue  [0:ISSUE_WIDTH-1];
-  logic clmul_issue[0:ISSUE_WIDTH-1];
+  logic div_issue[0:ISSUE_WIDTH-1];
 
   always_comb begin
 
@@ -108,18 +103,8 @@ module eu (
       end
     end
 
-    clmul_issue[0] = eu_in.int_issue_valid[0] & eu_in.int_issue[0].op.bitc & ~r.clmul_pending_valid;
-    for (int l = 1; l < ISSUE_WIDTH; l++) begin
-      clmul_issue[l] = eu_in.int_issue_valid[l] &
-          eu_in.int_issue[l].op.bitc & ~r.clmul_pending_valid;
-      for (int j = 0; j < l; j++) begin
-        clmul_issue[l] = clmul_issue[l] & ~clmul_issue[j];
-      end
-    end
-
     if (flush) begin
-      v.div_pending_valid   = 1'b0;
-      v.clmul_pending_valid = 1'b0;
+      v.div_pending_valid = 1'b0;
     end else begin
       if (eu_in.div_out.ready) begin
         v.div_pending_valid = 1'b0;
@@ -128,17 +113,6 @@ module eu (
           if (div_issue[l]) begin
             v.div_pending       = eu_in.int_issue[l];
             v.div_pending_valid = 1'b1;
-          end
-        end
-      end
-
-      if (eu_in.bit_clmul_out.ready) begin
-        v.clmul_pending_valid = 1'b0;
-      end else begin
-        for (int l = 0; l < ISSUE_WIDTH; l++) begin
-          if (clmul_issue[l]) begin
-            v.clmul_pending       = eu_in.int_issue[l];
-            v.clmul_pending_valid = 1'b1;
           end
         end
       end
@@ -363,17 +337,6 @@ module eu (
         div_issue[2] ? eu_in.int_issue[2].div_op : eu_in.int_issue[3].div_op;
     eu_out.div_in.enable = div_issue[0] | div_issue[1] | div_issue[2] | div_issue[3];
 
-    eu_out.bit_clmul_in.rdata1 = clmul_issue[0] ? eu_in.int_issue[0].rdata1 :
-        clmul_issue[1] ? eu_in.int_issue[1].rdata1 :
-        clmul_issue[2] ? eu_in.int_issue[2].rdata1 : eu_in.int_issue[3].rdata1;
-    eu_out.bit_clmul_in.rdata2 = clmul_issue[0] ? eu_in.int_issue[0].rdata2 :
-        clmul_issue[1] ? eu_in.int_issue[1].rdata2 :
-        clmul_issue[2] ? eu_in.int_issue[2].rdata2 : eu_in.int_issue[3].rdata2;
-    eu_out.bit_clmul_in.enable = clmul_issue[0] | clmul_issue[1] | clmul_issue[2] | clmul_issue[3];
-    eu_out.bit_clmul_in.op = clmul_issue[0] ? eu_in.int_issue[0].bit_op.bit_zbc :
-        clmul_issue[1] ? eu_in.int_issue[1].bit_op.bit_zbc :
-        clmul_issue[2] ? eu_in.int_issue[2].bit_op.bit_zbc : eu_in.int_issue[3].bit_op.bit_zbc;
-
     for (int l = 0; l < ISSUE_WIDTH; l++) begin
       eu_result_lane[l] = eu_result(
         int_issue[l],
@@ -382,11 +345,9 @@ module eu (
         mul_result_lane[l],
         eu_in.div_out.result,
         bit_result_lane[l],
-        eu_in.csr.cdata,
-        eu_in.bit_clmul_out.result
+        eu_in.csr.cdata
       );
-      eu_done_lane[l] =
-          eu_done(int_issue[l], int_issue_valid[l], eu_in.div_out, eu_in.bit_clmul_out);
+      eu_done_lane[l] = eu_done(int_issue[l], int_issue_valid[l], eu_in.div_out);
     end
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
@@ -439,25 +400,7 @@ module eu (
         v.rob_wentry[0].cwdata = csr_result_lane[0];
       end
 
-      if (r.clmul_pending_valid && eu_in.bit_clmul_out.ready) begin
-        if (r.clmul_pending.op.wren) begin
-          v.cdb[1].valid = 1'b1;
-          v.cdb[1].tag   = r.clmul_pending.pdest;
-          v.cdb[1].data  = eu_in.bit_clmul_out.result;
-        end
-        v.rob_wtag[1]             = r.clmul_pending.rob_tag;
-        v.rob_wen[1]              = 1'b1;
-        v.rob_wentry[1].done      = 1'b1;
-        v.rob_wentry[1].result    = eu_in.bit_clmul_out.result;
-        v.rob_wentry[1].npc       = '0;
-        v.rob_wentry[1].branch    = 1'b0;
-        v.rob_wentry[1].jump      = 1'b0;
-        v.rob_wentry[1].exception = 1'b0;
-        v.rob_wentry[1].ecause    = '0;
-        v.rob_wentry[1].etval     = '0;
-        v.rob_wentry[1].cwdata    = '0;
-
-      end else if (int_issue_valid[1] && eu_done_lane[1]) begin
+      if (int_issue_valid[1] && eu_done_lane[1]) begin
         if (int_issue[1].op.wren) begin
           v.cdb[1].valid = 1'b1;
           v.cdb[1].tag   = int_issue[1].pdest;
@@ -530,8 +473,7 @@ module eu (
       eu_out.rob_wentry_store[p] = r.rob_wentry_store[p];
       eu_out.rob_wen_store[p]    = r.rob_wen_store[p];
     end
-    eu_out.div_busy   = r.div_pending_valid;
-    eu_out.clmul_busy = r.clmul_pending_valid;
+    eu_out.div_busy = r.div_pending_valid;
 
   end
 
