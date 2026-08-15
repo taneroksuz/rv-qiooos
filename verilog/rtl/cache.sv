@@ -261,9 +261,9 @@ module cache_ctrl (
         end
 
         if (mem_out[1].mem_ready == 1 && v_b.mem_done[1] == 0) begin
-          v_b.rdata[(r_b.wid+1)*32+:32] = mem_out[1].mem_rdata;
-          v_b.error[r_b.wid+1]          = mem_out[1].mem_error;
-          v_b.mem_done[1]               = 1;
+          v_b.rdata[r_b.wid*32+32+:32] = mem_out[1].mem_rdata;
+          v_b.error[r_b.wid+1]         = mem_out[1].mem_error;
+          v_b.mem_done[1]              = 1;
         end
 
         if (v_b.mem_done == 2'b11) begin

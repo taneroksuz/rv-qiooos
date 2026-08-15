@@ -2,6 +2,7 @@ package functions;
   timeunit 1ns; timeprecision 1ps;
   import configure::*;
   import wires::*;
+  localparam RS_CDB_COUNT = 2 * ISSUE_WIDTH + MEM_ISSUE_WIDTH;
   function automatic [31:0] multiplexer;
     input [31:0] data0;
     input [31:0] data1;
@@ -216,19 +217,63 @@ package functions;
       rs_wakeup = t;
     end
   endfunction
+  function automatic rs_entry_type rs_wakeup_all;
+    input rs_entry_type e;
+    input cdb_type [RS_CDB_COUNT-1:0] cd;
+    rs_entry_type t;
+    logic [RS_CDB_COUNT-1:0] h1, h2, s1, s2;
+    logic [31:0] d1, d2;
+    begin
+      t = e;
+      for (int k = 0; k < RS_CDB_COUNT; k++) begin
+        h1[k] = cd[k].valid & e.valid & ~e.src1_ready & (e.psrc1 == cd[k].tag);
+        h2[k] = cd[k].valid & e.valid & ~e.src2_ready & (e.psrc2 == cd[k].tag);
+      end
+      s1 = h1 & (~h1 + RS_CDB_COUNT'(1));
+      s2 = h2 & (~h2 + RS_CDB_COUNT'(1));
+      d1 = '0;
+      d2 = '0;
+      for (int k = 0; k < RS_CDB_COUNT; k++) begin
+        d1 = d1 | ({32{s1[k]}} & cd[k].data);
+        d2 = d2 | ({32{s2[k]}} & cd[k].data);
+      end
+      if (|h1) begin
+        t.src1_ready = 1'b1;
+        t.rdata1     = d1;
+      end
+      if (|h2) begin
+        t.src2_ready = 1'b1;
+        t.rdata2     = d2;
+      end
+      rs_wakeup_all = t;
+    end
+  endfunction
   function automatic logic [31:0] prf_or_cdb;
     input logic [PRF_ADDR_BITS-1:0] tag;
     input logic prf_valid;
     input logic [31:0] prf_data;
     input cdb_type [ISSUE_WIDTH-1:0] c;
     input cdb_type cl;
+    logic [ISSUE_WIDTH:0] hit, higher, sel;
+    logic [31:0] acc;
     begin
-      prf_or_cdb = 32'h0;
-      if (prf_valid) prf_or_cdb = prf_data;
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (c[k].valid && c[k].tag == tag) prf_or_cdb = c[k].data;
+        hit[k] = c[k].valid && (c[k].tag == tag);
       end
-      if (cl.valid && cl.tag == tag) prf_or_cdb = cl.data;
+      hit[ISSUE_WIDTH]    = cl.valid && (cl.tag == tag);
+      higher[ISSUE_WIDTH] = 1'b0;
+      for (int k = ISSUE_WIDTH - 1; k >= 0; k--) begin
+        higher[k] = higher[k+1] | hit[k+1];
+      end
+      for (int k = 0; k <= ISSUE_WIDTH; k++) begin
+        sel[k] = hit[k] & ~higher[k];
+      end
+      acc = (prf_valid && !(|hit)) ? prf_data : 32'h0;
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
+        acc = acc | ({32{sel[k]}} & c[k].data);
+      end
+      acc        = acc | ({32{sel[ISSUE_WIDTH]}} & cl.data);
+      prf_or_cdb = acc;
     end
   endfunction
   function automatic logic src_ready;
@@ -246,13 +291,14 @@ package functions;
   endfunction
   function automatic logic [31:0] eu_result;
     input rs_entry_type e;
+    input logic [31:0] npc_v;
     input logic [31:0] alu_r, agu_r, mul_r, div_r, bit_r, csr_r;
     begin
       if (e.op.alunit) eu_result = alu_r;
       else if (e.op.lui) eu_result = e.imm;
       else if (e.op.auipc) eu_result = agu_r;
-      else if (e.op.jal) eu_result = e.npc;
-      else if (e.op.jalr) eu_result = e.npc;
+      else if (e.op.jal) eu_result = npc_v;
+      else if (e.op.jalr) eu_result = npc_v;
       else if (e.op.mult) eu_result = mul_r;
       else if (e.op.division) eu_result = div_r;
       else if (e.op.bitm) eu_result = bit_r;

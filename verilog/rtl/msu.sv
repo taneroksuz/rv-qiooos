@@ -25,7 +25,7 @@ module msu (
     logic [MEM_ISSUE_WIDTH-1:0][31:0]              load_addr;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               store_pending;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               store_sent;
-    rob_entry_type [MEM_ISSUE_WIDTH-1:0]           store_entry;
+    store_slot_type [MEM_ISSUE_WIDTH-1:0]          store_entry;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               load_sent;
   } msu_reg_type;
 
@@ -43,7 +43,7 @@ module msu (
       load_addr      : '{default: '0},
       store_pending  : '{default: 1'b0},
       store_sent     : '{default: 1'b0},
-      store_entry    : '{default: init_rob_entry}
+      store_entry    : '{default: init_store_slot}
   };
 
   msu_reg_type r, rin, v;
@@ -106,7 +106,7 @@ module msu (
         v.load_pdest[p]        = msu_in.issue[p].pdest;
         v.load_addr[p]         = msu_in.agu_out[p].address;
         v.lsu_in[p].byteenable = msu_in.agu_out[p].byteenable;
-        v.lsu_in[p].lsu_op     = msu_in.issue[p].lsu_op;
+        v.lsu_in[p].lsu_op     = rs_lsu_op(msu_in.issue[p].unit_op);
       end
     end
 
@@ -145,8 +145,8 @@ module msu (
         v.dmem_in[p].mem_valid = 1'b1;
         v.dmem_in[p].mem_instr = 1'b0;
         v.dmem_in[p].mem_mode  = 2'h0;
-        v.dmem_in[p].mem_addr  = v.store_entry[p].store_addr;
-        v.dmem_in[p].mem_wdata = v.store_entry[p].store_data;
+        v.dmem_in[p].mem_addr  = v.store_entry[p].target;
+        v.dmem_in[p].mem_wdata = v.store_entry[p].wdata;
         v.dmem_in[p].mem_wstrb = v.store_entry[p].store_strb;
         v.store_sent[p]        = 1'b1;
       end else if (v.load_pending[p] && !v.load_sent[p]) begin
@@ -172,7 +172,7 @@ module msu (
         v.rob_wentry[p].done      = 1'b1;
         v.rob_wentry[p].exception = 1'b1;
         v.rob_wentry[p].ecause    = msu_in.agu_out[p].ecause;
-        v.rob_wentry[p].etval     = msu_in.agu_out[p].etval;
+        v.rob_wentry[p].result    = msu_in.agu_out[p].etval;
       end else if (load_ready[p]) begin
         v.cdb[p].valid         = 1'b1;
         v.cdb[p].tag           = r.load_pdest[p];

@@ -140,7 +140,7 @@ module fetch (
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
       fetch_out.btac_in.upd_pc[p]     = fetch_in.entry[p].pc;
       fetch_out.btac_in.upd_npc[p]    = fetch_in.entry[p].pnpc;
-      fetch_out.btac_in.upd_addr[p]   = fetch_in.entry[p].npc;
+      fetch_out.btac_in.upd_addr[p]   = fetch_in.entry[p].target;
       fetch_out.btac_in.upd_jump[p]   = fetch_in.entry[p].jump;
       fetch_out.btac_in.upd_branch[p] = fetch_in.entry[p].branch;
       fetch_out.btac_in.upd_pred[p]   = fetch_in.entry[p].pred;

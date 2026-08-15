@@ -129,7 +129,10 @@ module decode (
     end
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
-      decode_out.instr[i]            = squash[i] ? init_instruction : r.instr[i];
+      decode_out.instr[i] = r.instr[i];
+      if (squash[i]) begin
+        decode_out.instr[i].op = init_operation;
+      end
       decode_out.instr[i].pred.taken = decode_in.btac_out.pred[i].taken;
       decode_out.instr[i].pred.taddr = decode_in.btac_out.pred[i].taddr;
       decode_out.instr[i].pred.tsat  = decode_in.btac_out.pred[i].tsat;

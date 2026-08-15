@@ -80,6 +80,9 @@ module rat (
       31: {1'b1, PRF_ADDR_BITS'(31)}
   };
 
+  logic [PRF_ADDR_BITS:0] spec_next[0:ARCH_REGS-1];
+  logic [PRF_ADDR_BITS:0] comm_next[0:ARCH_REGS-1];
+
   logic [PRF_ADDR_BITS:0] eff[0:2*ISSUE_WIDTH-1];
   logic [PRF_ADDR_BITS:0] old[  0:ISSUE_WIDTH-1];
 
@@ -100,14 +103,12 @@ module rat (
     end
 
     for (int r = 0; r < 2 * ISSUE_WIDTH; r++) begin
-      eff[r] = flush ? comm[rsrc_a[r]] : spec[rsrc_a[r]];
-      if (!flush) begin
-        for (int c = 0; c < ISSUE_WIDTH; c++) begin
-          if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) &&
-              (rsrc_a[r] == rat_in.commit_addr[c]) &&
-              (eff[r][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
-            eff[r] = {1'b1, rat_in.commit_tag[c]};
-          end
+      eff[r] = spec[rsrc_a[r]];
+      for (int c = 0; c < ISSUE_WIDTH; c++) begin
+        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) &&
+            (rsrc_a[r] == rat_in.commit_addr[c]) &&
+            (eff[r][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
+          eff[r] = {1'b1, rat_in.commit_tag[c]};
         end
       end
     end
@@ -121,7 +122,7 @@ module rat (
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      old[k] = flush ? comm[waddr_a[k]] : spec[waddr_a[k]];
+      old[k] = spec[waddr_a[k]];
       for (int w = 0; w < k; w++) begin
         if (wren[w] && (waddr_a[w] == waddr_a[k]) && (waddr_a[w] != 5'h0)) begin
           old[k] = {1'b0, waddr_p[w]};
@@ -140,29 +141,32 @@ module rat (
     end
   end
 
-  always_ff @(posedge clock) begin
-    if (reset != 0) begin
-      if (flush) begin
-        for (int j = 0; j < ARCH_REGS; j++) begin
-          spec[j] <= comm[j];
-        end
-      end
-
+  always_comb begin
+    for (int j = 0; j < ARCH_REGS; j++) begin
+      spec_next[j] = flush ? comm[j] : spec[j];
+      comm_next[j] = comm[j];
       for (int c = 0; c < ISSUE_WIDTH; c++) begin
-        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0)) begin
-          comm[rat_in.commit_addr[c]] <= {1'b1, rat_in.commit_tag[c]};
-          if (flush) begin
-            spec[rat_in.commit_addr[c]] <= {1'b1, rat_in.commit_tag[c]};
-          end else if (spec[rat_in.commit_addr[c]][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c]) begin
-            spec[rat_in.commit_addr[c]] <= {1'b1, rat_in.commit_tag[c]};
+        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) &&
+            (rat_in.commit_addr[c] == 5'(j))) begin
+          comm_next[j] = {1'b1, rat_in.commit_tag[c]};
+          if (flush || (spec[j][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
+            spec_next[j] = {1'b1, rat_in.commit_tag[c]};
           end
         end
       end
-
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (wren[k] && (waddr_a[k] != 5'h0)) begin
-          spec[waddr_a[k]] <= {1'b0, waddr_p[k]};
+        if (wren[k] && (waddr_a[k] != 5'h0) && (waddr_a[k] == 5'(j))) begin
+          spec_next[j] = {1'b0, waddr_p[k]};
         end
+      end
+    end
+  end
+
+  always_ff @(posedge clock) begin
+    if (reset != 0) begin
+      for (int j = 0; j < ARCH_REGS; j++) begin
+        spec[j] <= spec_next[j];
+        comm[j] <= comm_next[j];
       end
     end
   end

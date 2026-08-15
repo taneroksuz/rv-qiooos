@@ -63,6 +63,10 @@ module testbench ();
     end
   end
 
+  final begin
+    $display("CYCLES %0d", counter);
+  end
+
   wire        commit_valid [0:ISSUE_WIDTH-1];
   wire [31:0] commit_pc    [0:ISSUE_WIDTH-1];
   wire [ 4:0] commit_waddr [0:ISSUE_WIDTH-1];
@@ -83,12 +87,12 @@ module testbench ();
     assign commit_wdata[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].result;
     assign commit_wren[k]   = testbench.soc_comp.cpu_comp.commit_in.entry[k].wren;
     assign commit_store[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].store;
-    assign commit_saddr[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].store_addr;
-    assign commit_sdata[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].store_data;
+    assign commit_saddr[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].target;
+    assign commit_sdata[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].wdata;
     assign commit_sstrb[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].store_strb;
     assign commit_cwren[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].cwren;
     assign commit_caddr[k]  = testbench.soc_comp.cpu_comp.commit_in.entry[k].caddr;
-    assign commit_cwdata[k] = testbench.soc_comp.cpu_comp.commit_in.entry[k].cwdata;
+    assign commit_cwdata[k] = testbench.soc_comp.cpu_comp.commit_in.entry[k].wdata;
   end
 
   initial begin

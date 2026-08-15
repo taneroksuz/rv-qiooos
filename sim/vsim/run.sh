@@ -37,7 +37,6 @@ $VLOG -quiet -sv -svinputport=relaxed +acc=npr \
             $BASEDIR/verilog/rtl/div.sv \
             $BASEDIR/verilog/rtl/compress.sv \
             $BASEDIR/verilog/rtl/base.sv \
-            $BASEDIR/verilog/rtl/register.sv \
             $BASEDIR/verilog/rtl/csr.sv \
             $BASEDIR/verilog/rtl/buffer.sv \
             $BASEDIR/verilog/rtl/fetch.sv \

@@ -3,12 +3,12 @@ import constants::*;
 import wires::*;
 import functions::*;
 module rob (
-  input  logic          reset,
-  input  logic          clock,
-  input  logic          flush,
-  input  rob_in_type    rob_in,
-  output rob_out_type   rob_out,
-  output rob_entry_type rob_entries[0:ROB_DEPTH-1]
+  input  logic                        reset,
+  input  logic                        clock,
+  input  logic                        flush,
+  input  rob_in_type                  rob_in,
+  output rob_out_type                 rob_out,
+  output logic        [ROB_DEPTH-1:0] rob_store_pending
 );
   timeunit 1ns; timeprecision 1ps;
 
@@ -20,6 +20,11 @@ module rob (
   } rob_reg_type;
 
   localparam rob_reg_type init_rob_reg = '{head: '0, tail_ptr: '0, count: '0, valid_bits: '0};
+
+  localparam ROB_BANKS = ISSUE_WIDTH;
+  localparam ROB_ROWS = ROB_DEPTH / ROB_BANKS;
+  localparam ROB_BANK_BITS = $clog2(ROB_BANKS);
+  localparam ROB_ROW_BITS = $clog2(ROB_ROWS);
 
   rob_entry_type array[0:ROB_DEPTH-1];
   rob_reg_type r, rin, v;
@@ -37,6 +42,15 @@ module rob (
   logic wen[0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
   logic wv[0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
   logic h_hit[0:ISSUE_WIDTH-1][0:ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1];
+
+  logic [ROB_BANK_BITS-1:0] head_bank, tail_bank;
+  logic [ROB_ROW_BITS-1:0] head_row, tail_row;
+  rob_entry_type                     bank_rdata[0:ROB_BANKS-1];
+  logic          [ ROB_ROW_BITS-1:0] bank_rrow [0:ROB_BANKS-1];
+  rob_entry_type                     bank_wdata[0:ROB_BANKS-1];
+  logic          [ ROB_ROW_BITS-1:0] bank_wrow [0:ROB_BANKS-1];
+  logic                              bank_wen  [0:ROB_BANKS-1];
+  logic          [ROB_BANK_BITS-1:0] bank_lane [0:ROB_BANKS-1];
 
   always_comb begin
     v = r;
@@ -57,8 +71,14 @@ module rob (
       alloc_entry_w[i].valid = 1'b1;
     end
 
+    head_bank = r.head[ROB_BANK_BITS-1:0];
+    head_row  = r.head[ROB_ADDR_BITS-1:ROB_BANK_BITS];
+    for (int b = 0; b < ROB_BANKS; b++) begin
+      bank_rrow[b]  = head_row + ROB_ROW_BITS'((b < int'(head_bank)) ? 1 : 0);
+      bank_rdata[b] = array[int'(bank_rrow[b])*ROB_BANKS+b];
+    end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      h[k]       = r.valid_bits[head_idx[k]] ? array[head_idx[k]] : init_rob_entry;
+      h[k]       = bank_rdata[(int'(head_bank)+k)&(ROB_BANKS-1)];
       h[k].valid = r.valid_bits[head_idx[k]];
     end
 
@@ -82,14 +102,11 @@ module rob (
           h[k].result     = wentry[p].result;
           h[k].exception  = wentry[p].exception;
           h[k].ecause     = wentry[p].ecause;
-          h[k].etval      = wentry[p].etval;
-          h[k].npc        = wentry[p].npc;
+          h[k].target     = wentry[p].target;
           h[k].branch     = wentry[p].branch;
           h[k].jump       = wentry[p].jump;
-          h[k].store_addr = wentry[p].store_addr;
-          h[k].store_data = wentry[p].store_data;
+          h[k].wdata      = wentry[p].wdata;
           h[k].store_strb = wentry[p].store_strb;
-          h[k].cwdata     = wentry[p].cwdata;
         end
       end
 
@@ -99,32 +116,29 @@ module rob (
           h[k].result    = wentry[p].result;
           h[k].exception = wentry[p].exception;
           h[k].ecause    = wentry[p].ecause;
-          h[k].etval     = wentry[p].etval;
         end
       end
 
       for (int p = ISSUE_WIDTH + MEM_ISSUE_WIDTH; p < ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH; p++) begin
         if (h_hit[k][p]) begin
           h[k].done       = 1'b1;
-          h[k].store_addr = wentry[p].store_addr;
-          h[k].store_data = wentry[p].store_data;
+          h[k].target     = wentry[p].target;
+          h[k].wdata      = wentry[p].wdata;
           h[k].store_strb = wentry[p].store_strb;
           h[k].exception  = wentry[p].exception;
           h[k].ecause     = wentry[p].ecause;
-          h[k].etval      = wentry[p].etval;
+          h[k].result     = wentry[p].result;
         end
       end
     end
 
     for (int i = 0; i < ROB_DEPTH; i++) begin
-      rob_entries[i]       = init_rob_entry;
-      rob_entries[i].valid = flush ? 1'b0 : r.valid_bits[i];
-      rob_entries[i].store = array[i].store;
+      rob_store_pending[i] = (flush ? 1'b0 : r.valid_bits[i]) & array[i].store;
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       h_done[k] = h[k].valid && h[k].done && (r.count >= (ROB_ADDR_BITS + 1)'(k + 1));
-      h_stop[k] = h[k].exception || h[k].mret || (h[k].jump && (h[k].npc != h[k].pnpc)) ||
+      h_stop[k] = h[k].exception || h[k].mret || (h[k].jump && (h[k].target != h[k].pnpc)) ||
           h[k].fence || h[k].wfi || h[k].ecall || h[k].ebreak || h[k].csreg;
     end
 
@@ -176,6 +190,15 @@ module rob (
       end
     end
 
+    tail_bank = r.tail_ptr[ROB_BANK_BITS-1:0];
+    tail_row  = r.tail_ptr[ROB_ADDR_BITS-1:ROB_BANK_BITS];
+    for (int b = 0; b < ROB_BANKS; b++) begin
+      bank_lane[b]  = ROB_BANK_BITS'(b) - tail_bank;
+      bank_wdata[b] = alloc_entry_w[bank_lane[b]];
+      bank_wrow[b]  = tail_row + ROB_ROW_BITS'((b < int'(tail_bank)) ? 1 : 0);
+      bank_wen[b]   = alloc_ok[bank_lane[b]];
+    end
+
     rin = v;
   end
 
@@ -190,9 +213,11 @@ module rob (
   always_ff @(posedge clock) begin
     if (reset != 0) begin
       if (!flush) begin
-        for (int i = 0; i < ISSUE_WIDTH; i++) begin
-          if (alloc_ok[i]) begin
-            array[tail_idx[i]] <= alloc_entry_w[i];
+        for (int b = 0; b < ROB_BANKS; b++) begin
+          for (int row = 0; row < ROB_ROWS; row++) begin
+            if (bank_wen[b] && (int'(bank_wrow[b]) == row)) begin
+              array[row*ROB_BANKS+b] <= bank_wdata[b];
+            end
           end
         end
 
@@ -202,14 +227,11 @@ module rob (
             array[wtag[p]].result     <= wentry[p].result;
             array[wtag[p]].exception  <= wentry[p].exception;
             array[wtag[p]].ecause     <= wentry[p].ecause;
-            array[wtag[p]].etval      <= wentry[p].etval;
-            array[wtag[p]].npc        <= wentry[p].npc;
+            array[wtag[p]].target     <= wentry[p].target;
             array[wtag[p]].branch     <= wentry[p].branch;
             array[wtag[p]].jump       <= wentry[p].jump;
-            array[wtag[p]].store_addr <= wentry[p].store_addr;
-            array[wtag[p]].store_data <= wentry[p].store_data;
+            array[wtag[p]].wdata      <= wentry[p].wdata;
             array[wtag[p]].store_strb <= wentry[p].store_strb;
-            array[wtag[p]].cwdata     <= wentry[p].cwdata;
           end
         end
         for (int p = ISSUE_WIDTH; p < ISSUE_WIDTH + MEM_ISSUE_WIDTH; p++) begin
@@ -218,7 +240,6 @@ module rob (
             array[wtag[p]].result    <= wentry[p].result;
             array[wtag[p]].exception <= wentry[p].exception;
             array[wtag[p]].ecause    <= wentry[p].ecause;
-            array[wtag[p]].etval     <= wentry[p].etval;
           end
         end
         for (
@@ -226,12 +247,12 @@ module rob (
         ) begin
           if (wen[p] && rin.valid_bits[wtag[p]]) begin
             array[wtag[p]].done       <= 1'b1;
-            array[wtag[p]].store_addr <= wentry[p].store_addr;
-            array[wtag[p]].store_data <= wentry[p].store_data;
+            array[wtag[p]].target     <= wentry[p].target;
+            array[wtag[p]].wdata      <= wentry[p].wdata;
             array[wtag[p]].store_strb <= wentry[p].store_strb;
             array[wtag[p]].exception  <= wentry[p].exception;
             array[wtag[p]].ecause     <= wentry[p].ecause;
-            array[wtag[p]].etval      <= wentry[p].etval;
+            array[wtag[p]].result     <= wentry[p].result;
           end
         end
       end

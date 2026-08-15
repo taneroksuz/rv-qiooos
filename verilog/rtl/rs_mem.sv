@@ -3,15 +3,16 @@ import constants::*;
 import wires::*;
 import functions::*;
 module rs_mem (
-  input  logic           reset,
-  input  logic           clock,
-  input  logic           flush,
-  input  rs_mem_in_type  rs_in,
-  input  rob_entry_type  rob_entries[0:ROB_DEPTH-1],
-  output rs_mem_out_type rs_out
+  input  logic                           reset,
+  input  logic                           clock,
+  input  logic                           flush,
+  input  rs_mem_in_type                  rs_in,
+  input  logic           [ROB_DEPTH-1:0] rob_store_pending,
+  output rs_mem_out_type                 rs_out
 );
   timeunit 1ns; timeprecision 1ps;
   localparam MEM_ADDR_BITS = $clog2(RS_MEM_DEPTH);
+  localparam MEM_BANK_ENTRIES = RS_MEM_DEPTH / ISSUE_WIDTH;
 
   typedef struct packed {
     logic [MEM_ADDR_BITS:0]  count;
@@ -24,6 +25,7 @@ module rs_mem (
   rs_mem_reg_type r, rin, v;
   rs_entry_type                       woken             [   0:RS_MEM_DEPTH-1];
   rs_entry_type                       cur_entry;
+  cdb_type      [   RS_CDB_COUNT-1:0] cdb_all;
   logic         [  MEM_ADDR_BITS-1:0] sel_idx           [0:MEM_ISSUE_WIDTH-1];
   logic                               sel_found         [0:MEM_ISSUE_WIDTH-1];
   logic         [  MEM_ADDR_BITS-1:0] free_idx          [    0:ISSUE_WIDTH-1];
@@ -37,7 +39,7 @@ module rs_mem (
   logic                               oldest_found      [0:MEM_ISSUE_WIDTH-1];
   logic                               oldest_ready      [0:MEM_ISSUE_WIDTH-1];
   logic         [MEM_ISSUE_WIDTH-1:0] port_busy;
-  logic                               free_cond;
+  logic         [   RS_MEM_DEPTH-1:0] slot_free;
 
   function automatic logic [ROB_ADDR_BITS-1:0] rob_age(input logic [ROB_ADDR_BITS-1:0] head,
                                                        input logic [ROB_ADDR_BITS-1:0] tag);
@@ -60,19 +62,18 @@ module rs_mem (
     oldest_ready      = '{default: 1'b0};
     port_busy         = rs_in.load_busy;
 
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      cdb_all[k]                             = rs_in.cdb[k];
+      cdb_all[ISSUE_WIDTH+MEM_ISSUE_WIDTH+k] = rs_in.cdb_commit[k];
+    end
+    for (int k = 0; k < MEM_ISSUE_WIDTH; k++) begin
+      cdb_all[ISSUE_WIDTH+k] = rs_in.cdb_load[k];
+    end
+
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-      cur_entry       = r.valid_bits[i] ? array[i] : init_rs_entry;
+      cur_entry       = array[i];
       cur_entry.valid = r.valid_bits[i];
-      woken[i]        = rs_wakeup(cur_entry, rs_in.cdb[0]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb[1]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb[2]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb[3]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb_load[0]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb_load[1]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb_commit[0]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb_commit[1]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb_commit[2]);
-      woken[i]        = rs_wakeup(woken[i], rs_in.cdb_commit[3]);
+      woken[i]        = rs_wakeup_all(cur_entry, cdb_all);
 
       if (woken[i].valid) begin
         cand_age = rob_age(rs_in.rob_head, woken[i].rob_tag);
@@ -95,7 +96,7 @@ module rs_mem (
     end
 
     for (int j = 0; j < ROB_DEPTH; j++) begin
-      store_valid[j] = rob_entries[j].valid && rob_entries[j].store;
+      store_valid[j] = rob_store_pending[j];
       store_age[j]   = rob_age(rs_in.rob_head, ROB_ADDR_BITS'(unsigned'(j)));
     end
 
@@ -134,13 +135,15 @@ module rs_mem (
     end
 
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-      free_cond = (!woken[i].valid || (sel_found[0] && (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i))))
-                   || (sel_found[1] && (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))));
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (free_cond && !free_found[k]) begin
-          free_idx[k]   = MEM_ADDR_BITS'(unsigned'(i));
+      slot_free[i] = (!woken[i].valid ||
+                      (sel_found[0] && (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) ||
+                      (sel_found[1] && (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))));
+    end
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      for (int m = MEM_BANK_ENTRIES - 1; m >= 0; m--) begin
+        if (slot_free[m*ISSUE_WIDTH+k]) begin
+          free_idx[k]   = MEM_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k));
           free_found[k] = 1'b1;
-          break;
         end
       end
     end
@@ -150,7 +153,12 @@ module rs_mem (
       rs_out.issue_valid[p] = sel_found[p];
     end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      rs_out.alloc_ok[k] = (r.count <= (MEM_ADDR_BITS + 1)'(RS_MEM_DEPTH - ISSUE_WIDTH));
+      rs_out.alloc_ok[k] = 1'b0;
+      for (int m = 0; m < MEM_BANK_ENTRIES; m++) begin
+        if (!r.valid_bits[m*ISSUE_WIDTH+k]) begin
+          rs_out.alloc_ok[k] = 1'b1;
+        end
+      end
     end
 
     if (flush) begin
@@ -186,23 +194,21 @@ module rs_mem (
   always_ff @(posedge clock) begin
     if (reset != 0) begin
       if (!flush) begin
-        for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-          if (rs_in.alloc[0] && free_found[0] &&
-              (free_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) begin
-            array[i] <= rs_in.entry[0];
-          end else if (rs_in.alloc[1] && free_found[1] &&
-                       (free_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))) begin
-            array[i] <= rs_in.entry[1];
-          end else if (rs_in.alloc[2] && free_found[2] &&
-                       (free_idx[2] == MEM_ADDR_BITS'(unsigned'(i)))) begin
-            array[i] <= rs_in.entry[2];
-          end else if (rs_in.alloc[3] && free_found[3] &&
-                       (free_idx[3] == MEM_ADDR_BITS'(unsigned'(i)))) begin
-            array[i] <= rs_in.entry[3];
-          end else if (r.valid_bits[i] && rin.valid_bits[i] &&
-                       !(sel_found[0] && (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) &&
-                       !(sel_found[1] && (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i))))) begin
-            array[i] <= woken[i];
+        for (int k = 0; k < ISSUE_WIDTH; k++) begin
+          for (int m = 0; m < MEM_BANK_ENTRIES; m++) begin
+            if (rs_in.alloc[k] && free_found[k] &&
+                (free_idx[k] == MEM_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)))) begin
+              array[m*ISSUE_WIDTH+k] <= rs_in.entry[k];
+            end else if (r.valid_bits[m*ISSUE_WIDTH+k] && rin.valid_bits[m*ISSUE_WIDTH+k] &&
+                         !(sel_found[0] &&
+                           (sel_idx[0] == MEM_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)))) &&
+                         !(sel_found[1] &&
+                           (sel_idx[1] == MEM_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k))))) begin
+              array[m*ISSUE_WIDTH+k].src1_ready <= woken[m*ISSUE_WIDTH+k].src1_ready;
+              array[m*ISSUE_WIDTH+k].src2_ready <= woken[m*ISSUE_WIDTH+k].src2_ready;
+              array[m*ISSUE_WIDTH+k].rdata1     <= woken[m*ISSUE_WIDTH+k].rdata1;
+              array[m*ISSUE_WIDTH+k].rdata2     <= woken[m*ISSUE_WIDTH+k].rdata2;
+            end
           end
         end
       end

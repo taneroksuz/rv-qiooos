@@ -17,7 +17,7 @@ package configure;
   localparam BCU_COUNT = 2;
   localparam MUL_COUNT = 2;
   localparam DIV_COUNT = 1;
-  localparam BITALU_COUNT = 2;
+  localparam BITALU_COUNT = 1;
   localparam CSR_ALU_COUNT = 1;
   localparam LSU_COUNT = MEM_ISSUE_WIDTH;
 
@@ -27,8 +27,8 @@ package configure;
   localparam TIM_WIDTH = 32;
   localparam TIM_DEPTH = 4096;
 
-  localparam CACHE_WIDTH = 32;
-  localparam CACHE_DEPTH = 4096;
+  localparam CACHE_WIDTH = 8;
+  localparam CACHE_DEPTH = 16384;
 
   localparam BUFFER_WIDTH = 2 * CACHE_WIDTH;
   localparam BUFFER_DEPTH = 4;

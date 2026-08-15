@@ -17,7 +17,6 @@ module rename (
     logic [0:0]               can_dispatch;
     logic [PRF_ADDR_BITS-1:0] pdest;
     rs_entry_type             e;
-    rs_entry_type             em;
   } lane_type;
 
   typedef struct packed {
@@ -45,9 +44,9 @@ module rename (
 
   logic [0:0] can_dispatch_final[0:ISSUE_WIDTH-1];
 
-  lane_type lanes    [0:ISSUE_WIDTH-1];
-  int       fl_count;
-  int       fl_idx;
+  lane_type       lanes    [0:ISSUE_WIDTH-1];
+  logic     [2:0] fl_count;
+  logic     [2:0] fl_idx;
 
   always_comb begin
     v            = '0;
@@ -84,13 +83,13 @@ module rename (
         lanes[i].need_fl = instr_valid[i] && instr[i].op.wren && (instr[i].waddr != 5'h0);
 
         if (lanes[i].is_mem) begin
-          lanes[i].rs_ok = rename_in.rs_mem_alloc_ok[0];
+          lanes[i].rs_ok = rename_in.rs_mem_alloc_ok[i];
         end else begin
-          lanes[i].rs_ok = v.int_room_ok;
+          lanes[i].rs_ok = rename_in.rs_int_alloc_ok[i];
         end
 
         if (lanes[i].need_fl) begin
-          lanes[i].fl_ok = fl_ok_arr[fl_count];
+          lanes[i].fl_ok = fl_ok_arr[ISSUE_ADDR_BITS'(fl_count)];
           fl_count       = fl_count + 1;
         end else begin
           lanes[i].fl_ok = 1'b1;
@@ -119,7 +118,7 @@ module rename (
         fl_idx = 0;
         for (int i = 0; i < ISSUE_WIDTH; i++) begin
           if (lanes[i].need_fl) begin
-            lanes[i].pdest = fl_tag_arr[fl_idx];
+            lanes[i].pdest = fl_tag_arr[ISSUE_ADDR_BITS'(fl_idx)];
             fl_idx         = fl_idx + 1;
           end else begin
             lanes[i].pdest = PRF_ADDR_BITS'(0);
@@ -129,7 +128,7 @@ module rename (
 
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         lanes[i].e = init_rs_entry;
-        lanes[i].e.valid = can_dispatch_final[i] && !lanes[i].is_mem;
+        lanes[i].e.valid = can_dispatch_final[i];
         lanes[i].e.psrc1 = psrc_arr[2*i];
         lanes[i].e.psrc2 = psrc_arr[2*i+1];
         lanes[i].e.src1_ready = !instr[i].op.rden1 || src_ready(
@@ -158,19 +157,15 @@ module rename (
         lanes[i].e.rob_tag = rob_tag[i];
         lanes[i].e.imm = instr[i].imm;
         lanes[i].e.pc = instr[i].pc;
-        lanes[i].e.npc = instr[i].npc;
+        lanes[i].e.comp = ~(&instr[i].instr[1:0]);
         lanes[i].e.caddr = instr[i].caddr;
         lanes[i].e.op = instr[i].op;
-        lanes[i].e.alu_op = instr[i].alu_op;
-        lanes[i].e.bcu_op = instr[i].bcu_op;
-        lanes[i].e.lsu_op = instr[i].lsu_op;
-        lanes[i].e.csr_op = instr[i].csr_op;
-        lanes[i].e.div_op = instr[i].div_op;
-        lanes[i].e.mul_op = instr[i].mul_op;
-        lanes[i].e.bit_op = instr[i].bit_op;
+        lanes[i].e.unit_op = instr[i].op.bitm ? UNIT_OP_BITS'(instr[i].bit_op) : instr[i].op.mult ?
+            UNIT_OP_BITS'(instr[i].mul_op) : instr[i].op.division ? UNIT_OP_BITS'(instr[i].div_op) :
+            instr[i].op.csreg ? UNIT_OP_BITS'(instr[i].csr_op) : instr[i].op.branch ?
+            UNIT_OP_BITS'(instr[i].bcu_op) : (instr[i].op.load | instr[i].op.store) ?
+            UNIT_OP_BITS'(instr[i].lsu_op) : UNIT_OP_BITS'(instr[i].alu_op);
 
-        lanes[i].em       = lanes[i].e;
-        lanes[i].em.valid = can_dispatch_final[i] && lanes[i].is_mem;
       end
 
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
@@ -193,16 +188,14 @@ module rename (
 
       v.rename_out.rob_alloc[i] = can_dispatch_final[i];
 
-      v.rename_out.rs_int_entry[i] = v.l[i].e;
-      v.rename_out.rs_int_alloc[i] = v.l[i].e.valid;
+      v.rename_out.rs_entry[i]     = v.l[i].e;
+      v.rename_out.rs_int_alloc[i] = can_dispatch_final[i] && !v.l[i].is_mem;
 
-      v.rename_out.rs_mem_entry[i] = v.l[i].em;
-      v.rename_out.rs_mem_alloc[i] = v.l[i].em.valid;
+      v.rename_out.rs_mem_alloc[i] = can_dispatch_final[i] && v.l[i].is_mem;
 
       v.rename_out.rob_entry[i]           = init_rob_entry;
       v.rename_out.rob_entry[i].valid     = 1'b1;
       v.rename_out.rob_entry[i].pc        = instr[i].pc;
-      v.rename_out.rob_entry[i].npc       = instr[i].npc;
       v.rename_out.rob_entry[i].pnpc      = instr[i].npc;
       v.rename_out.rob_entry[i].pred      = instr[i].pred;
       v.rename_out.rob_entry[i].pdest     = v.l[i].pdest;
@@ -210,8 +203,6 @@ module rename (
       v.rename_out.rob_entry[i].wren      = instr[i].op.wren && (instr[i].waddr != 5'h0);
       v.rename_out.rob_entry[i].old_pdest = rename_in.rat.old_pdest[i];
       v.rename_out.rob_entry[i].store     = instr[i].op.store;
-      v.rename_out.rob_entry[i].load      = instr[i].op.load;
-      v.rename_out.rob_entry[i].lsu_op    = instr[i].lsu_op;
       v.rename_out.rob_entry[i].branch    = instr[i].op.branch;
       v.rename_out.rob_entry[i].jump      = instr[i].op.jal | instr[i].op.jalr;
       v.rename_out.rob_entry[i].mret      = instr[i].op.mret;

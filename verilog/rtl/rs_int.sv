@@ -11,6 +11,8 @@ module rs_int (
 );
   timeunit 1ns; timeprecision 1ps;
 
+  localparam RS_BANK_ENTRIES = RS_INT_DEPTH / ISSUE_WIDTH;
+
   typedef struct packed {
     logic [RS_ADDR_BITS:0]                    count;
     logic [RS_INT_DEPTH-1:0]                  valid_bits;
@@ -43,14 +45,17 @@ module rs_int (
   logic         [RS_INT_DEPTH-1:0] ready_vec;
   rs_int_reg_type r, rin, v;
 
+  cdb_type [RS_CDB_COUNT-1:0] cdb_all;
+
   rs_entry_type issue_arr[0:ISSUE_WIDTH-1];
 
-  int mul_budget, div_budget, agu_budget, bcu_budget;
-  int bitalu_budget, csralu_budget;
-  int   sel_count;
-  logic csr_taken;
+  logic [2:0] mul_budget, div_budget, agu_budget, bcu_budget;
+  logic [2:0] bitalu_budget, csralu_budget;
+  logic [2:0] sel_count;
+  logic       csr_taken;
   logic needs_bcu, needs_agu, can_take;
-  logic issue_free;
+  logic [RS_INT_DEPTH-1:0] slot_free;
+  logic [RS_INT_DEPTH-1:0] slot_issued;
 
   always_comb begin
     v            = r;
@@ -60,19 +65,18 @@ module rs_int (
     v.free_found = '0;
     v.rs_o       = init_rs_int_out;
 
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      cdb_all[k]                             = rs_in.cdb[k];
+      cdb_all[ISSUE_WIDTH+MEM_ISSUE_WIDTH+k] = rs_in.cdb_commit[k];
+    end
+    for (int k = 0; k < MEM_ISSUE_WIDTH; k++) begin
+      cdb_all[ISSUE_WIDTH+k] = rs_in.cdb_load[k];
+    end
+
     for (int i = 0; i < RS_INT_DEPTH; i++) begin
-      view[i] = r.valid_bits[i] ? array[i] : init_rs_entry;
+      view[i] = array[i];
       view[i].valid = r.valid_bits[i];
-      woken[i] = rs_wakeup(view[i], rs_in.cdb[0]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb[1]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb[2]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb[3]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_load[0]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_load[1]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[0]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[1]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[2]);
-      woken[i] = rs_wakeup(woken[i], rs_in.cdb_commit[3]);
+      woken[i] = rs_wakeup_all(view[i], cdb_all);
       ready_vec[i] = woken[i].valid & woken[i].src1_ready & woken[i].src2_ready & ~rs_in.div_busy
           & ~(woken[i].op.csreg & (r.csr_inflight > 0)) & ~(woken[i].op.csreg & r.csr_drain) & ~(
           woken[i].op.csreg & (woken[i].rob_tag != rs_in.rob_head));
@@ -102,9 +106,9 @@ module rs_int (
 
         if (ready_vec[i] && (sel_count < ISSUE_WIDTH) && !csr_taken) begin
           if (can_take) begin
-            v.sel_idx[sel_count]   = RS_ADDR_BITS'(unsigned'(i));
-            v.sel_found[sel_count] = 1'b1;
-            sel_count              = sel_count + 1;
+            v.sel_idx[ISSUE_ADDR_BITS'(sel_count)]   = RS_ADDR_BITS'(unsigned'(i));
+            v.sel_found[ISSUE_ADDR_BITS'(sel_count)] = 1'b1;
+            sel_count                                = sel_count + 1;
 
             if (woken[i].op.mult) mul_budget = mul_budget - 1;
             else if (woken[i].op.division) div_budget = div_budget - 1;
@@ -124,17 +128,19 @@ module rs_int (
     end
 
     for (int i = 0; i < RS_INT_DEPTH; i++) begin
-      issue_free = 1'b0;
+      slot_free[i] = ~woken[i].valid;
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (v.sel_found[k] && (v.sel_idx[k] == RS_ADDR_BITS'(unsigned'(i)))) begin
-          issue_free = 1'b1;
+          slot_free[i] = 1'b1;
         end
       end
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if ((!woken[i].valid || issue_free) && !v.free_found[k]) begin
-          v.free_idx[k]   = RS_ADDR_BITS'(unsigned'(i));
+    end
+
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      for (int m = RS_BANK_ENTRIES - 1; m >= 0; m--) begin
+        if (slot_free[m*ISSUE_WIDTH+k]) begin
+          v.free_idx[k]   = RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k));
           v.free_found[k] = 1'b1;
-          break;
         end
       end
     end
@@ -146,7 +152,12 @@ module rs_int (
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      v.rs_o.alloc_ok[k] = (r.count <= (RS_ADDR_BITS + 1)'(RS_INT_DEPTH - ISSUE_WIDTH));
+      v.rs_o.alloc_ok[k] = 1'b0;
+      for (int m = 0; m < RS_BANK_ENTRIES; m++) begin
+        if (!r.valid_bits[m*ISSUE_WIDTH+k]) begin
+          v.rs_o.alloc_ok[k] = 1'b1;
+        end
+      end
     end
 
     v.rs_o.csr_rin = '0;
@@ -192,6 +203,15 @@ module rs_int (
 
     rin    = v;
     rs_out = rin.rs_o;
+
+    for (int i = 0; i < RS_INT_DEPTH; i++) begin
+      slot_issued[i] = 1'b0;
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
+        if (rin.sel_found[k] && (rin.sel_idx[k] == RS_ADDR_BITS'(unsigned'(i)))) begin
+          slot_issued[i] = 1'b1;
+        end
+      end
+    end
   end
 
   always_ff @(posedge clock) begin
@@ -204,25 +224,18 @@ module rs_int (
 
   always_ff @(posedge clock) begin
     if (reset != 0) begin
-      for (int i = 0; i < RS_INT_DEPTH; i++) begin
-        if (rs_in.alloc[0] && rin.free_found[0] &&
-            (rin.free_idx[0] == RS_ADDR_BITS'(unsigned'(i)))) begin
-          array[i] <= rs_in.entry[0];
-        end else if (rs_in.alloc[1] && rin.free_found[1] &&
-                     (rin.free_idx[1] == RS_ADDR_BITS'(unsigned'(i)))) begin
-          array[i] <= rs_in.entry[1];
-        end else if (rs_in.alloc[2] && rin.free_found[2] &&
-                     (rin.free_idx[2] == RS_ADDR_BITS'(unsigned'(i)))) begin
-          array[i] <= rs_in.entry[2];
-        end else if (rs_in.alloc[3] && rin.free_found[3] &&
-                     (rin.free_idx[3] == RS_ADDR_BITS'(unsigned'(i)))) begin
-          array[i] <= rs_in.entry[3];
-        end else if (r.valid_bits[i] && rin.valid_bits[i] &&
-                     !((rin.sel_found[0] && (rin.sel_idx[0] == RS_ADDR_BITS'(unsigned'(i)))) ||
-                       (rin.sel_found[1] && (rin.sel_idx[1] == RS_ADDR_BITS'(unsigned'(i)))) ||
-                       (rin.sel_found[2] && (rin.sel_idx[2] == RS_ADDR_BITS'(unsigned'(i)))) ||
-                       (rin.sel_found[3] && (rin.sel_idx[3] == RS_ADDR_BITS'(unsigned'(i)))))) begin
-          array[i] <= woken[i];
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
+        for (int m = 0; m < RS_BANK_ENTRIES; m++) begin
+          if (rs_in.alloc[k] && rin.free_found[k] &&
+              (rin.free_idx[k] == RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)))) begin
+            array[m*ISSUE_WIDTH+k] <= rs_in.entry[k];
+          end else if (r.valid_bits[m*ISSUE_WIDTH+k] && rin.valid_bits[m*ISSUE_WIDTH+k] &&
+                       !slot_issued[m*ISSUE_WIDTH+k]) begin
+            array[m*ISSUE_WIDTH+k].src1_ready <= woken[m*ISSUE_WIDTH+k].src1_ready;
+            array[m*ISSUE_WIDTH+k].src2_ready <= woken[m*ISSUE_WIDTH+k].src2_ready;
+            array[m*ISSUE_WIDTH+k].rdata1     <= woken[m*ISSUE_WIDTH+k].rdata1;
+            array[m*ISSUE_WIDTH+k].rdata2     <= woken[m*ISSUE_WIDTH+k].rdata2;
+          end
         end
       end
     end

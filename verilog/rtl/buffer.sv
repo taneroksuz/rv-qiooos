@@ -10,10 +10,10 @@ package buffer_wires;
     logic [BUFFER_WIDTH-1:0][0:0]        wen;
     logic [BUFFER_WIDTH-1:0][BDEPTH-1:0] waddr;
     logic [BUFFER_WIDTH-1:0][BDEPTH-1:0] raddr;
-    logic [BUFFER_WIDTH-1:0][47:0]       wdata;
+    logic [BUFFER_WIDTH-1:0][15:0]       wdata;
   } buffer_reg_in_type;
 
-  typedef struct packed {logic [BUFFER_WIDTH-1:0][47:0] rdata;} buffer_reg_out_type;
+  typedef struct packed {logic [BUFFER_WIDTH-1:0][15:0] rdata;} buffer_reg_out_type;
 
 endpackage
 
@@ -36,7 +36,7 @@ module buffer_reg (
 
   generate
     for (i = 0; i < BUFFER_WIDTH; i++) begin : gen_buffer_reg_array
-      logic [47:0] buffer_reg_array[0:BUFFER_DEPTH-1] = '{default: '0};
+      logic [15:0] buffer_reg_array[0:BUFFER_DEPTH-1] = '{default: '0};
       always_ff @(posedge clock) begin
         if (buffer_reg_in.wen[i] == 1) begin
           buffer_reg_array[buffer_reg_in.waddr[i]] <= buffer_reg_in.wdata[i];
@@ -72,11 +72,12 @@ module buffer_ctrl (
   localparam [W-1:0] one = 1;
 
   typedef struct packed {
-    logic [BUFFER_WIDTH-1:0][47:0] wdata;
-    logic [WINDOW-1:0][47:0]       rdata;
+    logic [BUFFER_WIDTH-1:0][15:0] wdata;
+    logic [WINDOW-1:0][15:0]       rdata;
     logic [WINDOW-1:0]             comp;
     logic [W-1:0]                  wid;
     logic [W-1:0]                  rid;
+    logic [31:0]                   pc_base;
     logic [W-1:0]                  diff;
     logic [W-1:0]                  count;
     logic [W-1:0]                  align;
@@ -98,6 +99,7 @@ module buffer_ctrl (
       comp : 0,
       wid : 0,
       rid : 0,
+      pc_base : 0,
       diff : 0,
       count : 0,
       align : 0,
@@ -139,9 +141,10 @@ module buffer_ctrl (
     end
 
     if (r.clear == 1 && buffer_in.clear == 0 && buffer_in.ready == 1) begin
-      v.rid   = {{W - BWIDTH{1'b0}}, buffer_in.pc[BWIDTH:1]};
-      v.align = {{W - BWIDTH{1'b0}}, buffer_in.pc[BWIDTH:1]};
-      v.clear = 0;
+      v.rid     = {{W - BWIDTH{1'b0}}, buffer_in.pc[BWIDTH:1]};
+      v.align   = {{W - BWIDTH{1'b0}}, buffer_in.pc[BWIDTH:1]};
+      v.pc_base = {buffer_in.pc[31:1], 1'b0};
+      v.clear   = 0;
     end
 
     v.wen = (~buffer_in.clear) & (~r.stall) & buffer_in.ready;
@@ -149,7 +152,7 @@ module buffer_ctrl (
     v.wid_row = v.wid[W-1:BWIDTH];
 
     for (int k = 0; k < BUFFER_WIDTH; k++) begin
-      v.wdata[k] = {buffer_in.pc[31:BWIDTH+1], k[BWIDTH-1:0], 1'b0, buffer_in.rdata[k*16+:16]};
+      v.wdata[k] = buffer_in.rdata[k*16+:16];
     end
 
     for (int k = 0; k < BUFFER_WIDTH; k++) begin
@@ -191,11 +194,11 @@ module buffer_ctrl (
       base = slot_offset(v.comp, s);
       need = v.comp[base] ? 1 : 2;
       if (v.count > v.align + W'(base) + (v.comp[base] ? W'(0) : W'(1))) begin
-        v.pc[s] = v.rdata[base][47:16];
+        v.pc[s] = v.pc_base + 32'(2 * base);
         if (v.comp[base]) begin
-          v.instr[s] = {16'b0, v.rdata[base][15:0]};
+          v.instr[s] = {16'b0, v.rdata[base]};
         end else begin
-          v.instr[s] = {v.rdata[base+1][15:0], v.rdata[base][15:0]};
+          v.instr[s] = {v.rdata[base+1], v.rdata[base]};
         end
         v.ready[s] = 1;
         v.diff     = W'(base) + W'(need);
@@ -207,8 +210,9 @@ module buffer_ctrl (
       v.ready = '0;
     end
 
-    v.count = v.count - v.diff;
-    v.rid   = v.rid + v.diff;
+    v.count   = v.count - v.diff;
+    v.rid     = v.rid + v.diff;
+    v.pc_base = v.pc_base + (32'(v.diff) << 1);
 
     if (v.count > TOTAL) begin
       v.stall = 1;
