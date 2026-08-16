@@ -163,7 +163,12 @@ module rat (
   end
 
   always_ff @(posedge clock) begin
-    if (reset != 0) begin
+    if (reset == 0) begin
+      for (int j = 0; j < ARCH_REGS; j++) begin
+        spec[j] <= {1'b1, PRF_ADDR_BITS'(j)};
+        comm[j] <= {1'b1, PRF_ADDR_BITS'(j)};
+      end
+    end else begin
       for (int j = 0; j < ARCH_REGS; j++) begin
         spec[j] <= spec_next[j];
         comm[j] <= comm_next[j];

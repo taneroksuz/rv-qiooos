@@ -139,6 +139,10 @@ module csr (
 
     csr_out.trap = exception | interrupt;
     csr_out.mret = mret;
+    csr_out.irpt = csr_machine_reg.mstatus.mie &
+        ((csr_machine_reg.mie.meie & csr_machine_reg.mip.meip) |
+         (csr_machine_reg.mie.mtie & csr_machine_reg.mip.mtip) |
+         (csr_machine_reg.mie.msie & csr_machine_reg.mip.msip));
     csr_out.mepc = csr_machine_reg.mepc;
     if (csr_machine_reg.mtvec[1:0] == 1 && csr_machine_reg.mcause[31] == 1) begin
       csr_out.mtvec = {(csr_machine_reg.mtvec[31:2] + {26'b0, csr_machine_reg.mcause[3:0]}), 2'b0};
@@ -269,10 +273,7 @@ module csr (
         csr_machine_reg.mtval        <= csr_ein.etval;
         csr_machine_reg.mcause       <= {24'b0, csr_ein.ecause};
         exception                    <= 1;
-      end else if (csr_machine_reg.mstatus.mie == 1 && valid == 1 &&
-                   ((csr_machine_reg.mie.meie == 1 && csr_machine_reg.mip.meip == 1) ||
-                    (csr_machine_reg.mie.mtie == 1 && csr_machine_reg.mip.mtip == 1) ||
-                    (csr_machine_reg.mie.msie == 1 && csr_machine_reg.mip.msip == 1))) begin
+      end else if (csr_ein.irpt == 1) begin
         csr_machine_reg.mstatus.mpie <= csr_machine_reg.mstatus.mie;
         csr_machine_reg.mstatus.mie  <= 0;
         csr_machine_reg.mepc         <= csr_ein.pc;

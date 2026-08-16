@@ -114,13 +114,15 @@ module cache_ctrl (
     logic [CTAG-1:0]   tag;
     logic [CDEPTH-1:0] addr;
     logic [0:0]        valid;
+    logic [0:0]        pending;
   } front_type;
 
-  typedef enum logic [1:0] {
-    HIT   = 2'd0,
-    FILL  = 2'd1,
-    DONE  = 2'd2,
-    FLUSH = 2'd3
+  typedef enum logic [2:0] {
+    HIT   = 3'd0,
+    FILL  = 3'd1,
+    DONE  = 3'd2,
+    FLUSH = 3'd3,
+    INVAL = 3'd4
   } cache_state;
 
   typedef struct packed {
@@ -145,7 +147,7 @@ module cache_ctrl (
   } back_type;
 
   parameter front_type init_front = 0;
-  parameter back_type init_back = 0;
+  parameter back_type init_back = '{state: INVAL, default: '0};
 
   front_type r_f, rin_f;
   front_type v_f;
@@ -159,10 +161,18 @@ module cache_ctrl (
 
     v_f.valid = 0;
 
-    if (cache_in.mem_valid == 1 && v_b.state == HIT) begin
-      v_f.valid = 1;
-      v_f.tag   = cache_in.mem_addr[31:(CDEPTH+CWIDTH+2)];
-      v_f.addr  = cache_in.mem_addr[(CDEPTH+CWIDTH+1):(CWIDTH+2)];
+    if (cache_in.mem_valid == 1) begin
+      v_f.tag  = cache_in.mem_addr[31:(CDEPTH+CWIDTH+2)];
+      v_f.addr = cache_in.mem_addr[(CDEPTH+CWIDTH+1):(CWIDTH+2)];
+      if (v_b.state == HIT) begin
+        v_f.valid   = 1;
+        v_f.pending = 0;
+      end else begin
+        v_f.pending = 1;
+      end
+    end else if (r_f.pending == 1 && v_b.state == HIT) begin
+      v_f.valid   = 1;
+      v_f.pending = 0;
     end
 
     cache_vec_in = init_cache_vec_in;
@@ -183,7 +193,7 @@ module cache_ctrl (
       end
     end
 
-    if (r_b.state == FLUSH) begin
+    if (r_b.state == FLUSH || r_b.state == INVAL) begin
       cache_tag_in.wren   = 1;
       cache_tag_in.wvalid = 0;
       cache_tag_in.wtag   = '0;
@@ -291,6 +301,14 @@ module cache_ctrl (
           v_b.addr     = v_b.addr_pending;
           v_b.base     = {v_b.tag_pending, v_b.addr_pending, {CWIDTH{1'b0}}, 2'b00};
           v_b.mem_done = 2'b00;
+        end else begin
+          v_b.flush_addr = r_b.flush_addr + CDEPTH'(1);
+        end
+      end
+
+      INVAL: begin
+        if (r_b.flush_addr == CDEPTH'(CACHE_DEPTH - 1)) begin
+          v_b.state = HIT;
         end else begin
           v_b.flush_addr = r_b.flush_addr + CDEPTH'(1);
         end

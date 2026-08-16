@@ -269,6 +269,7 @@ module cpu (
       assign cdb_load[i]            = msu_out.cdb[i];
     end
   endgenerate
+  assign commit_in.irpt = csr_out.irpt;
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_commit_in
       assign commit_in.commit_valid[i] = rob_out.commit_valid[i];

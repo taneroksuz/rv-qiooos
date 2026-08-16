@@ -608,6 +608,7 @@ package wires;
     logic [ISSUE_WIDTH-1:0][0:0] valid;
     logic [31:0]                 pc;
     logic [0:0]                  mret;
+    logic [0:0]                  irpt;
     logic [0:0]                  exception;
     logic [31:0]                 epc;
     logic [7:0]                  ecause;
@@ -618,6 +619,7 @@ package wires;
       valid: '{default: 0},
       pc: 0,
       mret: 0,
+      irpt: 0,
       exception: 0,
       epc: 0,
       ecause: 0,
@@ -627,6 +629,7 @@ package wires;
   typedef struct packed {
     logic [0:0]  trap;
     logic [0:0]  mret;
+    logic [0:0]  irpt;
     logic [31:0] mtvec;
     logic [31:0] mepc;
     logic [31:0] cdata;
@@ -1092,6 +1095,7 @@ package wires;
   typedef struct packed {
     logic [ISSUE_WIDTH-1:0][0:0]     commit_valid;
     rob_entry_type [ISSUE_WIDTH-1:0] entry;
+    logic [0:0]                      irpt;
   } commit_in_type;
 
   typedef struct packed {

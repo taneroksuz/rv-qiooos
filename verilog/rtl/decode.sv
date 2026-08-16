@@ -24,6 +24,7 @@ module decode (
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
       v.instr[i].pc    = decode_in.ready[i] ? decode_in.pc[i] : 32'hFFFFFFFF;
       v.instr[i].instr = decode_in.ready[i] ? decode_in.instr[i] : 0;
+      v.instr[i].op    = init_operation;
     end
 
     if (stall == 1) begin

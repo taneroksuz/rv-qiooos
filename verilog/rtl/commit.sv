@@ -39,7 +39,7 @@ module commit (
   logic           entry_flush     [    0:ISSUE_WIDTH-1];
   logic           do_commit       [    0:ISSUE_WIDTH-1];
   logic           any_flush;
-  logic           pc_set;
+  logic           irq_take;
   logic           store_slot_found[0:MEM_ISSUE_WIDTH-1];
   int             store_slot_owner[0:MEM_ISSUE_WIDTH-1];
   always_comb begin
@@ -49,9 +49,11 @@ module commit (
       c[k] = commit_in.commit_valid[k];
     end
 
+    irq_take = commit_in.irpt && c[0] && !e[0].exception;
+
     any_flush = 1'b0;
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      do_commit[k]   = c[k] && !any_flush;
+      do_commit[k]   = c[k] && !any_flush && !irq_take;
       entry_flush[k] = 1'b0;
       if (do_commit[k]) begin
         entry_flush[k] = e[k].exception | e[k].mret |
@@ -61,7 +63,7 @@ module commit (
       any_flush = any_flush | entry_flush[k];
     end
 
-    v.flush_all = any_flush;
+    v.flush_all = any_flush | irq_take;
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
       v.commit_entry[p] = init_commit_entry;
@@ -100,12 +102,9 @@ module commit (
       v.store_slot_entry[p].store_strb = e[store_slot_owner[p]].store_strb;
     end
 
-    pc_set = 1'b0;
-    for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      if (do_commit[k] && !pc_set) begin
-        v.csr_ein.pc = e[k].pc;
-        pc_set       = 1'b1;
-      end
+    if (irq_take) begin
+      v.csr_ein.irpt = 1'b1;
+      v.csr_ein.pc   = e[0].pc;
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
