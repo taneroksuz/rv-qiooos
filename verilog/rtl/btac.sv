@@ -131,7 +131,7 @@ module btac_ctrl (
     logic [ISSUE_WIDTH-1:0][0:0]         match;
   } btb_reg_type;
 
-  parameter btb_reg_type init_btb_reg = '{
+  localparam btb_reg_type init_btb_reg = '{
       waddr : 0,
       raddr : '{default: 0},
       wdata : 0,
@@ -153,7 +153,7 @@ module btac_ctrl (
     logic [ISSUE_WIDTH-1:0][1:0]         sat;
   } bht_reg_type;
 
-  parameter bht_reg_type init_bht_reg = '{
+  localparam bht_reg_type init_bht_reg = '{
       waddr : 0,
       raddr : '{default: 0},
       wdata : 0,
@@ -310,7 +310,7 @@ module btac (
         logic [1:0][0:0]  miss;
       } reg_type;
 
-      parameter reg_type init_reg = '{maddr : '{default: 0}, miss : '{default: 0}};
+      localparam reg_type init_reg = '{maddr : '{default: 0}, miss : '{default: 0}};
 
       reg_type r, rin, v;
 
