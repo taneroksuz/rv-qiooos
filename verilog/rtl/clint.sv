@@ -26,7 +26,7 @@ module clint #(
   localparam clint_mtime_start = 32'hBFF8;
   localparam clint_mtime_end = clint_mtime_start + 8;
 
-  logic [63:0] mtimecmp = 0;
+  logic [63:0] mtimecmp = {64{1'b1}};
   logic [63:0] mtime = 0;
 
   logic [0:0] mtip = 0;
@@ -101,7 +101,7 @@ module clint #(
     if (reset == 0) begin
       rdata_mtc <= 0;
       ready_mtc <= 0;
-      mtimecmp  <= 0;
+      mtimecmp  <= {64{1'b1}};
     end else begin
       rdata_mtc <= 0;
       ready_mtc <= 0;

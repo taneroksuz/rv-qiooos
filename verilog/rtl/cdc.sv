@@ -14,9 +14,10 @@ module cdc (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  typedef enum logic {
+  typedef enum logic [1:0] {
     IDLE,
-    WAIT
+    WAIT,
+    HOLD
   } state;
 
   mem_in_type mem_in_reg = '0;
@@ -62,9 +63,16 @@ module cdc (
       end
       WAIT: begin
         if (!(req_in_valid ^ ack_in_valid_sync)) begin
-          next_in_state = IDLE;
+          next_in_state = HOLD;
         end else begin
           next_in_state = WAIT;
+        end
+      end
+      HOLD: begin
+        if (!src_mem_in.mem_valid) begin
+          next_in_state = IDLE;
+        end else begin
+          next_in_state = HOLD;
         end
       end
       default: next_in_state = IDLE;
