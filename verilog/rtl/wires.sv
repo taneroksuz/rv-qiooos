@@ -1190,7 +1190,7 @@ package wires;
     logic [31:0]               pc;
     logic [CACHE_WIDTH*32-1:0] rdata;
     logic [0:0]                ready;
-    logic [0:0]                clear;
+    logic [0:0]                flush;
     logic [0:0]                stall;
   } buffer_in_type;
 

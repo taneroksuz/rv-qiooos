@@ -28,11 +28,10 @@ module fetch (
     v.valid = 0;
     v.stall = fetch_in.buffer_out.stall;
 
-    v.flush = v.fence;
-    v.flush = v.flush | (|fetch_in.btac_out.pred_miss);
-    v.flush = v.flush | fetch_in.btac_out.pred[0].taken | fetch_in.btac_out.pred[1].taken |
-        fetch_in.btac_out.pred[2].taken | fetch_in.btac_out.pred[3].taken;
-    v.flush = v.flush | fetch_in.csr_out.trap | fetch_in.csr_out.mret;
+    v.flush = flush | v.fence;
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
+      v.flush = v.flush | fetch_in.btac_out.pred[p].taken;
+    end
 
     if (fetch_in.cache_out.mem_ready == 1) begin
       v.rdata = fetch_in.cache_out.mem_rdata;
@@ -127,7 +126,7 @@ module fetch (
     fetch_out.buffer_in.pc    = r.ipc;
     fetch_out.buffer_in.rdata = v.rdata;
     fetch_out.buffer_in.ready = v.ready;
-    fetch_out.buffer_in.clear = v.flush;
+    fetch_out.buffer_in.flush = v.flush;
     fetch_out.buffer_in.stall = stall;
 
     fetch_out.cache_in.mem_valid = v.valid;

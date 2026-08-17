@@ -85,7 +85,7 @@ module buffer_ctrl (
     logic [ISSUE_WIDTH-1:0][31:0]  instr;
     logic [ISSUE_WIDTH-1:0]        ready;
     logic [0:0]                    wen;
-    logic [0:0]                    clear;
+    logic [0:0]                    flush;
     logic [0:0]                    stall;
     logic [BWIDTH-1:0]             rid_bank;
     logic [BDEPTH-1:0]             rid_row;
@@ -107,7 +107,7 @@ module buffer_ctrl (
       instr : '{default: '0},
       ready : 0,
       wen : 0,
-      clear : 0,
+      flush : 0,
       stall : 0,
       rid_bank : 0,
       rid_row : 0,
@@ -133,21 +133,21 @@ module buffer_ctrl (
 
     v = r;
 
-    if (buffer_in.clear == 1) begin
+    if (buffer_in.flush == 1) begin
       v.wid   = 0;
       v.rid   = 0;
       v.count = 0;
-      v.clear = 1;
+      v.flush = 1;
     end
 
-    if (r.clear == 1 && buffer_in.clear == 0 && buffer_in.ready == 1) begin
+    if (r.flush == 1 && buffer_in.flush == 0 && buffer_in.ready == 1) begin
       v.rid     = {{W - BWIDTH{1'b0}}, buffer_in.pc[BWIDTH:1]};
       v.align   = {{W - BWIDTH{1'b0}}, buffer_in.pc[BWIDTH:1]};
       v.pc_base = {buffer_in.pc[31:1], 1'b0};
-      v.clear   = 0;
+      v.flush   = 0;
     end
 
-    v.wen = (~buffer_in.clear) & (~r.stall) & buffer_in.ready;
+    v.wen = (~buffer_in.flush) & (~r.stall) & buffer_in.ready;
 
     v.wid_row = v.wid[W-1:BWIDTH];
 
