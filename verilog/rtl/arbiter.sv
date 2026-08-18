@@ -31,22 +31,29 @@ module arbiter (
   reg_type r, rin;
   reg_type v;
 
+  logic [0:0] iactive[0:1];
+  logic [0:0] dactive[0:1];
+
   always_comb begin
 
     v = r;
 
+    v.mem_in = init_mem_in;
+
     if (mem_out.mem_ready == 1) begin
       v.access_type = no_access;
     end
-    else begin
-      v.mem_in = init_mem_in;
-    end
+
+    iactive[0] = (v.access_type == instr0_access);
+    iactive[1] = (v.access_type == instr1_access);
+    dactive[0] = (v.access_type == data0_access);
+    dactive[1] = (v.access_type == data1_access);
 
     for (int p = 0; p < 2; p++) begin
-      if (dmem_in[p].mem_valid == 1) begin
+      if (dmem_in[p].mem_valid == 1 && v.dmem_in[p].mem_valid == 0 && dactive[p] == 0) begin
         v.dmem_in[p] = dmem_in[p];
       end
-      if (imem_in[p].mem_valid == 1) begin
+      if (imem_in[p].mem_valid == 1 && v.imem_in[p].mem_valid == 0 && iactive[p] == 0) begin
         v.imem_in[p] = imem_in[p];
       end
     end
@@ -74,12 +81,7 @@ module arbiter (
       end
     end
 
-    if (v.access_type != no_access) begin
-      mem_in = v.mem_in;
-    end
-    else begin
-      mem_in = init_mem_in;
-    end
+    mem_in = v.mem_in;
 
     rin = v;
 

@@ -37,6 +37,10 @@ module msu (
     logic [MEM_ISSUE_WIDTH-1:0]                    slot_free_pre;
     logic [MEM_ISSUE_WIDTH-1:0]                    commit_claims_slot;
     logic [MEM_ISSUE_WIDTH-1:0]                    slot_blocked;
+    logic [MEM_ISSUE_WIDTH-1:0]                    excp_pending;
+    logic [MEM_ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] excp_rob_tag;
+    logic [MEM_ISSUE_WIDTH-1:0][7:0]               excp_ecause;
+    logic [MEM_ISSUE_WIDTH-1:0][31:0]              excp_etval;
   } msu_reg_type;
 
   localparam msu_reg_type init_msu_reg = '{
@@ -65,6 +69,7 @@ module msu (
       for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
         v.load_pending[p] = 1'b0;
         v.load_sent[p]    = 1'b0;
+        v.excp_pending[p] = 1'b0;
       end
     end
 
@@ -94,7 +99,7 @@ module msu (
     end
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
-      v.slot_blocked[p] = v.load_busy[p] || v.store_busy[p] || v.commit_claims_slot[p];
+      v.slot_blocked[p] = v.load_busy[p] || v.store_busy[p] || v.commit_claims_slot[p] || r.excp_pending[p];
       v.load_accept[p]  = msu_in.issue_valid[p] && msu_in.issue[p].op.load && !v.slot_blocked[p] && !flush;
       v.load_ready[p]   = r.load_pending[p] && !r.store_pending[p] && msu_in.dmem_out[p].mem_ready && !flush;
     end
@@ -169,7 +174,24 @@ module msu (
       v.rob_wentry[p] = init_rob_entry;
       v.rob_wen[p]    = 1'b0;
 
-      if (v.load_accept[p] && msu_in.agu_out[p].exception) begin
+      if (v.load_ready[p]) begin
+        v.cdb[p].valid         = 1'b1;
+        v.cdb[p].tag           = r.load_pdest[p];
+        v.cdb[p].data          = msu_in.lsu_out[p].result;
+        v.rob_wen[p]           = 1'b1;
+        v.rob_wentry[p].done   = 1'b1;
+        v.rob_wentry[p].result = msu_in.lsu_out[p].result;
+      end
+      else if (v.excp_pending[p]) begin
+        v.rob_wtag[p]             = r.excp_rob_tag[p];
+        v.rob_wen[p]              = 1'b1;
+        v.rob_wentry[p].done      = 1'b1;
+        v.rob_wentry[p].exception = 1'b1;
+        v.rob_wentry[p].ecause    = r.excp_ecause[p];
+        v.rob_wentry[p].result    = r.excp_etval[p];
+        v.excp_pending[p]         = 1'b0;
+      end
+      else if (v.load_accept[p] && msu_in.agu_out[p].exception) begin
         v.rob_wtag[p]             = msu_in.issue[p].rob_tag;
         v.rob_wen[p]              = 1'b1;
         v.rob_wentry[p].done      = 1'b1;
@@ -177,13 +199,12 @@ module msu (
         v.rob_wentry[p].ecause    = msu_in.agu_out[p].ecause;
         v.rob_wentry[p].result    = msu_in.agu_out[p].etval;
       end
-      else if (v.load_ready[p]) begin
-        v.cdb[p].valid         = 1'b1;
-        v.cdb[p].tag           = r.load_pdest[p];
-        v.cdb[p].data          = msu_in.lsu_out[p].result;
-        v.rob_wen[p]           = 1'b1;
-        v.rob_wentry[p].done   = 1'b1;
-        v.rob_wentry[p].result = msu_in.lsu_out[p].result;
+
+      if (v.load_ready[p] && v.load_accept[p] && msu_in.agu_out[p].exception) begin
+        v.excp_pending[p] = 1'b1;
+        v.excp_rob_tag[p] = msu_in.issue[p].rob_tag;
+        v.excp_ecause[p]  = msu_in.agu_out[p].ecause;
+        v.excp_etval[p]   = msu_in.agu_out[p].etval;
       end
     end
 
