@@ -48,7 +48,8 @@ module top (
   always_ff @(posedge CLOCK_CPU) begin
     if (RESET == 0) begin
       CLEAR <= 2'b11;
-    end else begin
+    end
+    else begin
       CLEAR <= {1'b0, CLEAR[1]};
     end
   end
@@ -74,7 +75,8 @@ module top (
   always_ff @(posedge CLOCK_CPU) begin
     if (RESET == 0) begin
       REG_LED <= 0;
-    end else begin
+    end
+    else begin
       if (ram_in.mem_valid) begin
         REG_LED <= ram_in.mem_addr[18:9];
       end

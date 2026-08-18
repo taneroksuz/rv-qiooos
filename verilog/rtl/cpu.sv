@@ -109,7 +109,7 @@ module cpu (
   assign decode_in.btac_out = btac_out;
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_prf_raddr
-      assign prf_in.raddr[2*i] = decode_out.instr[i].op.rden1 ? decode_out.instr[i].raddr1 : 5'h0;
+      assign prf_in.raddr[2*i]   = decode_out.instr[i].op.rden1 ? decode_out.instr[i].raddr1 : 5'h0;
       assign prf_in.raddr[2*i+1] = decode_out.instr[i].op.rden2 ? decode_out.instr[i].raddr2 : 5'h0;
     end
   endgenerate

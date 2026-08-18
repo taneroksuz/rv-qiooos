@@ -250,43 +250,53 @@ module base (
               instr_str      = "slli";
               alunit         = 1;
               alu_op.alu_sll = 1;
-            end else if (funct7 == 7'b0100100) begin
+            end
+            else if (funct7 == 7'b0100100) begin
               instr_str               = "bclr";
               bitm                    = 1;
               bit_op.bit_zbs.bit_bclr = 1;
-            end else if (funct7 == 7'b0010100) begin
+            end
+            else if (funct7 == 7'b0010100) begin
               instr_str               = "bset";
               bitm                    = 1;
               bit_op.bit_zbs.bit_bset = 1;
-            end else if (funct7 == 7'b0110100) begin
+            end
+            else if (funct7 == 7'b0110100) begin
               instr_str               = "binv";
               bitm                    = 1;
               bit_op.bit_zbs.bit_binv = 1;
-            end else if (funct7 == 7'b0110000) begin
+            end
+            else if (funct7 == 7'b0110000) begin
               if (funct5 == 5'b00000) begin
                 instr_str              = "clz";
                 bitm                   = 1;
                 bit_op.bit_zbb.bit_clz = 1;
-              end else if (funct5 == 5'b00001) begin
+              end
+              else if (funct5 == 5'b00001) begin
                 instr_str              = "ctz";
                 bitm                   = 1;
                 bit_op.bit_zbb.bit_ctz = 1;
-              end else if (funct5 == 5'b00010) begin
+              end
+              else if (funct5 == 5'b00010) begin
                 instr_str               = "cpop";
                 bitm                    = 1;
                 bit_op.bit_zbb.bit_cpop = 1;
-              end else if (funct5 == 5'b00100) begin
+              end
+              else if (funct5 == 5'b00100) begin
                 instr_str                = "sextb";
                 bitm                     = 1;
                 bit_op.bit_zbb.bit_sextb = 1;
-              end else if (funct5 == 5'b00101) begin
+              end
+              else if (funct5 == 5'b00101) begin
                 instr_str                = "sexth";
                 bitm                     = 1;
                 bit_op.bit_zbb.bit_sexth = 1;
-              end else begin
+              end
+              else begin
                 valid = 0;
               end
-            end else begin
+            end
+            else begin
               valid = 0;
             end
           end
@@ -295,27 +305,33 @@ module base (
               instr_str      = "srli";
               alunit         = 1;
               alu_op.alu_srl = 1;
-            end else if (funct7 == 7'b0100000) begin
+            end
+            else if (funct7 == 7'b0100000) begin
               instr_str      = "srai";
               alunit         = 1;
               alu_op.alu_sra = 1;
-            end else if (funct7 == 7'b0100100) begin
+            end
+            else if (funct7 == 7'b0100100) begin
               instr_str               = "bext";
               bitm                    = 1;
               bit_op.bit_zbs.bit_bext = 1;
-            end else if (funct7 == 7'b0110000) begin
+            end
+            else if (funct7 == 7'b0110000) begin
               instr_str              = "ror";
               bitm                   = 1;
               bit_op.bit_zbb.bit_ror = 1;
-            end else if (funct7 == 7'b0010100 && funct5 == 5'b00111) begin
+            end
+            else if (funct7 == 7'b0010100 && funct5 == 5'b00111) begin
               instr_str               = "orcb";
               bitm                    = 1;
               bit_op.bit_zbb.bit_orcb = 1;
-            end else if (funct7 == 7'b0110100 && funct5 == 5'b11000) begin
+            end
+            else if (funct7 == 7'b0110100 && funct5 == 5'b11000) begin
               instr_str               = "rev8";
               bitm                    = 1;
               bit_op.bit_zbb.bit_rev8 = 1;
-            end else begin
+            end
+            else begin
               valid = 0;
             end
           end
@@ -372,7 +388,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0100000) begin
+        end
+        else if (funct7 == 7'b0100000) begin
           case (funct3)
             funct_add: begin
               instr_str      = "sub";
@@ -402,7 +419,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0010000) begin
+        end
+        else if (funct7 == 7'b0010000) begin
           case (funct3)
             funct_sh1add: begin
               instr_str                 = "sh1add";
@@ -422,7 +440,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0000101) begin
+        end
+        else if (funct7 == 7'b0000101) begin
           case (funct3)
             funct_min: begin
               instr_str              = "min";
@@ -447,7 +466,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0100100) begin
+        end
+        else if (funct7 == 7'b0100100) begin
           case (funct3)
             funct_bclr: begin
               instr_str               = "bclr";
@@ -462,7 +482,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0010100) begin
+        end
+        else if (funct7 == 7'b0010100) begin
           case (funct3)
             funct_bset: begin
               instr_str               = "bset";
@@ -472,7 +493,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0110100) begin
+        end
+        else if (funct7 == 7'b0110100) begin
           case (funct3)
             funct_binv: begin
               instr_str               = "binv";
@@ -482,7 +504,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0110000) begin
+        end
+        else if (funct7 == 7'b0110000) begin
           case (funct3)
             funct_rol: begin
               instr_str              = "rol";
@@ -497,7 +520,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0000100 && funct5 == 5'b00000) begin
+        end
+        else if (funct7 == 7'b0000100 && funct5 == 5'b00000) begin
           case (funct3)
             funct_zexth: begin
               instr_str                = "zexth";
@@ -507,7 +531,8 @@ module base (
             default: valid = 0;
           endcase
           ;
-        end else if (funct7 == 7'b0000001) begin
+        end
+        else if (funct7 == 7'b0000001) begin
           case (funct3)
             funct_mul: begin
               instr_str   = "mul";
@@ -557,7 +582,8 @@ module base (
         instr_str = "fence";
         if (funct3 == 0) begin
           fence = 1;
-        end else if (funct3 == 1) begin
+        end
+        else if (funct3 == 1) begin
           fence = 1;
         end
       end
@@ -583,7 +609,8 @@ module base (
             end
             default: valid = 0;
           endcase
-        end else if (funct3 == 1) begin
+        end
+        else if (funct3 == 1) begin
           instr_str    = "csrrw";
           wren         = nonzero_waddr;
           rden1        = 1;
@@ -591,7 +618,8 @@ module base (
           crden        = nonzero_waddr;
           csr_op.csrrw = 1;
           csreg        = 1;
-        end else if (funct3 == 2) begin
+        end
+        else if (funct3 == 2) begin
           instr_str    = "csrrs";
           wren         = nonzero_waddr;
           rden1        = 1;
@@ -599,7 +627,8 @@ module base (
           crden        = 1;
           csr_op.csrrs = 1;
           csreg        = 1;
-        end else if (funct3 == 3) begin
+        end
+        else if (funct3 == 3) begin
           instr_str    = "csrrc";
           wren         = nonzero_waddr;
           rden1        = 1;
@@ -607,21 +636,24 @@ module base (
           crden        = 1;
           csr_op.csrrc = 1;
           csreg        = 1;
-        end else if (funct3 == 5) begin
+        end
+        else if (funct3 == 5) begin
           instr_str     = "csrrwi";
           wren          = nonzero_waddr;
           cwren         = 1;
           crden         = nonzero_waddr;
           csr_op.csrrwi = 1;
           csreg         = 1;
-        end else if (funct3 == 6) begin
+        end
+        else if (funct3 == 6) begin
           instr_str     = "csrrsi";
           wren          = nonzero_waddr;
           cwren         = nonzero_imm_c;
           crden         = 1;
           csr_op.csrrsi = 1;
           csreg         = 1;
-        end else if (funct3 == 7) begin
+        end
+        else if (funct3 == 7) begin
           instr_str     = "csrrci";
           wren          = nonzero_waddr;
           cwren         = nonzero_imm_c;

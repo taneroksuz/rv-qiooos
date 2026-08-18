@@ -142,7 +142,8 @@ module rom (
 
     if (rom_in.mem_valid == 1) begin
       ready <= 1;
-    end else begin
+    end
+    else begin
       ready <= 0;
     end
 

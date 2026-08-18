@@ -58,8 +58,8 @@ module axi (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam [1:0] idle = 0;
-  localparam [1:0] load = 1;
+  localparam [1:0] idle  = 0;
+  localparam [1:0] load  = 1;
   localparam [1:0] store = 2;
 
   logic [1:0] state;
@@ -112,7 +112,8 @@ module axi (
             state   = load;
             arvalid = 1;
             rready  = 1;
-          end else if (|axi_wstrb == 1) begin
+          end
+          else if (|axi_wstrb == 1) begin
             state   = store;
             awvalid = 1;
             wvalid  = 1;
@@ -135,7 +136,8 @@ module axi (
           state = idle;
           rdata = m_axi_rdata;
           ready = 1;
-        end else if (m_axi_rvalid == 0) begin
+        end
+        else if (m_axi_rvalid == 0) begin
           rready = rready_reg;
         end
       end
@@ -154,7 +156,8 @@ module axi (
         if (m_axi_bvalid == 1) begin
           state = idle;
           ready = 1;
-        end else if (m_axi_bvalid == 0) begin
+        end
+        else if (m_axi_bvalid == 0) begin
           bready = bready_reg;
         end
       end
@@ -211,7 +214,8 @@ module axi (
       bready_reg  <= 0;
       rdata_reg   <= 0;
       ready_reg   <= 0;
-    end else begin
+    end
+    else begin
       state_reg   <= state;
       arvalid_reg <= arvalid;
       awvalid_reg <= awvalid;

@@ -43,8 +43,7 @@ module buffer_reg (
         end
       end
       always_comb begin
-        buffer_reg_out.rdata[i] = (buffer_reg_in.wen[i] == 1 &&
-                                   buffer_reg_in.raddr[i] == buffer_reg_in.waddr[i]) ?
+        buffer_reg_out.rdata[i] = (buffer_reg_in.wen[i] == 1 && buffer_reg_in.raddr[i] == buffer_reg_in.waddr[i]) ?
             buffer_reg_in.wdata[i] : buffer_reg_array[buffer_reg_in.raddr[i]];
       end
     end
@@ -197,7 +196,8 @@ module buffer_ctrl (
         v.pc[s] = v.pc_base + 32'(2 * base);
         if (v.comp[base]) begin
           v.instr[s] = {16'b0, v.rdata[base]};
-        end else begin
+        end
+        else begin
           v.instr[s] = {v.rdata[base+1], v.rdata[base]};
         end
         v.ready[s] = 1;
@@ -216,7 +216,8 @@ module buffer_ctrl (
 
     if (v.count > TOTAL) begin
       v.stall = 1;
-    end else begin
+    end
+    else begin
       v.stall = 0;
     end
 
@@ -234,7 +235,8 @@ module buffer_ctrl (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

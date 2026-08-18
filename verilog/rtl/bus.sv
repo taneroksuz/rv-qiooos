@@ -67,7 +67,8 @@ module bus (
         itim_in[p]          = imem_in[p];
         itim_in[p].mem_addr = imem_in[p].mem_addr - ITIM_BASE;
         itim_rev[p]         = 0;
-      end else if (dmem_in[p].mem_valid & itim_hit_d[p]) begin
+      end
+      else if (dmem_in[p].mem_valid & itim_hit_d[p]) begin
         itim_in[p]          = dmem_in[p];
         itim_in[p].mem_addr = dmem_in[p].mem_addr - ITIM_BASE;
         itim_rev[p]         = 1;
@@ -77,7 +78,8 @@ module bus (
         dtim_in[p]          = imem_in[p];
         dtim_in[p].mem_addr = imem_in[p].mem_addr - DTIM_BASE;
         dtim_rev[p]         = 1;
-      end else if (dmem_in[p].mem_valid & dtim_hit_d[p]) begin
+      end
+      else if (dmem_in[p].mem_valid & dtim_hit_d[p]) begin
         dtim_in[p]          = dmem_in[p];
         dtim_in[p].mem_addr = dmem_in[p].mem_addr - DTIM_BASE;
         dtim_rev[p]         = 0;
@@ -127,7 +129,8 @@ module bus (
         itim_rev_reg[p] <= 0;
         dtim_rev_reg[p] <= 0;
       end
-    end else begin
+    end
+    else begin
       for (int p = 0; p < 2; p++) begin
         itim_rev_reg[p] <= itim_rev[p];
         dtim_rev_reg[p] <= dtim_rev[p];

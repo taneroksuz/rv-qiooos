@@ -5,13 +5,13 @@ start=`date +%s`
 
 FORMAT_FLAGS=(
   --inplace
-  --column_limit=100
+  --column_limit=120
   --indentation_spaces=2
   --wrap_spaces=4
   --line_break_penalty=2
   --over_column_limit_penalty=100
   --try_wrap_long_lines=true
-  --wrap_end_else_clauses=false
+  --wrap_end_else_clauses=true
   --port_declarations_alignment=align
   --port_declarations_indentation=indent
   --port_declarations_right_align_packed_dimensions=true
@@ -30,7 +30,7 @@ FORMAT_FLAGS=(
   --enum_assignment_statement_alignment=align
   --distribution_items_alignment=align
   --alignment_group_boundary=blank-lines
-  --compact_indexing_and_selections=true
+  --compact_indexing_and_selections=false
   --verify_convergence=true
   --failsafe_success=true
   --max_search_states=2000000

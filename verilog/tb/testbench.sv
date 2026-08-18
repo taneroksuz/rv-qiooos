@@ -58,7 +58,8 @@ module testbench ();
   always_ff @(posedge clock) begin
     if (counter == stoptime) begin
       $finish;
-    end else begin
+    end
+    else begin
       counter <= counter + 1;
     end
   end
@@ -167,7 +168,8 @@ module testbench ();
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       clear <= 2'b11;
-    end else begin
+    end
+    else begin
       clear <= {1'b0, clear[1]};
     end
   end

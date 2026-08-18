@@ -30,13 +30,15 @@ module div (
           v.negativ = ~v.negativ;
           v.op1     = -v.data1;
           v.op1_neg = 1;
-        end else begin
+        end
+        else begin
           v.op1 = v.data1;
         end
         if (v.op2_signed == 1 && v.data2[31] == 1) begin
           v.negativ = ~v.negativ;
           v.op2     = -v.data2;
-        end else begin
+        end
+        else begin
           v.op2 = v.data2;
         end
         for (int i = 31; i >= 0; i = i - 1) begin
@@ -62,7 +64,8 @@ module div (
         end
         if (div_in.enable == 0) begin
           v.counter = 0;
-        end else if (div_in.enable == 1) begin
+        end
+        else if (div_in.enable == 1) begin
           v.counter = v.counter + 6'h1;
         end
         div_out.result = 0;
@@ -83,32 +86,42 @@ module div (
         if (v.div_op.divs == 1) begin
           if (v.divisionbyzero == 1) begin
             div_out.result = 32'hFFFFFFFF;
-          end else if (v.overflow == 1) begin
+          end
+          else if (v.overflow == 1) begin
             div_out.result = 32'h80000000;
-          end else begin
+          end
+          else begin
             div_out.result = v.result[31:0];
           end
-        end else if (v.div_op.divu == 1) begin
+        end
+        else if (v.div_op.divu == 1) begin
           if (v.divisionbyzero == 1) begin
             div_out.result = 32'hFFFFFFFF;
-          end else begin
+          end
+          else begin
             div_out.result = v.result[31:0];
           end
-        end else if (v.div_op.rem == 1) begin
+        end
+        else if (v.div_op.rem == 1) begin
           if (v.divisionbyzero == 1) begin
             div_out.result = v.data1;
-          end else if (v.overflow == 1) begin
+          end
+          else if (v.overflow == 1) begin
             div_out.result = 0;
-          end else begin
+          end
+          else begin
             div_out.result = v.result[63:32];
           end
-        end else if (v.div_op.remu == 1) begin
+        end
+        else if (v.div_op.remu == 1) begin
           if (v.divisionbyzero == 1) begin
             div_out.result = v.data1;
-          end else begin
+          end
+          else begin
             div_out.result = v.result[63:32];
           end
-        end else begin
+        end
+        else begin
           div_out.result = 0;
         end
         div_out.ready = 1;
@@ -119,7 +132,8 @@ module div (
           v.result[64:32] = v.result[64:32] - {1'b0, v.op2};
           if (v.result[64] == 0) begin
             v.result[0] = 1;
-          end else if (v.result[64] == 1) begin
+          end
+          else if (v.result[64] == 1) begin
             v.result = {r.result[63:0], 1'b0};
           end
         end
@@ -136,9 +150,11 @@ module div (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_div_reg;
-    end else if (flush) begin
+    end
+    else if (flush) begin
       r <= init_div_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
 

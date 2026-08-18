@@ -143,7 +143,8 @@ module decode (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_decode_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

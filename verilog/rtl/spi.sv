@@ -52,7 +52,8 @@ module spi #(
         v.ready = 1;
         v.write = 0;
         v.read  = 0;
-      end else begin
+      end
+      else begin
         v.data  = {v.data[6:0], 1'b0};
         v.state = v.state + 1;
       end
@@ -71,7 +72,8 @@ module spi #(
 
     if (v.write == 1) begin
       v.ss = 0;
-    end else if (v.read == 1) begin
+    end
+    else if (v.read == 1) begin
       v.ss      = 0;
       v.data[0] = miso;
     end
@@ -91,7 +93,8 @@ module spi #(
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_register;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

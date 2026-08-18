@@ -107,8 +107,7 @@ module rat (
     for (int r = 0; r < 2 * ISSUE_WIDTH; r++) begin
       v.eff[r] = spec[v.rsrc_a[r]];
       for (int c = 0; c < ISSUE_WIDTH; c++) begin
-        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) &&
-            (v.rsrc_a[r] == rat_in.commit_addr[c]) &&
+        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) && (v.rsrc_a[r] == rat_in.commit_addr[c]) &&
             (v.eff[r][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
           v.eff[r] = {1'b1, rat_in.commit_tag[c]};
         end
@@ -146,8 +145,7 @@ module rat (
       v.spec_next[j] = flush ? comm[j] : spec[j];
       v.comm_next[j] = comm[j];
       for (int c = 0; c < ISSUE_WIDTH; c++) begin
-        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) &&
-            (rat_in.commit_addr[c] == 5'(j))) begin
+        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) && (rat_in.commit_addr[c] == 5'(j))) begin
           v.comm_next[j] = {1'b1, rat_in.commit_tag[c]};
           if (flush || (spec[j][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
             v.spec_next[j] = {1'b1, rat_in.commit_tag[c]};
@@ -168,7 +166,8 @@ module rat (
         spec[j] <= {1'b1, PRF_ADDR_BITS'(j)};
         comm[j] <= {1'b1, PRF_ADDR_BITS'(j)};
       end
-    end else begin
+    end
+    else begin
       for (int j = 0; j < ARCH_REGS; j++) begin
         spec[j] <= v.spec_next[j];
         comm[j] <= v.comm_next[j];

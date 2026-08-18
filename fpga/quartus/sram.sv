@@ -104,7 +104,8 @@ module sram #(
         v.ub_n = ~v.strb[1];
         v.lb_n = ~v.strb[0];
       end
-    end else if (v.read == 1) begin
+    end
+    else if (v.read == 1) begin
       if (v.state == 2) begin
         v.data[31:16] = sram_dq;
         v.ce_n        = 0;
@@ -140,7 +141,8 @@ module sram #(
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_register;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

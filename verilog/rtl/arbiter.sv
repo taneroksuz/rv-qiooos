@@ -37,7 +37,8 @@ module arbiter (
 
     if (mem_out.mem_ready == 1) begin
       v.access_type = no_access;
-    end else begin
+    end
+    else begin
       v.mem_in = init_mem_in;
     end
 
@@ -55,15 +56,18 @@ module arbiter (
         v.access_type = data0_access;
         v.mem_in      = v.dmem_in[0];
         v.dmem_in[0]  = init_mem_in;
-      end else if (v.dmem_in[1].mem_valid == 1) begin
+      end
+      else if (v.dmem_in[1].mem_valid == 1) begin
         v.access_type = data1_access;
         v.mem_in      = v.dmem_in[1];
         v.dmem_in[1]  = init_mem_in;
-      end else if (v.imem_in[0].mem_valid == 1) begin
+      end
+      else if (v.imem_in[0].mem_valid == 1) begin
         v.access_type = instr0_access;
         v.mem_in      = v.imem_in[0];
         v.imem_in[0]  = init_mem_in;
-      end else if (v.imem_in[1].mem_valid == 1) begin
+      end
+      else if (v.imem_in[1].mem_valid == 1) begin
         v.access_type = instr1_access;
         v.mem_in      = v.imem_in[1];
         v.imem_in[1]  = init_mem_in;
@@ -72,7 +76,8 @@ module arbiter (
 
     if (v.access_type != no_access) begin
       mem_in = v.mem_in;
-    end else begin
+    end
+    else begin
       mem_in = init_mem_in;
     end
 
@@ -88,7 +93,8 @@ module arbiter (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

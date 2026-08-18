@@ -153,13 +153,7 @@ module btac_ctrl (
     logic [ISSUE_WIDTH-1:0][1:0]         sat;
   } bht_reg_type;
 
-  localparam bht_reg_type init_bht_reg = '{
-      waddr : 0,
-      raddr : '{default: 0},
-      wdata : 0,
-      wen : 0,
-      sat : '{default: 0}
-  };
+  localparam bht_reg_type init_bht_reg = '{waddr : 0, raddr : '{default: 0}, wdata : 0, wen : 0, sat : '{default: 0}};
 
   btb_reg_type r_btb, rin_btb, v_btb;
   bht_reg_type r_bht, rin_bht, v_bht;
@@ -181,8 +175,8 @@ module btac_ctrl (
       v_btb.match[k] = (btb_out.rdata[k][62-B_DEPTH:32] == r_btb.pc[k][31:B_DEPTH+1]);
       v_btb.branch[k] = btb_out.rdata[k][63-B_DEPTH];
       v_btb.valid[k] = btb_out.rdata[k][64-B_DEPTH];
-      btac_out.pred[k].taken = v_btb.branch[k] ?
-          bht_out.rdata[k][1] & v_btb.match[k] & v_btb.valid[k] : v_btb.match[k] & v_btb.valid[k];
+      btac_out.pred[k].taken = v_btb.branch[k] ? bht_out.rdata[k][1] & v_btb.match[k] & v_btb.valid[k] :
+          v_btb.match[k] & v_btb.valid[k];
       btac_out.pred[k].tsat = bht_out.rdata[k];
     end
 
@@ -202,8 +196,7 @@ module btac_ctrl (
         v_btb.maddr[p] = btac_in.upd_addr[p];
         v_btb.miss[p]  = 1;
       end
-      if (btac_in.upd_branch[p] == 1 && btac_in.upd_pred[p].taken == 1 &&
-          btac_in.upd_jump[p] == 0) begin
+      if (btac_in.upd_branch[p] == 1 && btac_in.upd_pred[p].taken == 1 && btac_in.upd_jump[p] == 0) begin
         v_btb.maddr[p] = btac_in.upd_npc[p];
         v_btb.miss[p]  = 1;
       end
@@ -215,24 +208,22 @@ module btac_ctrl (
     sel[3] = v_btb.hit[3] | v_btb.miss[3];
 
     v_btb.wen = sel[0] | sel[1] | sel[2] | sel[3];
-    v_btb.waddr = sel[0] ? btac_in.upd_pc[0][B_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][B_DEPTH:1] :
-        sel[2] ? btac_in.upd_pc[2][B_DEPTH:1] : btac_in.upd_pc[3][B_DEPTH:1];
-    v_btb.wdata = sel[0] ?
-        {1'b1, btac_in.upd_branch[0], btac_in.upd_pc[0][31:B_DEPTH+1], v_btb.maddr[0]} :
+    v_btb.waddr = sel[0] ? btac_in.upd_pc[0][B_DEPTH:1] :
+        sel[1] ? btac_in.upd_pc[1][B_DEPTH:1] : sel[2] ? btac_in.upd_pc[2][B_DEPTH:1] : btac_in.upd_pc[3][B_DEPTH:1];
+    v_btb.wdata = sel[0] ? {1'b1, btac_in.upd_branch[0], btac_in.upd_pc[0][31:B_DEPTH+1], v_btb.maddr[0]} :
         sel[1] ? {1'b1, btac_in.upd_branch[1], btac_in.upd_pc[1][31:B_DEPTH+1], v_btb.maddr[1]} :
         sel[2] ? {1'b1, btac_in.upd_branch[2], btac_in.upd_pc[2][31:B_DEPTH+1], v_btb.maddr[2]} :
         {1'b1, btac_in.upd_branch[3], btac_in.upd_pc[3][31:B_DEPTH+1], v_btb.maddr[3]};
 
-    v_bht.wen = (sel[0] & btac_in.upd_branch[0]) | (sel[1] & btac_in.upd_branch[1]) |
-        (sel[2] & btac_in.upd_branch[2]) | (sel[3] & btac_in.upd_branch[3]);
-    v_bht.waddr = sel[0] ? btac_in.upd_pc[0][T_DEPTH:1] : sel[1] ? btac_in.upd_pc[1][T_DEPTH:1] :
-        sel[2] ? btac_in.upd_pc[2][T_DEPTH:1] : btac_in.upd_pc[3][T_DEPTH:1];
+    v_bht.wen = (sel[0] & btac_in.upd_branch[0]) | (sel[1] & btac_in.upd_branch[1]) | (sel[2] & btac_in.upd_branch[2]) |
+        (sel[3] & btac_in.upd_branch[3]);
+    v_bht.waddr = sel[0] ? btac_in.upd_pc[0][T_DEPTH:1] :
+        sel[1] ? btac_in.upd_pc[1][T_DEPTH:1] : sel[2] ? btac_in.upd_pc[2][T_DEPTH:1] : btac_in.upd_pc[3][T_DEPTH:1];
     v_bht.sat[0] = saturation(btac_in.upd_pred[0].tsat, btac_in.upd_jump[0]);
     v_bht.sat[1] = saturation(btac_in.upd_pred[1].tsat, btac_in.upd_jump[1]);
     v_bht.sat[2] = saturation(btac_in.upd_pred[2].tsat, btac_in.upd_jump[2]);
     v_bht.sat[3] = saturation(btac_in.upd_pred[3].tsat, btac_in.upd_jump[3]);
-    v_bht.wdata = sel[0] ? v_bht.sat[0] :
-        sel[1] ? v_bht.sat[1] : sel[2] ? v_bht.sat[2] : v_bht.sat[3];
+    v_bht.wdata = sel[0] ? v_bht.sat[0] : sel[1] ? v_bht.sat[1] : sel[2] ? v_bht.sat[2] : v_bht.sat[3];
 
     btb_in.wen   = v_btb.wen;
     btb_in.waddr = v_btb.waddr;
@@ -255,7 +246,8 @@ module btac_ctrl (
     if (reset == 0) begin
       r_btb <= init_btb_reg;
       r_bht <= init_bht_reg;
-    end else begin
+    end
+    else begin
       r_btb <= rin_btb;
       r_bht <= rin_bht;
     end
@@ -303,7 +295,8 @@ module btac (
         .bht_out (bht_out)
       );
 
-    end else begin
+    end
+    else begin
 
       typedef struct packed {
         logic [1:0][31:0] maddr;
@@ -340,7 +333,8 @@ module btac (
       always_ff @(posedge clock) begin
         if (reset == 0) begin
           r <= init_reg;
-        end else begin
+        end
+        else begin
           r <= rin;
         end
       end

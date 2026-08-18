@@ -15,7 +15,7 @@ package tim_wires;
 
   typedef struct packed {logic [1:0][31:0] data;} tim_ram_out_type;
 
-  localparam tim_ram_in_type init_tim_ram_in = '{default: '0};
+  localparam tim_ram_in_type  init_tim_ram_in  = '{default: '0};
   localparam tim_ram_out_type init_tim_ram_out = '{default: '0};
 
 endpackage
@@ -145,7 +145,7 @@ module tim_ctrl (
   } back_type;
 
   parameter front_type init_front = 0;
-  parameter back_type init_back = 0;
+  parameter back_type  init_back  = 0;
 
   front_type r_f, rin_f;
   front_type v_f;
@@ -216,7 +216,8 @@ module tim_ctrl (
     if (reset == 0) begin
       r_f <= init_front;
       r_b <= init_back;
-    end else begin
+    end
+    else begin
       r_f <= rin_f;
       r_b <= rin_b;
     end

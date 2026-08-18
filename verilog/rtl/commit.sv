@@ -20,15 +20,14 @@ module commit (
     commit_entry_type [ISSUE_WIDTH-1:0]   commit_entry;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]      store_slot_valid;
     store_slot_type [MEM_ISSUE_WIDTH-1:0] store_slot_entry;
-
-    rob_entry_type [ISSUE_WIDTH-1:0]  e;
-    logic [ISSUE_WIDTH-1:0]           c;
-    logic [ISSUE_WIDTH-1:0]           entry_flush;
-    logic [ISSUE_WIDTH-1:0]           do_commit;
-    logic [0:0]                       any_flush;
-    logic [0:0]                       irq_take;
-    logic [MEM_ISSUE_WIDTH-1:0]       store_slot_found;
-    logic [MEM_ISSUE_WIDTH-1:0][31:0] store_slot_owner;
+    rob_entry_type [ISSUE_WIDTH-1:0]      e;
+    logic [ISSUE_WIDTH-1:0]               c;
+    logic [ISSUE_WIDTH-1:0]               entry_flush;
+    logic [ISSUE_WIDTH-1:0]               do_commit;
+    logic [0:0]                           any_flush;
+    logic [0:0]                           irq_take;
+    logic [MEM_ISSUE_WIDTH-1:0]           store_slot_found;
+    logic [MEM_ISSUE_WIDTH-1:0][31:0]     store_slot_owner;
   } commit_reg_type;
   localparam commit_reg_type init_commit_reg = '{
       csr_win       : init_csr_write_in,
@@ -60,8 +59,7 @@ module commit (
       v.entry_flush[k] = 1'b0;
       if (v.do_commit[k]) begin
         v.entry_flush[k] = v.e[k].exception | v.e[k].mret |
-            (!v.e[k].branch ?
-             v.e[k].jump & (~v.e[k].pred.taken | (v.e[k].target != v.e[k].pred.taddr)) : 0) |
+            (!v.e[k].branch ? v.e[k].jump & (~v.e[k].pred.taken | (v.e[k].target != v.e[k].pred.taddr)) : 0) |
             (v.e[k].branch ? v.e[k].jump ^ v.e[k].pred.taken : 0);
       end
       v.any_flush = v.any_flush | v.entry_flush[k];
@@ -91,7 +89,8 @@ module commit (
         if (!v.store_slot_found[0]) begin
           v.store_slot_owner[0] = k;
           v.store_slot_found[0] = 1'b1;
-        end else if (!v.store_slot_found[1]) begin
+        end
+        else if (!v.store_slot_found[1]) begin
           v.store_slot_owner[1] = k;
           v.store_slot_found[1] = 1'b1;
         end
@@ -163,7 +162,8 @@ module commit (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_commit_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

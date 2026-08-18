@@ -29,8 +29,8 @@ module avl (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam [1:0] idle = 0;
-  localparam [1:0] load = 1;
+  localparam [1:0] idle  = 0;
+  localparam [1:0] load  = 1;
   localparam [1:0] store = 2;
 
   logic [1:0] state;
@@ -68,7 +68,8 @@ module avl (
             state      = load;
             read       = 1;
             byteenable = 4'hF;
-          end else if (|avl_wstrb == 1) begin
+          end
+          else if (|avl_wstrb == 1) begin
             state      = store;
             write      = 1;
             byteenable = avl_wstrb;
@@ -82,7 +83,8 @@ module avl (
           state = idle;
           rdata = m_avl_readdata;
           ready = 1;
-        end else if (m_avl_waitrequest == 1) begin
+        end
+        else if (m_avl_waitrequest == 1) begin
           address    = address_reg;
           byteenable = byteenable_reg;
           read       = read_reg;
@@ -94,7 +96,8 @@ module avl (
         if (m_avl_waitrequest == 0) begin
           state = idle;
           ready = 1;
-        end else if (m_avl_waitrequest == 1) begin
+        end
+        else if (m_avl_waitrequest == 1) begin
           address    = address_reg;
           byteenable = byteenable_reg;
           read       = read_reg;
@@ -129,7 +132,8 @@ module avl (
       write_reg      <= 0;
       rdata_reg      <= 0;
       ready_reg      <= 0;
-    end else begin
+    end
+    else begin
       state_reg      <= state;
       address_reg    <= address;
       byteenable_reg <= byteenable;

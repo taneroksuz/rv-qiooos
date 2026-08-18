@@ -23,25 +23,24 @@ module rs_int (
     logic [3:0]                               csr_inflight;
     logic [0:0]                               csr_drain;
     rs_int_out_type                           rs_o;
-
-    rs_entry_type [RS_INT_DEPTH-1:0] view;
-    rs_entry_type [RS_INT_DEPTH-1:0] woken;
-    logic [RS_INT_DEPTH-1:0]         ready_vec;
-    cdb_type [RS_CDB_COUNT-1:0]      cdb_all;
-    rs_entry_type [ISSUE_WIDTH-1:0]  issue_arr;
-    logic [2:0]                      mul_budget;
-    logic [2:0]                      div_budget;
-    logic [2:0]                      agu_budget;
-    logic [2:0]                      bcu_budget;
-    logic [2:0]                      bitalu_budget;
-    logic [2:0]                      csralu_budget;
-    logic [2:0]                      sel_count;
-    logic [0:0]                      csr_taken;
-    logic [0:0]                      needs_bcu;
-    logic [0:0]                      needs_agu;
-    logic [0:0]                      can_take;
-    logic [RS_INT_DEPTH-1:0]         slot_free;
-    logic [RS_INT_DEPTH-1:0]         slot_issued;
+    rs_entry_type [RS_INT_DEPTH-1:0]          view;
+    rs_entry_type [RS_INT_DEPTH-1:0]          woken;
+    logic [RS_INT_DEPTH-1:0]                  ready_vec;
+    cdb_type [RS_CDB_COUNT-1:0]               cdb_all;
+    rs_entry_type [ISSUE_WIDTH-1:0]           issue_arr;
+    logic [2:0]                               mul_budget;
+    logic [2:0]                               div_budget;
+    logic [2:0]                               agu_budget;
+    logic [2:0]                               bcu_budget;
+    logic [2:0]                               bitalu_budget;
+    logic [2:0]                               csralu_budget;
+    logic [2:0]                               sel_count;
+    logic [0:0]                               csr_taken;
+    logic [0:0]                               needs_bcu;
+    logic [0:0]                               needs_agu;
+    logic [0:0]                               can_take;
+    logic [RS_INT_DEPTH-1:0]                  slot_free;
+    logic [RS_INT_DEPTH-1:0]                  slot_issued;
   } rs_int_reg_type;
 
   localparam rs_int_out_type init_rs_int_out = '0;
@@ -87,9 +86,8 @@ module rs_int (
       v.view[i].valid = r.valid_bits[i];
       v.woken[i] = rs_wakeup_all(v.view[i], v.cdb_all);
       v.ready_vec[i] = v.woken[i].valid & v.woken[i].src1_ready &
-          v.woken[i].src2_ready & ~rs_in.div_busy & ~(
-          v.woken[i].op.csreg & (r.csr_inflight > 0)) & ~(v.woken[i].op.csreg & r.csr_drain) & ~(
-          v.woken[i].op.csreg & (v.woken[i].rob_tag != rs_in.rob_head));
+          v.woken[i].src2_ready & ~rs_in.div_busy & ~(v.woken[i].op.csreg & (r.csr_inflight > 0)) & ~(
+          v.woken[i].op.csreg & r.csr_drain) & ~(v.woken[i].op.csreg & (v.woken[i].rob_tag != rs_in.rob_head));
     end
 
     v.mul_budget    = MUL_COUNT;
@@ -103,8 +101,7 @@ module rs_int (
 
     for (int i = RS_INT_DEPTH - 1; i >= 0; i--) begin
       v.needs_bcu = v.woken[i].op.branch;
-      v.needs_agu = v.woken[i].op.auipc | v.woken[i].op.jal | v.woken[i].op.jalr |
-          v.woken[i].op.branch;
+      v.needs_agu = v.woken[i].op.auipc | v.woken[i].op.jal | v.woken[i].op.jalr | v.woken[i].op.branch;
 
       if (v.woken[i].op.mult) v.can_take = (v.mul_budget > 0);
       else if (v.woken[i].op.division) v.can_take = (v.div_budget > 0);
@@ -126,10 +123,12 @@ module rs_int (
           else if (v.woken[i].op.csreg) begin
             v.csralu_budget = v.csralu_budget - 1;
             v.csr_taken     = 1'b1;
-          end else if (v.needs_bcu) begin
+          end
+          else if (v.needs_bcu) begin
             v.agu_budget = v.agu_budget - 1;
             v.bcu_budget = v.bcu_budget - 1;
-          end else if (v.needs_agu) begin
+          end
+          else if (v.needs_agu) begin
             v.agu_budget = v.agu_budget - 1;
           end
         end
@@ -183,7 +182,8 @@ module rs_int (
       v.sel_found  = '0;
       v.free_found = '0;
       v.rs_o       = init_rs_int_out;
-    end else begin
+    end
+    else begin
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (v.sel_found[k]) begin
           v.valid_bits[v.sel_idx[k]] = 1'b0;
@@ -226,24 +226,33 @@ module rs_int (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_rs_int_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end
 
   always_ff @(posedge clock) begin
-    if (reset != 0) begin
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        for (int m = 0; m < RS_BANK_ENTRIES; m++) begin
-          if (rs_in.alloc[k] && rin.free_found[k] &&
-              (rin.free_idx[k] == RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)))) begin
-            array[m*ISSUE_WIDTH+k] <= rs_in.entry[k];
-          end else if (r.valid_bits[m*ISSUE_WIDTH+k] && rin.valid_bits[m*ISSUE_WIDTH+k] &&
-                       !rin.slot_issued[m*ISSUE_WIDTH+k]) begin
-            array[m*ISSUE_WIDTH+k].src1_ready <= rin.woken[m*ISSUE_WIDTH+k].src1_ready;
-            array[m*ISSUE_WIDTH+k].src2_ready <= rin.woken[m*ISSUE_WIDTH+k].src2_ready;
-            array[m*ISSUE_WIDTH+k].rdata1     <= rin.woken[m*ISSUE_WIDTH+k].rdata1;
-            array[m*ISSUE_WIDTH+k].rdata2     <= rin.woken[m*ISSUE_WIDTH+k].rdata2;
+    if (reset == 0) begin
+      for (int i = 0; i < RS_INT_DEPTH; i++) begin
+        array[i] <= init_rs_entry;
+      end
+    end
+    else begin
+      if (!flush) begin
+        for (int k = 0; k < ISSUE_WIDTH; k++) begin
+          for (int m = 0; m < RS_BANK_ENTRIES; m++) begin
+            if (rs_in.alloc[k] && rin.free_found[k] &&
+                (rin.free_idx[k] == RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)))) begin
+              array[m*ISSUE_WIDTH+k] <= rs_in.entry[k];
+            end
+            else if (r.valid_bits[m*ISSUE_WIDTH+k] && rin.valid_bits[m*ISSUE_WIDTH+k] &&
+                     !rin.slot_issued[m*ISSUE_WIDTH+k]) begin
+              array[m*ISSUE_WIDTH+k].src1_ready <= rin.woken[m*ISSUE_WIDTH+k].src1_ready;
+              array[m*ISSUE_WIDTH+k].src2_ready <= rin.woken[m*ISSUE_WIDTH+k].src2_ready;
+              array[m*ISSUE_WIDTH+k].rdata1     <= rin.woken[m*ISSUE_WIDTH+k].rdata1;
+              array[m*ISSUE_WIDTH+k].rdata2     <= rin.woken[m*ISSUE_WIDTH+k].rdata2;
+            end
           end
         end
       end

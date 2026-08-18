@@ -36,7 +36,8 @@ module fetch (
     if (fetch_in.cache_out.mem_ready == 1) begin
       v.rdata = fetch_in.cache_out.mem_rdata;
       v.ready = 1;
-    end else begin
+    end
+    else begin
       v.ready = 0;
     end
 
@@ -64,11 +65,13 @@ module fetch (
         if (v.ready == 1) begin
           v.state = BUSY;
           v.valid = 1;
-        end else if (v.flush == 1) begin
+        end
+        else if (v.flush == 1) begin
           v.state = INVALID;
           v.valid = 0;
           v.stall = 1;
-        end else begin
+        end
+        else begin
           v.state = BUSY;
           v.valid = 0;
           v.stall = 1;
@@ -80,7 +83,8 @@ module fetch (
           v.ready = 0;
           v.valid = 1;
           v.stall = 1;
-        end else begin
+        end
+        else begin
           v.state = INVALID;
           v.ready = 0;
           v.valid = 0;
@@ -93,33 +97,47 @@ module fetch (
 
     if (fetch_in.csr_out.trap == 1) begin
       v.ipc = fetch_in.csr_out.mtvec;
-    end else if (fetch_in.csr_out.mret == 1) begin
+    end
+    else if (fetch_in.csr_out.mret == 1) begin
       v.ipc = fetch_in.csr_out.mepc;
-    end else if (fetch_in.entry[0].fence) begin
+    end
+    else if (fetch_in.entry[0].fence) begin
       v.ipc = fetch_in.entry[0].pnpc;
-    end else if (fetch_in.entry[1].fence) begin
+    end
+    else if (fetch_in.entry[1].fence) begin
       v.ipc = fetch_in.entry[1].pnpc;
-    end else if (fetch_in.entry[2].fence) begin
+    end
+    else if (fetch_in.entry[2].fence) begin
       v.ipc = fetch_in.entry[2].pnpc;
-    end else if (fetch_in.entry[3].fence) begin
+    end
+    else if (fetch_in.entry[3].fence) begin
       v.ipc = fetch_in.entry[3].pnpc;
-    end else if (fetch_in.btac_out.pred_miss[0]) begin
+    end
+    else if (fetch_in.btac_out.pred_miss[0]) begin
       v.ipc = fetch_in.btac_out.pred_maddr[0];
-    end else if (fetch_in.btac_out.pred_miss[1]) begin
+    end
+    else if (fetch_in.btac_out.pred_miss[1]) begin
       v.ipc = fetch_in.btac_out.pred_maddr[1];
-    end else if (fetch_in.btac_out.pred_miss[2]) begin
+    end
+    else if (fetch_in.btac_out.pred_miss[2]) begin
       v.ipc = fetch_in.btac_out.pred_maddr[2];
-    end else if (fetch_in.btac_out.pred_miss[3]) begin
+    end
+    else if (fetch_in.btac_out.pred_miss[3]) begin
       v.ipc = fetch_in.btac_out.pred_maddr[3];
-    end else if (fetch_in.btac_out.pred[0].taken) begin
+    end
+    else if (fetch_in.btac_out.pred[0].taken) begin
       v.ipc = fetch_in.btac_out.pred[0].taddr;
-    end else if (fetch_in.btac_out.pred[1].taken) begin
+    end
+    else if (fetch_in.btac_out.pred[1].taken) begin
       v.ipc = fetch_in.btac_out.pred[1].taddr;
-    end else if (fetch_in.btac_out.pred[2].taken) begin
+    end
+    else if (fetch_in.btac_out.pred[2].taken) begin
       v.ipc = fetch_in.btac_out.pred[2].taddr;
-    end else if (fetch_in.btac_out.pred[3].taken) begin
+    end
+    else if (fetch_in.btac_out.pred[3].taken) begin
       v.ipc = fetch_in.btac_out.pred[3].taddr;
-    end else if (v.stall == 0) begin
+    end
+    else if (v.stall == 0) begin
       v.ipc = v.ipc + PC_INCREMENTS;
     end
 
@@ -158,7 +176,8 @@ module fetch (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_fetch_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

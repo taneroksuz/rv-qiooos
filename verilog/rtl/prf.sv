@@ -50,7 +50,12 @@ module prf (
   end
 
   always_ff @(posedge clock) begin
-    if (reset != 0) begin
+    if (reset == 0) begin
+      for (int i = 0; i < ARCH_REGS; i++) begin
+        mem[i] <= '0;
+      end
+    end
+    else begin
       for (int w = 0; w < ISSUE_WIDTH; w++) begin
         if (v.wen[w]) begin
           mem[v.waddr[w]] <= v.wdata[w];

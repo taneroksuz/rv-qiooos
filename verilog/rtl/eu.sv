@@ -22,39 +22,34 @@ module eu (
     logic [MEM_ISSUE_WIDTH-1:0]                    rob_wen_store;
     rs_entry_type                                  div_pending;
     logic [0:0]                                    div_pending_valid;
-
-    rs_entry_type [ISSUE_WIDTH-1:0] int_issue;
-    logic [ISSUE_WIDTH-1:0]         int_issue_valid;
-
-    logic [ISSUE_WIDTH-1:0][31:0] agu_result_lane;
-    logic [ISSUE_WIDTH-1:0]       agu_exception_lane;
-    logic [ISSUE_WIDTH-1:0][7:0]  agu_ecause_lane;
-    logic [ISSUE_WIDTH-1:0][31:0] agu_etval_lane;
-    logic [ISSUE_WIDTH-1:0][31:0] mul_result_lane;
-    logic [ISSUE_WIDTH-1:0][31:0] bit_result_lane;
-    logic [ISSUE_WIDTH-1:0]       branch_taken_lane;
-    logic [ISSUE_WIDTH-1:0][31:0] eu_result_lane;
-    logic [ISSUE_WIDTH-1:0]       eu_done_lane;
-    logic [ISSUE_WIDTH-1:0]       agu_need;
-
-    logic [AGU_BRANCH_COUNT-1:0][1:0] agu_owner;
-    logic [AGU_BRANCH_COUNT-1:0]      agu_found;
-    logic [BCU_COUNT-1:0][1:0]        bcu_owner;
-    logic [BCU_COUNT-1:0]             bcu_found;
-    logic [MUL_COUNT-1:0][1:0]        mul_owner;
-    logic [MUL_COUNT-1:0]             mul_found;
-    logic [BITALU_COUNT-1:0][1:0]     bitalu_owner;
-    logic [BITALU_COUNT-1:0]          bitalu_found;
-
-    logic [1:0]  csr_owner;
-    logic [0:0]  csr_found;
-    csr_op_type  csr_owner_op;
-    logic [31:0] csr_result;
-
-    logic [MEM_ISSUE_WIDTH-1:0][31:0] mstore_data;
-    lsu_op_type [MEM_ISSUE_WIDTH-1:0] mem_lsu_op;
-    logic [ISSUE_WIDTH-1:0]           div_issue;
-    logic [ISSUE_WIDTH-1:0][31:0]     npc_lane;
+    rs_entry_type [ISSUE_WIDTH-1:0]                int_issue;
+    logic [ISSUE_WIDTH-1:0]                        int_issue_valid;
+    logic [ISSUE_WIDTH-1:0][31:0]                  agu_result_lane;
+    logic [ISSUE_WIDTH-1:0]                        agu_exception_lane;
+    logic [ISSUE_WIDTH-1:0][7:0]                   agu_ecause_lane;
+    logic [ISSUE_WIDTH-1:0][31:0]                  agu_etval_lane;
+    logic [ISSUE_WIDTH-1:0][31:0]                  mul_result_lane;
+    logic [ISSUE_WIDTH-1:0][31:0]                  bit_result_lane;
+    logic [ISSUE_WIDTH-1:0]                        branch_taken_lane;
+    logic [ISSUE_WIDTH-1:0][31:0]                  eu_result_lane;
+    logic [ISSUE_WIDTH-1:0]                        eu_done_lane;
+    logic [ISSUE_WIDTH-1:0]                        agu_need;
+    logic [AGU_BRANCH_COUNT-1:0][1:0]              agu_owner;
+    logic [AGU_BRANCH_COUNT-1:0]                   agu_found;
+    logic [BCU_COUNT-1:0][1:0]                     bcu_owner;
+    logic [BCU_COUNT-1:0]                          bcu_found;
+    logic [MUL_COUNT-1:0][1:0]                     mul_owner;
+    logic [MUL_COUNT-1:0]                          mul_found;
+    logic [BITALU_COUNT-1:0][1:0]                  bitalu_owner;
+    logic [BITALU_COUNT-1:0]                       bitalu_found;
+    logic [1:0]                                    csr_owner;
+    logic [0:0]                                    csr_found;
+    csr_op_type                                    csr_owner_op;
+    logic [31:0]                                   csr_result;
+    logic [MEM_ISSUE_WIDTH-1:0][31:0]              mstore_data;
+    lsu_op_type [MEM_ISSUE_WIDTH-1:0]              mem_lsu_op;
+    logic [ISSUE_WIDTH-1:0]                        div_issue;
+    logic [ISSUE_WIDTH-1:0][31:0]                  npc_lane;
   } eu_reg_type;
 
   localparam eu_reg_type init_eu_reg = '{
@@ -96,11 +91,9 @@ module eu (
       v.npc_lane[l]        = rs_npc(eu_in.int_issue[l]);
     end
 
-    v.div_issue[0] = eu_in.int_issue_valid[0] &
-        eu_in.int_issue[0].op.division & ~r.div_pending_valid;
+    v.div_issue[0] = eu_in.int_issue_valid[0] & eu_in.int_issue[0].op.division & ~r.div_pending_valid;
     for (int l = 1; l < ISSUE_WIDTH; l++) begin
-      v.div_issue[l] = eu_in.int_issue_valid[l] &
-          eu_in.int_issue[l].op.division & ~r.div_pending_valid;
+      v.div_issue[l] = eu_in.int_issue_valid[l] & eu_in.int_issue[l].op.division & ~r.div_pending_valid;
       for (int j = 0; j < l; j++) begin
         v.div_issue[l] = v.div_issue[l] & ~v.div_issue[j];
       end
@@ -108,10 +101,12 @@ module eu (
 
     if (flush) begin
       v.div_pending_valid = 1'b0;
-    end else begin
+    end
+    else begin
       if (eu_in.div_out.ready) begin
         v.div_pending_valid = 1'b0;
-      end else begin
+      end
+      else begin
         for (int l = 0; l < ISSUE_WIDTH; l++) begin
           if (v.div_issue[l]) begin
             v.div_pending       = eu_in.int_issue[l];
@@ -148,8 +143,8 @@ module eu (
     end
 
     for (int l = 0; l < ISSUE_WIDTH; l++) begin
-      v.agu_need[l] = v.int_issue_valid[l] && (v.int_issue[l].op.auipc || v.int_issue[l].op.jal ||
-                                               v.int_issue[l].op.jalr || v.int_issue[l].op.branch);
+      v.agu_need[l] = v.int_issue_valid[l] &&
+          (v.int_issue[l].op.auipc || v.int_issue[l].op.jal || v.int_issue[l].op.jalr || v.int_issue[l].op.branch);
       if (v.agu_need[l]) begin
         for (int p = 0; p < AGU_BRANCH_COUNT; p++) begin
           if (!v.agu_found[p]) begin
@@ -210,8 +205,7 @@ module eu (
       eu_out.bcu_in[p].rdata1 = v.bcu_found[p] ? v.int_issue[v.bcu_owner[p]].rdata1 : 32'h0;
       eu_out.bcu_in[p].rdata2 = v.bcu_found[p] ? v.int_issue[v.bcu_owner[p]].rdata2 : 32'h0;
       eu_out.bcu_in[p].enable = v.bcu_found[p];
-      eu_out.bcu_in[p].bcu_op = v.bcu_found[p] ? rs_bcu_op(v.int_issue[v.bcu_owner[p]].unit_op) :
-          init_bcu_op;
+      eu_out.bcu_in[p].bcu_op = v.bcu_found[p] ? rs_bcu_op(v.int_issue[v.bcu_owner[p]].unit_op) : init_bcu_op;
     end
 
     for (int l = 0; l < ISSUE_WIDTH; l++) begin
@@ -243,8 +237,7 @@ module eu (
     for (int p = 0; p < MUL_COUNT; p++) begin
       eu_out.mul_in[p].rdata1 = v.mul_found[p] ? v.int_issue[v.mul_owner[p]].rdata1 : 32'h0;
       eu_out.mul_in[p].rdata2 = v.mul_found[p] ? v.int_issue[v.mul_owner[p]].rdata2 : 32'h0;
-      eu_out.mul_in[p].mul_op = v.mul_found[p] ? rs_mul_op(v.int_issue[v.mul_owner[p]].unit_op) :
-          init_mul_op;
+      eu_out.mul_in[p].mul_op = v.mul_found[p] ? rs_mul_op(v.int_issue[v.mul_owner[p]].unit_op) : init_mul_op;
     end
 
     for (int l = 0; l < ISSUE_WIDTH; l++) begin
@@ -274,14 +267,11 @@ module eu (
     end
 
     for (int p = 0; p < BITALU_COUNT; p++) begin
-      eu_out.bit_alu_in[p].rdata1 = v.bitalu_found[p] ? v.int_issue[v.bitalu_owner[p]].rdata1 :
-          32'h0;
-      eu_out.bit_alu_in[p].rdata2 = v.bitalu_found[p] ? v.int_issue[v.bitalu_owner[p]].rdata2 :
-          32'h0;
+      eu_out.bit_alu_in[p].rdata1 = v.bitalu_found[p] ? v.int_issue[v.bitalu_owner[p]].rdata1 : 32'h0;
+      eu_out.bit_alu_in[p].rdata2 = v.bitalu_found[p] ? v.int_issue[v.bitalu_owner[p]].rdata2 : 32'h0;
       eu_out.bit_alu_in[p].imm = v.bitalu_found[p] ? v.int_issue[v.bitalu_owner[p]].imm : 32'h0;
       eu_out.bit_alu_in[p].sel = v.bitalu_found[p] ? v.int_issue[v.bitalu_owner[p]].op.rden2 : 1'b0;
-      eu_out.bit_alu_in[p].bit_op = v.bitalu_found[p] ?
-          rs_bit_op(v.int_issue[v.bitalu_owner[p]].unit_op) : init_bit_op;
+      eu_out.bit_alu_in[p].bit_op = v.bitalu_found[p] ? rs_bit_op(v.int_issue[v.bitalu_owner[p]].unit_op) : init_bit_op;
     end
 
     for (int l = 0; l < ISSUE_WIDTH; l++) begin
@@ -303,25 +293,22 @@ module eu (
       end
     end
 
-    eu_out.csr_alu_in.cdata = eu_in.csr.cdata;
+    eu_out.csr_alu_in.cdata  = eu_in.csr.cdata;
     eu_out.csr_alu_in.rdata1 = v.csr_found ? v.int_issue[v.csr_owner].rdata1 : 32'h0;
-    eu_out.csr_alu_in.imm = v.csr_found ? v.int_issue[v.csr_owner].imm : 32'h0;
-    v.csr_owner_op = rs_csr_op(v.int_issue[v.csr_owner].unit_op);
-    eu_out.csr_alu_in.sel = v.csr_found &&
-        (v.csr_owner_op.csrrwi | v.csr_owner_op.csrrsi | v.csr_owner_op.csrrci);
+    eu_out.csr_alu_in.imm    = v.csr_found ? v.int_issue[v.csr_owner].imm : 32'h0;
+    v.csr_owner_op           = rs_csr_op(v.int_issue[v.csr_owner].unit_op);
+    eu_out.csr_alu_in.sel    = v.csr_found && (v.csr_owner_op.csrrwi | v.csr_owner_op.csrrsi | v.csr_owner_op.csrrci);
     eu_out.csr_alu_in.csr_op = v.csr_found ? v.csr_owner_op : init_csr_op;
 
     v.csr_result = v.csr_found ? eu_in.csr_alu_out.cdata : eu_in.csr.cdata;
 
-    eu_out.div_in.rdata1 = v.div_issue[0] ? eu_in.int_issue[0].rdata1 :
-        v.div_issue[1] ? eu_in.int_issue[1].rdata1 :
+    eu_out.div_in.rdata1 = v.div_issue[0] ? eu_in.int_issue[0].rdata1 : v.div_issue[1] ? eu_in.int_issue[1].rdata1 :
         v.div_issue[2] ? eu_in.int_issue[2].rdata1 : eu_in.int_issue[3].rdata1;
-    eu_out.div_in.rdata2 = v.div_issue[0] ? eu_in.int_issue[0].rdata2 :
-        v.div_issue[1] ? eu_in.int_issue[1].rdata2 :
+    eu_out.div_in.rdata2 = v.div_issue[0] ? eu_in.int_issue[0].rdata2 : v.div_issue[1] ? eu_in.int_issue[1].rdata2 :
         v.div_issue[2] ? eu_in.int_issue[2].rdata2 : eu_in.int_issue[3].rdata2;
-    eu_out.div_in.div_op = rs_div_op(
-        v.div_issue[0] ? eu_in.int_issue[0].unit_op : v.div_issue[1] ? eu_in.int_issue[1].unit_op :
-            v.div_issue[2] ? eu_in.int_issue[2].unit_op : eu_in.int_issue[3].unit_op);
+    eu_out.div_in.div_op =
+        rs_div_op(v.div_issue[0] ? eu_in.int_issue[0].unit_op : v.div_issue[1] ? eu_in.int_issue[1].unit_op :
+                  v.div_issue[2] ? eu_in.int_issue[2].unit_op : eu_in.int_issue[3].unit_op);
     eu_out.div_in.enable = v.div_issue[0] | v.div_issue[1] | v.div_issue[2] | v.div_issue[3];
 
     for (int l = 0; l < ISSUE_WIDTH; l++) begin
@@ -340,12 +327,8 @@ module eu (
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       v.mem_lsu_op[p] = rs_lsu_op(eu_in.mem_issue[p].unit_op);
-      v.mstore_data[p] = store_data(
-        eu_in.mem_issue[p].rdata2,
-        v.mem_lsu_op[p].lsu_sb,
-        v.mem_lsu_op[p].lsu_sh,
-        v.mem_lsu_op[p].lsu_sw
-      );
+      v.mstore_data[p] =
+          store_data(eu_in.mem_issue[p].rdata2, v.mem_lsu_op[p].lsu_sb, v.mem_lsu_op[p].lsu_sh, v.mem_lsu_op[p].lsu_sw);
     end
 
     if (!flush) begin
@@ -367,7 +350,8 @@ module eu (
         v.rob_wentry[0].ecause    = '0;
         v.rob_wentry[0].wdata     = '0;
 
-      end else if (v.int_issue_valid[0] && v.eu_done_lane[0]) begin
+      end
+      else if (v.int_issue_valid[0] && v.eu_done_lane[0]) begin
         if (v.int_issue[0].op.wren) begin
           v.cdb[0].valid = 1'b1;
           v.cdb[0].tag   = v.int_issue[0].pdest;
@@ -377,16 +361,13 @@ module eu (
         v.rob_wentry[0].done = 1'b1;
         v.rob_wentry[0].target = v.agu_result_lane[0];
         v.rob_wentry[0].branch = v.int_issue[0].op.branch;
-        v.rob_wentry[0].jump = v.int_issue[0].op.jal | v.int_issue[0].op.jalr |
-            v.branch_taken_lane[0];
-        v.rob_wentry[0].exception = v.int_issue[0].op.exception | v.int_issue[0].op.ecall |
-            v.int_issue[0].op.ebreak | v.agu_exception_lane[0];
-        v.rob_wentry[0].ecause = v.int_issue[0].op.exception ? except_illegal_instruction :
-            v.int_issue[0].op.ecall ? except_env_call_user :
-            v.int_issue[0].op.ebreak ? except_breakpoint : v.agu_ecause_lane[0];
-        v.rob_wentry[0].result = (v.int_issue[0].op.exception | v.int_issue[0].op.ecall |
-                                  v.int_issue[0].op.ebreak | v.agu_exception_lane[0]) ?
-            v.agu_etval_lane[0] : v.eu_result_lane[0];
+        v.rob_wentry[0].jump = v.int_issue[0].op.jal | v.int_issue[0].op.jalr | v.branch_taken_lane[0];
+        v.rob_wentry[0].exception = v.int_issue[0].op.exception | v.int_issue[0].op.ecall | v.int_issue[0].op.ebreak |
+            v.agu_exception_lane[0];
+        v.rob_wentry[0].ecause = v.int_issue[0].op.exception ? except_illegal_instruction : v.int_issue[0].op.ecall ?
+            except_env_call_user : v.int_issue[0].op.ebreak ? except_breakpoint : v.agu_ecause_lane[0];
+        v.rob_wentry[0].result = (v.int_issue[0].op.exception | v.int_issue[0].op.ecall | v.int_issue[0].op.ebreak |
+                                  v.agu_exception_lane[0]) ? v.agu_etval_lane[0] : v.eu_result_lane[0];
         v.rob_wentry[0].wdata = v.csr_result;
       end
 
@@ -400,16 +381,13 @@ module eu (
         v.rob_wentry[1].done = 1'b1;
         v.rob_wentry[1].target = v.agu_result_lane[1];
         v.rob_wentry[1].branch = v.int_issue[1].op.branch;
-        v.rob_wentry[1].jump = v.int_issue[1].op.jal | v.int_issue[1].op.jalr |
-            v.branch_taken_lane[1];
-        v.rob_wentry[1].exception = v.int_issue[1].op.exception | v.int_issue[1].op.ecall |
-            v.int_issue[1].op.ebreak | v.agu_exception_lane[1];
-        v.rob_wentry[1].ecause = v.int_issue[1].op.exception ? except_illegal_instruction :
-            v.int_issue[1].op.ecall ? except_env_call_user :
-            v.int_issue[1].op.ebreak ? except_breakpoint : v.agu_ecause_lane[1];
-        v.rob_wentry[1].result = (v.int_issue[1].op.exception | v.int_issue[1].op.ecall |
-                                  v.int_issue[1].op.ebreak | v.agu_exception_lane[1]) ?
-            v.agu_etval_lane[1] : v.eu_result_lane[1];
+        v.rob_wentry[1].jump = v.int_issue[1].op.jal | v.int_issue[1].op.jalr | v.branch_taken_lane[1];
+        v.rob_wentry[1].exception = v.int_issue[1].op.exception | v.int_issue[1].op.ecall | v.int_issue[1].op.ebreak |
+            v.agu_exception_lane[1];
+        v.rob_wentry[1].ecause = v.int_issue[1].op.exception ? except_illegal_instruction : v.int_issue[1].op.ecall ?
+            except_env_call_user : v.int_issue[1].op.ebreak ? except_breakpoint : v.agu_ecause_lane[1];
+        v.rob_wentry[1].result = (v.int_issue[1].op.exception | v.int_issue[1].op.ecall | v.int_issue[1].op.ebreak |
+                                  v.agu_exception_lane[1]) ? v.agu_etval_lane[1] : v.eu_result_lane[1];
         v.rob_wentry[1].wdata = v.csr_result;
       end
 
@@ -424,16 +402,13 @@ module eu (
           v.rob_wentry[l].done = 1'b1;
           v.rob_wentry[l].target = v.agu_result_lane[l];
           v.rob_wentry[l].branch = v.int_issue[l].op.branch;
-          v.rob_wentry[l].jump = v.int_issue[l].op.jal | v.int_issue[l].op.jalr |
-              v.branch_taken_lane[l];
-          v.rob_wentry[l].exception = v.int_issue[l].op.exception | v.int_issue[l].op.ecall |
-              v.int_issue[l].op.ebreak | v.agu_exception_lane[l];
-          v.rob_wentry[l].ecause = v.int_issue[l].op.exception ? except_illegal_instruction :
-              v.int_issue[l].op.ecall ? except_env_call_user :
-              v.int_issue[l].op.ebreak ? except_breakpoint : v.agu_ecause_lane[l];
-          v.rob_wentry[l].result = (v.int_issue[l].op.exception | v.int_issue[l].op.ecall |
-                                    v.int_issue[l].op.ebreak | v.agu_exception_lane[l]) ?
-              v.agu_etval_lane[l] : v.eu_result_lane[l];
+          v.rob_wentry[l].jump = v.int_issue[l].op.jal | v.int_issue[l].op.jalr | v.branch_taken_lane[l];
+          v.rob_wentry[l].exception = v.int_issue[l].op.exception | v.int_issue[l].op.ecall | v.int_issue[l].op.ebreak |
+              v.agu_exception_lane[l];
+          v.rob_wentry[l].ecause = v.int_issue[l].op.exception ? except_illegal_instruction : v.int_issue[l].op.ecall ?
+              except_env_call_user : v.int_issue[l].op.ebreak ? except_breakpoint : v.agu_ecause_lane[l];
+          v.rob_wentry[l].result = (v.int_issue[l].op.exception | v.int_issue[l].op.ecall | v.int_issue[l].op.ebreak |
+                                    v.agu_exception_lane[l]) ? v.agu_etval_lane[l] : v.eu_result_lane[l];
           v.rob_wentry[l].wdata = v.csr_result;
         end
       end
@@ -474,7 +449,8 @@ module eu (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_eu_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

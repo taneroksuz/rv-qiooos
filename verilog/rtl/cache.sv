@@ -5,7 +5,7 @@ package cache_wires;
 
   localparam CDEPTH = $clog2(CACHE_DEPTH);
   localparam CWIDTH = $clog2(CACHE_WIDTH);
-  localparam CTAG = 32 - CDEPTH - CWIDTH - 2;
+  localparam CTAG   = 32 - CDEPTH - CWIDTH - 2;
 
   typedef struct packed {
     logic [CDEPTH-1:0] raddr;
@@ -36,9 +36,9 @@ package cache_wires;
   typedef cache_ram_in_type cache_vec_in_type[CACHE_WIDTH];
   typedef cache_ram_out_type cache_vec_out_type[CACHE_WIDTH];
 
-  localparam cache_vec_in_type init_cache_vec_in = '{default: '0};
+  localparam cache_vec_in_type  init_cache_vec_in  = '{default: '0};
   localparam cache_vec_out_type init_cache_vec_out = '{default: '0};
-  localparam cache_tag_in_type init_cache_tag_in = '{default: '0};
+  localparam cache_tag_in_type  init_cache_tag_in  = '{default: '0};
   localparam cache_tag_out_type init_cache_tag_out = '{default: '0};
 
 endpackage
@@ -76,7 +76,7 @@ module cache_tag_ram (
 
   localparam CDEPTH = $clog2(CACHE_DEPTH);
   localparam CWIDTH = $clog2(CACHE_WIDTH);
-  localparam CTAG = 32 - CDEPTH - CWIDTH - 2;
+  localparam CTAG   = 32 - CDEPTH - CWIDTH - 2;
 
   logic [CTAG-1:0] tag_mem  [0:CACHE_DEPTH-1];
   logic [     0:0] valid_mem[0:CACHE_DEPTH-1];
@@ -108,7 +108,7 @@ module cache_ctrl (
 
   localparam CDEPTH = $clog2(CACHE_DEPTH);
   localparam CWIDTH = $clog2(CACHE_WIDTH);
-  localparam CTAG = 32 - CDEPTH - CWIDTH - 2;
+  localparam CTAG   = 32 - CDEPTH - CWIDTH - 2;
 
   typedef struct packed {
     logic [CTAG-1:0]   tag;
@@ -147,7 +147,7 @@ module cache_ctrl (
   } back_type;
 
   parameter front_type init_front = 0;
-  parameter back_type init_back = '{state: INVAL, default: '0};
+  parameter back_type  init_back  = '{state: INVAL, default: '0};
 
   front_type r_f, rin_f;
   front_type v_f;
@@ -167,10 +167,12 @@ module cache_ctrl (
       if (v_b.state == HIT) begin
         v_f.valid   = 1;
         v_f.pending = 0;
-      end else begin
+      end
+      else begin
         v_f.pending = 1;
       end
-    end else if (r_f.pending == 1 && v_b.state == HIT) begin
+    end
+    else if (r_f.pending == 1 && v_b.state == HIT) begin
       v_f.valid   = 1;
       v_f.pending = 0;
     end
@@ -237,14 +239,16 @@ module cache_ctrl (
           v_b.state         = FLUSH;
           v_b.flush_addr    = '0;
           v_b.fence_pending = 0;
-        end else if (r_f.valid == 1) begin
+        end
+        else if (r_f.valid == 1) begin
           if (cache_tag_out.rvalid == 1 && cache_tag_out.rtag == r_f.tag) begin
             v_b.ready = 1;
             for (int w = 0; w < CACHE_WIDTH; w++) begin
               v_b.rdata[w*32+:32] = cache_vec_out[w].rdata;
               v_b.error[w]        = cache_vec_out[w].rerror;
             end
-          end else begin
+          end
+          else begin
             v_b.state    = FILL;
             v_b.wid      = 0;
             v_b.tag      = r_f.tag;
@@ -281,7 +285,8 @@ module cache_ctrl (
           if (r_b.wid >= CWIDTH'(CACHE_WIDTH) - CWIDTH'(2)) begin
             v_b.wen   = 1;
             v_b.state = DONE;
-          end else begin
+          end
+          else begin
             v_b.wid = r_b.wid + 2;
           end
           v_b.mem_send = 0;
@@ -301,7 +306,8 @@ module cache_ctrl (
           v_b.addr     = v_b.addr_pending;
           v_b.base     = {v_b.tag_pending, v_b.addr_pending, {CWIDTH{1'b0}}, 2'b00};
           v_b.mem_done = 2'b00;
-        end else begin
+        end
+        else begin
           v_b.flush_addr = r_b.flush_addr + CDEPTH'(1);
         end
       end
@@ -309,7 +315,8 @@ module cache_ctrl (
       INVAL: begin
         if (r_b.flush_addr == CDEPTH'(CACHE_DEPTH - 1)) begin
           v_b.state = HIT;
-        end else begin
+        end
+        else begin
           v_b.flush_addr = r_b.flush_addr + CDEPTH'(1);
         end
       end
@@ -346,7 +353,8 @@ module cache_ctrl (
     if (reset == 0) begin
       r_f <= init_front;
       r_b <= init_back;
-    end else begin
+    end
+    else begin
       r_f <= rin_f;
       r_b <= rin_b;
     end

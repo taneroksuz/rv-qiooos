@@ -87,16 +87,7 @@ module compress (
     imm_lsdr = {24'b0, instr[6:5], instr[12:10], 3'b0};
 
     imm_j = {
-      {20{instr[12]}},
-      instr[12],
-      instr[8],
-      instr[10:9],
-      instr[6],
-      instr[7],
-      instr[2],
-      instr[11],
-      instr[5:3],
-      1'b0
+      {20{instr[12]}}, instr[12], instr[8], instr[10:9], instr[6], instr[7], instr[2], instr[11], instr[5:3], 1'b0
     };
     imm_b = {{23{instr[12]}}, instr[12], instr[6:5], instr[2], instr[11:10], instr[4:3], 1'b0};
     imm_w = {22'b0, instr[10:7], instr[12:11], instr[5], instr[6], 2'b0};
@@ -220,7 +211,8 @@ module compress (
               alunit         = 1;
               alu_op.alu_add = nonzero_imm_p;
               valid          = nonzero_imm_p;
-            end else begin
+            end
+            else begin
               instr_str = "c.lui";
               imm       = imm_u;
               wren      = nonzero_imm_u;
@@ -358,7 +350,8 @@ module compress (
                     rden1     = 1;
                     waddr     = 0;
                     jalr      = 1;
-                  end else if (nonzero_raddr2 == 1) begin
+                  end
+                  else if (nonzero_raddr2 == 1) begin
                     instr_str      = "c.mv";
                     wren           = 1;
                     rden2          = 1;
@@ -373,14 +366,16 @@ module compress (
                     instr_str = "c.ebreak";
                     ebreak    = 1;
                   end
-                end else if (nonzero_raddr1 == 1) begin
+                end
+                else if (nonzero_raddr1 == 1) begin
                   if (nonzero_raddr2 == 0) begin
                     instr_str = "c.jalr";
                     wren      = 1;
                     rden1     = 1;
                     waddr     = 1;
                     jalr      = 1;
-                  end else if (nonzero_raddr2 == 1) begin
+                  end
+                  else if (nonzero_raddr2 == 1) begin
                     instr_str      = "c.add";
                     wren           = 1;
                     rden1          = 1;

@@ -11,13 +11,12 @@ module fl (
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
-    logic [FL_CNT_BITS-1:0] spec_head;
-    logic [FL_CNT_BITS-1:0] comm_head;
-    logic [FL_CNT_BITS-1:0] tail;
-    logic [FL_CNT_BITS-1:0] spec_count;
-    logic [FL_CNT_BITS-1:0] comm_count;
-    logic [FLIST_DEPTH-1:0] list_written;
-
+    logic [FL_CNT_BITS-1:0]                    spec_head;
+    logic [FL_CNT_BITS-1:0]                    comm_head;
+    logic [FL_CNT_BITS-1:0]                    tail;
+    logic [FL_CNT_BITS-1:0]                    spec_count;
+    logic [FL_CNT_BITS-1:0]                    comm_count;
+    logic [FLIST_DEPTH-1:0]                    list_written;
     logic [ISSUE_WIDTH-1:0]                    do_free;
     logic [ISSUE_WIDTH-1:0][FL_IDX_BITS-1:0]   free_slot;
     logic [ISSUE_WIDTH-1:0][FL_IDX_BITS-1:0]   alloc_slot;
@@ -86,7 +85,8 @@ module fl (
           v.list_written[v.free_slot[i]] = 1'b1;
         end
       end
-    end else begin
+    end
+    else begin
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         if (v.free_en[i] && (v.spec_count < FL_CNT_BITS'(FLIST_DEPTH))) begin
           v.do_free[i]                   = 1'b1;
@@ -111,13 +111,19 @@ module fl (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_fl_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end
 
   always_ff @(posedge clock) begin
-    if (reset != 0) begin
+    if (reset == 0) begin
+      for (int i = 0; i < FLIST_DEPTH; i++) begin
+        list[i] <= PRF_ADDR_BITS'(ARCH_REGS + i);
+      end
+    end
+    else begin
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         if (rin.do_free[i]) begin
           list[rin.free_slot[i]] <= rin.free_tag[i];

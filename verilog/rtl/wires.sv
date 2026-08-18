@@ -190,14 +190,7 @@ package wires;
     logic [0:0] csrrci;
   } csr_op_type;
 
-  localparam csr_op_type init_csr_op = '{
-      csrrw: 0,
-      csrrs: 0,
-      csrrc: 0,
-      csrrwi: 0,
-      csrrsi: 0,
-      csrrci: 0
-  };
+  localparam csr_op_type init_csr_op = '{csrrw: 0, csrrs: 0, csrrc: 0, csrrwi: 0, csrrsi: 0, csrrci: 0};
 
   typedef struct packed {
     logic [31:0] rdata1;
@@ -308,13 +301,7 @@ package wires;
     logic [31:0] etval;
   } agu_out_type;
 
-  localparam agu_out_type init_agu_out = '{
-      address: 0,
-      byteenable: 0,
-      exception: 0,
-      ecause: 0,
-      etval: 0
-  };
+  localparam agu_out_type init_agu_out = '{address: 0, byteenable: 0, exception: 0, ecause: 0, etval: 0};
 
   typedef struct packed {
     logic [31:0] ldata;
@@ -816,12 +803,7 @@ package wires;
     logic [3:0]  store_strb;
   } store_slot_type;
 
-  localparam store_slot_type init_store_slot = '{
-      exception: 0,
-      target: 0,
-      wdata: 0,
-      store_strb: 0
-  };
+  localparam store_slot_type init_store_slot = '{exception: 0, target: 0, wdata: 0, store_strb: 0};
 
   typedef struct packed {
     logic [0:0]               valid;

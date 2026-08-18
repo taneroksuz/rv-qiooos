@@ -27,17 +27,16 @@ module msu (
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               store_sent;
     store_slot_type [MEM_ISSUE_WIDTH-1:0]          store_entry;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               load_sent;
-
-    logic [MEM_ISSUE_WIDTH-1:0] load_accept;
-    logic [MEM_ISSUE_WIDTH-1:0] load_ready;
-    logic [MEM_ISSUE_WIDTH-1:0] commit_store_valid;
-    logic [MEM_ISSUE_WIDTH-1:0] load_busy;
-    logic [MEM_ISSUE_WIDTH-1:0] store_busy;
-    logic [MEM_ISSUE_WIDTH-1:0] store_done;
-    logic [MEM_ISSUE_WIDTH-1:0] store_slot_free;
-    logic [MEM_ISSUE_WIDTH-1:0] slot_free_pre;
-    logic [MEM_ISSUE_WIDTH-1:0] commit_claims_slot;
-    logic [MEM_ISSUE_WIDTH-1:0] slot_blocked;
+    logic [MEM_ISSUE_WIDTH-1:0]                    load_accept;
+    logic [MEM_ISSUE_WIDTH-1:0]                    load_ready;
+    logic [MEM_ISSUE_WIDTH-1:0]                    commit_store_valid;
+    logic [MEM_ISSUE_WIDTH-1:0]                    load_busy;
+    logic [MEM_ISSUE_WIDTH-1:0]                    store_busy;
+    logic [MEM_ISSUE_WIDTH-1:0]                    store_done;
+    logic [MEM_ISSUE_WIDTH-1:0]                    store_slot_free;
+    logic [MEM_ISSUE_WIDTH-1:0]                    slot_free_pre;
+    logic [MEM_ISSUE_WIDTH-1:0]                    commit_claims_slot;
+    logic [MEM_ISSUE_WIDTH-1:0]                    slot_blocked;
   } msu_reg_type;
 
   localparam msu_reg_type init_msu_reg = '{
@@ -75,10 +74,10 @@ module msu (
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       v.commit_store_valid[p] = msu_in.commit_store[p] && !msu_in.commit_entry[p].exception;
-      v.load_busy[p] = r.load_pending[p] && !msu_in.dmem_out[p].mem_ready;
-      v.store_busy[p] = r.store_pending[p] && !msu_in.dmem_out[p].mem_ready;
-      v.store_done[p] = r.store_pending[p] && r.store_sent[p] && msu_in.dmem_out[p].mem_ready;
-      v.slot_free_pre[p] = !r.store_pending[p] || v.store_done[p];
+      v.load_busy[p]          = r.load_pending[p] && !msu_in.dmem_out[p].mem_ready;
+      v.store_busy[p]         = r.store_pending[p] && !msu_in.dmem_out[p].mem_ready;
+      v.store_done[p]         = r.store_pending[p] && r.store_sent[p] && msu_in.dmem_out[p].mem_ready;
+      v.slot_free_pre[p]      = !r.store_pending[p] || v.store_done[p];
     end
 
     v.commit_claims_slot[0] = 1'b0;
@@ -87,7 +86,8 @@ module msu (
       if (v.commit_store_valid[c]) begin
         if (v.slot_free_pre[0] && !v.commit_claims_slot[0]) begin
           v.commit_claims_slot[0] = 1'b1;
-        end else if (v.slot_free_pre[1] && !v.commit_claims_slot[1]) begin
+        end
+        else if (v.slot_free_pre[1] && !v.commit_claims_slot[1]) begin
           v.commit_claims_slot[1] = 1'b1;
         end
       end
@@ -95,10 +95,8 @@ module msu (
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       v.slot_blocked[p] = v.load_busy[p] || v.store_busy[p] || v.commit_claims_slot[p];
-      v.load_accept[p] = msu_in.issue_valid[p] && msu_in.issue[p].op.load && !v.slot_blocked[p] &&
-          !flush;
-      v.load_ready[p] = r.load_pending[p] && !r.store_pending[p] && msu_in.dmem_out[p].mem_ready &&
-          !flush;
+      v.load_accept[p]  = msu_in.issue_valid[p] && msu_in.issue[p].op.load && !v.slot_blocked[p] && !flush;
+      v.load_ready[p]   = r.load_pending[p] && !r.store_pending[p] && msu_in.dmem_out[p].mem_ready && !flush;
     end
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
@@ -127,7 +125,8 @@ module msu (
           v.store_sent[0]      = 1'b0;
           v.store_entry[0]     = msu_in.commit_entry[c];
           v.store_slot_free[0] = 1'b0;
-        end else if (v.store_slot_free[1]) begin
+        end
+        else if (v.store_slot_free[1]) begin
           v.store_pending[1]   = 1'b1;
           v.store_sent[1]      = 1'b0;
           v.store_entry[1]     = msu_in.commit_entry[c];
@@ -152,7 +151,8 @@ module msu (
         v.dmem_in[p].mem_wdata = v.store_entry[p].wdata;
         v.dmem_in[p].mem_wstrb = v.store_entry[p].store_strb;
         v.store_sent[p]        = 1'b1;
-      end else if (v.load_pending[p] && !v.load_sent[p]) begin
+      end
+      else if (v.load_pending[p] && !v.load_sent[p]) begin
         v.dmem_in[p].mem_valid = 1'b1;
         v.dmem_in[p].mem_instr = 1'b0;
         v.dmem_in[p].mem_mode  = 2'h0;
@@ -176,7 +176,8 @@ module msu (
         v.rob_wentry[p].exception = 1'b1;
         v.rob_wentry[p].ecause    = msu_in.agu_out[p].ecause;
         v.rob_wentry[p].result    = msu_in.agu_out[p].etval;
-      end else if (v.load_ready[p]) begin
+      end
+      else if (v.load_ready[p]) begin
         v.cdb[p].valid         = 1'b1;
         v.cdb[p].tag           = r.load_pdest[p];
         v.cdb[p].data          = msu_in.lsu_out[p].result;
@@ -206,7 +207,8 @@ module msu (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_msu_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end

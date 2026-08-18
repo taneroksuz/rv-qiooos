@@ -19,11 +19,10 @@ module rob (
   localparam ROB_WPORTS = ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH;
 
   typedef struct packed {
-    logic [ROB_ADDR_BITS-1:0] head;
-    logic [ROB_ADDR_BITS-1:0] tail_ptr;
-    logic [ROB_ADDR_BITS:0]   count;
-    logic [ROB_DEPTH-1:0]     valid_bits;
-
+    logic [ROB_ADDR_BITS-1:0]                  head;
+    logic [ROB_ADDR_BITS-1:0]                  tail_ptr;
+    logic [ROB_ADDR_BITS:0]                    count;
+    logic [ROB_DEPTH-1:0]                      valid_bits;
     rob_entry_type [ISSUE_WIDTH-1:0]           h;
     rob_entry_type [ISSUE_WIDTH-1:0]           alloc_entry_w;
     logic [ISSUE_WIDTH-1:0]                    h_done;
@@ -38,17 +37,16 @@ module rob (
     logic [ROB_WPORTS-1:0]                     wen;
     logic [ROB_WPORTS-1:0]                     wv;
     logic [ISSUE_WIDTH-1:0][ROB_WPORTS-1:0]    h_hit;
-
-    logic [ROB_BANK_BITS-1:0]                head_bank;
-    logic [ROB_BANK_BITS-1:0]                tail_bank;
-    logic [ROB_ROW_BITS-1:0]                 head_row;
-    logic [ROB_ROW_BITS-1:0]                 tail_row;
-    rob_entry_type [ROB_BANKS-1:0]           bank_rdata;
-    logic [ROB_BANKS-1:0][ROB_ROW_BITS-1:0]  bank_rrow;
-    rob_entry_type [ROB_BANKS-1:0]           bank_wdata;
-    logic [ROB_BANKS-1:0][ROB_ROW_BITS-1:0]  bank_wrow;
-    logic [ROB_BANKS-1:0]                    bank_wen;
-    logic [ROB_BANKS-1:0][ROB_BANK_BITS-1:0] bank_lane;
+    logic [ROB_BANK_BITS-1:0]                  head_bank;
+    logic [ROB_BANK_BITS-1:0]                  tail_bank;
+    logic [ROB_ROW_BITS-1:0]                   head_row;
+    logic [ROB_ROW_BITS-1:0]                   tail_row;
+    rob_entry_type [ROB_BANKS-1:0]             bank_rdata;
+    logic [ROB_BANKS-1:0][ROB_ROW_BITS-1:0]    bank_rrow;
+    rob_entry_type [ROB_BANKS-1:0]             bank_wdata;
+    logic [ROB_BANKS-1:0][ROB_ROW_BITS-1:0]    bank_wrow;
+    logic [ROB_BANKS-1:0]                      bank_wen;
+    logic [ROB_BANKS-1:0][ROB_BANK_BITS-1:0]   bank_lane;
   } rob_reg_type;
 
   localparam rob_reg_type init_rob_reg = '{
@@ -154,9 +152,8 @@ module rob (
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v.h_done[k] = v.h[k].valid && v.h[k].done && (r.count >= (ROB_ADDR_BITS + 1)'(k + 1));
-      v.h_stop[k] = v.h[k].exception || v.h[k].mret ||
-          (v.h[k].jump && (v.h[k].target != v.h[k].pnpc)) || v.h[k].fence || v.h[k].wfi ||
-          v.h[k].ecall || v.h[k].ebreak || v.h[k].csreg;
+      v.h_stop[k] = v.h[k].exception || v.h[k].mret || (v.h[k].jump && (v.h[k].target != v.h[k].pnpc)) ||
+          v.h[k].fence || v.h[k].wfi || v.h[k].ecall || v.h[k].ebreak || v.h[k].csreg;
     end
 
     rob_out = init_rob_out;
@@ -190,7 +187,8 @@ module rob (
       v.tail_ptr   = '0;
       v.count      = '0;
       v.valid_bits = '0;
-    end else begin
+    end
+    else begin
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (v.commit[k]) begin
           v.valid_bits[v.head] = 1'b0;
@@ -225,13 +223,19 @@ module rob (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_rob_reg;
-    end else begin
+    end
+    else begin
       r <= rin;
     end
   end
 
   always_ff @(posedge clock) begin
-    if (reset != 0) begin
+    if (reset == 0) begin
+      for (int i = 0; i < ROB_DEPTH; i++) begin
+        array[i] <= init_rob_entry;
+      end
+    end
+    else begin
       if (!flush) begin
         for (int b = 0; b < ROB_BANKS; b++) begin
           for (int row = 0; row < ROB_ROWS; row++) begin
@@ -262,9 +266,7 @@ module rob (
             array[rin.wtag[p]].ecause    <= rin.wentry[p].ecause;
           end
         end
-        for (
-            int p = ISSUE_WIDTH + MEM_ISSUE_WIDTH; p < ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH; p++
-        ) begin
+        for (int p = ISSUE_WIDTH + MEM_ISSUE_WIDTH; p < ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH; p++) begin
           if (rin.wen[p] && rin.valid_bits[rin.wtag[p]]) begin
             array[rin.wtag[p]].done       <= 1'b1;
             array[rin.wtag[p]].target     <= rin.wentry[p].target;
