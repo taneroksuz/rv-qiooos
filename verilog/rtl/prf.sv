@@ -9,38 +9,42 @@ module prf (
 );
   timeunit 1ns; timeprecision 1ps;
 
+  typedef struct packed {
+    logic [ISSUE_WIDTH-1:0][0:0]    wen;
+    logic [ISSUE_WIDTH-1:0][4:0]    waddr;
+    logic [ISSUE_WIDTH-1:0][31:0]   wdata;
+    logic [2*ISSUE_WIDTH-1:0][4:0]  raddr;
+    logic [2*ISSUE_WIDTH-1:0][31:0] rdata;
+  } prf_reg_type;
+
   logic [31:0] mem[0:ARCH_REGS-1] = '{default: '0};
 
-  logic [ 0:0] wen  [  0:ISSUE_WIDTH-1];
-  logic [ 4:0] waddr[  0:ISSUE_WIDTH-1];
-  logic [31:0] wdata[  0:ISSUE_WIDTH-1];
-  logic [ 4:0] raddr[0:2*ISSUE_WIDTH-1];
-  logic [31:0] rdata[0:2*ISSUE_WIDTH-1];
+  prf_reg_type v;
 
   always_comb begin
     for (int w = 0; w < ISSUE_WIDTH; w++) begin
-      wen[w]   = prf_in.wren[w] && (prf_in.waddr[w] != '0);
-      waddr[w] = prf_in.waddr[w];
-      wdata[w] = prf_in.wdata[w];
+      v.wen[w]   = prf_in.wren[w] && (prf_in.waddr[w] != '0);
+      v.waddr[w] = prf_in.waddr[w];
+      v.wdata[w] = prf_in.wdata[w];
     end
 
     for (int i = 0; i < 2 * ISSUE_WIDTH; i++) begin
-      raddr[i] = prf_in.raddr[i];
+      v.raddr[i] = prf_in.raddr[i];
     end
 
     prf_out = init_prf_out;
 
     for (int i = 0; i < 2 * ISSUE_WIDTH; i++) begin
-      rdata[i] = mem[raddr[i]];
+      v.rdata[i] = mem[v.raddr[i]];
       for (int w = 0; w < ISSUE_WIDTH; w++) begin
-        if (wen[w] && waddr[w] == raddr[i]) begin
-          rdata[i] = wdata[w];
+        if (v.wen[w] && v.waddr[w] == v.raddr[i]) begin
+          v.rdata[i] = v.wdata[w];
         end
       end
     end
 
     for (int i = 0; i < 2 * ISSUE_WIDTH; i++) begin
-      prf_out.rdata[i]  = rdata[i];
+      prf_out.rdata[i]  = v.rdata[i];
       prf_out.rvalid[i] = 1'b1;
     end
   end
@@ -48,8 +52,8 @@ module prf (
   always_ff @(posedge clock) begin
     if (reset != 0) begin
       for (int w = 0; w < ISSUE_WIDTH; w++) begin
-        if (wen[w]) begin
-          mem[waddr[w]] <= wdata[w];
+        if (v.wen[w]) begin
+          mem[v.waddr[w]] <= v.wdata[w];
         end
       end
     end

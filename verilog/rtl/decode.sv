@@ -15,7 +15,6 @@ module decode (
 
   decode_reg_type r, rin;
   decode_reg_type v;
-  logic           squash[0:ISSUE_WIDTH-1];
 
   always_comb begin
 
@@ -122,16 +121,16 @@ module decode (
       end
     end
 
-    rin = v;
-
-    squash[0] = 1'b0;
+    v.squash[0] = 1'b0;
     for (int i = 1; i < ISSUE_WIDTH; i++) begin
-      squash[i] = squash[i-1] | decode_in.btac_out.pred[i-1].taken;
+      v.squash[i] = v.squash[i-1] | decode_in.btac_out.pred[i-1].taken;
     end
+
+    rin = v;
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
       decode_out.instr[i] = r.instr[i];
-      if (squash[i]) begin
+      if (v.squash[i]) begin
         decode_out.instr[i].op = init_operation;
       end
       decode_out.instr[i].pred.taken = decode_in.btac_out.pred[i].taken;

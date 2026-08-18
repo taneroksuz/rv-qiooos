@@ -724,9 +724,12 @@ package wires;
       stall: 0
   };
 
-  typedef struct packed {instruction_type [ISSUE_WIDTH-1:0] instr;} decode_reg_type;
+  typedef struct packed {
+    instruction_type [ISSUE_WIDTH-1:0] instr;
+    logic [ISSUE_WIDTH-1:0]            squash;
+  } decode_reg_type;
 
-  localparam decode_reg_type init_decode_reg = '{instr: '{default: init_instruction}};
+  localparam decode_reg_type init_decode_reg = '{instr: '{default: init_instruction}, squash: '0};
 
   typedef struct packed {
     logic [0:0]               valid;

@@ -80,83 +80,83 @@ module rat (
       31: {1'b1, PRF_ADDR_BITS'(31)}
   };
 
-  logic [PRF_ADDR_BITS:0] spec_next[0:ARCH_REGS-1];
-  logic [PRF_ADDR_BITS:0] comm_next[0:ARCH_REGS-1];
+  typedef struct packed {
+    logic [ARCH_REGS-1:0][PRF_ADDR_BITS:0]     spec_next;
+    logic [ARCH_REGS-1:0][PRF_ADDR_BITS:0]     comm_next;
+    logic [2*ISSUE_WIDTH-1:0][PRF_ADDR_BITS:0] eff;
+    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS:0]   old;
+    logic [2*ISSUE_WIDTH-1:0][4:0]             rsrc_a;
+    logic [ISSUE_WIDTH-1:0][4:0]               waddr_a;
+    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] waddr_p;
+    logic [ISSUE_WIDTH-1:0][0:0]               wren;
+  } rat_reg_type;
 
-  logic [PRF_ADDR_BITS:0] eff[0:2*ISSUE_WIDTH-1];
-  logic [PRF_ADDR_BITS:0] old[  0:ISSUE_WIDTH-1];
-
-  logic [              4:0] rsrc_a [0:2*ISSUE_WIDTH-1];
-  logic [              4:0] waddr_a[  0:ISSUE_WIDTH-1];
-  logic [PRF_ADDR_BITS-1:0] waddr_p[  0:ISSUE_WIDTH-1];
-  logic [              0:0] wren   [  0:ISSUE_WIDTH-1];
+  rat_reg_type v;
 
   always_comb begin
     for (int i = 0; i < 2 * ISSUE_WIDTH; i++) begin
-      rsrc_a[i] = rat_in.rsrc_a[i];
+      v.rsrc_a[i] = rat_in.rsrc_a[i];
     end
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
-      waddr_a[i] = rat_in.waddr_a[i];
-      waddr_p[i] = rat_in.waddr_p[i];
-      wren[i]    = rat_in.wren[i];
+      v.waddr_a[i] = rat_in.waddr_a[i];
+      v.waddr_p[i] = rat_in.waddr_p[i];
+      v.wren[i]    = rat_in.wren[i];
     end
 
     for (int r = 0; r < 2 * ISSUE_WIDTH; r++) begin
-      eff[r] = spec[rsrc_a[r]];
+      v.eff[r] = spec[v.rsrc_a[r]];
       for (int c = 0; c < ISSUE_WIDTH; c++) begin
         if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) &&
-            (rsrc_a[r] == rat_in.commit_addr[c]) &&
-            (eff[r][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
-          eff[r] = {1'b1, rat_in.commit_tag[c]};
+            (v.rsrc_a[r] == rat_in.commit_addr[c]) &&
+            (v.eff[r][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
+          v.eff[r] = {1'b1, rat_in.commit_tag[c]};
         end
       end
     end
 
     for (int r = 0; r < 2 * ISSUE_WIDTH; r++) begin
       for (int w = 0; w < r / 2; w++) begin
-        if (wren[w] && (rsrc_a[r] == waddr_a[w]) && (waddr_a[w] != 5'h0)) begin
-          eff[r] = {1'b0, waddr_p[w]};
+        if (v.wren[w] && (v.rsrc_a[r] == v.waddr_a[w]) && (v.waddr_a[w] != 5'h0)) begin
+          v.eff[r] = {1'b0, v.waddr_p[w]};
         end
       end
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      old[k] = spec[waddr_a[k]];
+      v.old[k] = spec[v.waddr_a[k]];
       for (int w = 0; w < k; w++) begin
-        if (wren[w] && (waddr_a[w] == waddr_a[k]) && (waddr_a[w] != 5'h0)) begin
-          old[k] = {1'b0, waddr_p[w]};
+        if (v.wren[w] && (v.waddr_a[w] == v.waddr_a[k]) && (v.waddr_a[w] != 5'h0)) begin
+          v.old[k] = {1'b0, v.waddr_p[w]};
         end
       end
     end
 
     rat_out = init_rat_out;
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      rat_out.old_pdest[k] = old[k][PRF_ADDR_BITS-1:0];
+      rat_out.old_pdest[k] = v.old[k][PRF_ADDR_BITS-1:0];
     end
 
     for (int r = 0; r < 2 * ISSUE_WIDTH; r++) begin
-      rat_out.psrc[r]       = eff[r][PRF_ADDR_BITS-1:0];
-      rat_out.psrc_valid[r] = eff[r][PRF_ADDR_BITS];
+      rat_out.psrc[r]       = v.eff[r][PRF_ADDR_BITS-1:0];
+      rat_out.psrc_valid[r] = v.eff[r][PRF_ADDR_BITS];
     end
-  end
 
-  always_comb begin
     for (int j = 0; j < ARCH_REGS; j++) begin
-      spec_next[j] = flush ? comm[j] : spec[j];
-      comm_next[j] = comm[j];
+      v.spec_next[j] = flush ? comm[j] : spec[j];
+      v.comm_next[j] = comm[j];
       for (int c = 0; c < ISSUE_WIDTH; c++) begin
         if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != 5'h0) &&
             (rat_in.commit_addr[c] == 5'(j))) begin
-          comm_next[j] = {1'b1, rat_in.commit_tag[c]};
+          v.comm_next[j] = {1'b1, rat_in.commit_tag[c]};
           if (flush || (spec[j][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
-            spec_next[j] = {1'b1, rat_in.commit_tag[c]};
+            v.spec_next[j] = {1'b1, rat_in.commit_tag[c]};
           end
         end
       end
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (wren[k] && (waddr_a[k] != 5'h0) && (waddr_a[k] == 5'(j))) begin
-          spec_next[j] = {1'b0, waddr_p[k]};
+        if (v.wren[k] && (v.waddr_a[k] != 5'h0) && (v.waddr_a[k] == 5'(j))) begin
+          v.spec_next[j] = {1'b0, v.waddr_p[k]};
         end
       end
     end
@@ -170,8 +170,8 @@ module rat (
       end
     end else begin
       for (int j = 0; j < ARCH_REGS; j++) begin
-        spec[j] <= spec_next[j];
-        comm[j] <= comm_next[j];
+        spec[j] <= v.spec_next[j];
+        comm[j] <= v.comm_next[j];
       end
     end
   end
