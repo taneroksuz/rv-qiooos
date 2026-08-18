@@ -19,7 +19,7 @@ module rename (
   logic                     fl_ok       [ISSUE_WIDTH];
   logic                     can_dispatch[ISSUE_WIDTH];
   logic                     dispatch    [ISSUE_WIDTH];
-  logic [PRF_ADDR_BITS-1:0] pdest       [ISSUE_WIDTH];
+  logic [PRF_ADDR_BITS-1:0] pdest_arr   [ISSUE_WIDTH];
 
   logic [PRF_ADDR_BITS-1:0] fl_tag_arr[ISSUE_WIDTH];
   logic [              0:0] fl_ok_arr [ISSUE_WIDTH];
@@ -61,13 +61,13 @@ module rename (
       end
 
       if (need_fl[i]) begin
-        fl_ok[i] = fl_ok_arr[ISSUE_ADDR_BITS'(fl_count)];
-        pdest[i] = fl_tag_arr[ISSUE_ADDR_BITS'(fl_count)];
-        fl_count = fl_count + 1;
+        fl_ok[i]     = fl_ok_arr[ISSUE_ADDR_BITS'(fl_count)];
+        pdest_arr[i] = fl_tag_arr[ISSUE_ADDR_BITS'(fl_count)];
+        fl_count     = fl_count + 1;
       end
       else begin
-        fl_ok[i] = 1'b1;
-        pdest[i] = PRF_ADDR_BITS'(0);
+        fl_ok[i]     = 1'b1;
+        pdest_arr[i] = PRF_ADDR_BITS'(0);
       end
     end
 
@@ -114,7 +114,7 @@ module rename (
           comp: ~(&rename_in.instr[i].instr[1:0]),
           psrc1: rename_in.rat.psrc[2*i],
           psrc2: rename_in.rat.psrc[2*i+1],
-          pdest: pdest[i],
+          pdest: pdest_arr[i],
           rob_tag: rename_in.rob_tag[i],
           rdata1: rename_in.instr[i].op.rden1 ? src_data[2*i] : 32'h0,
           rdata2: rename_in.instr[i].op.rden2 ? src_data[2*i+1] : 32'h0,
@@ -167,7 +167,7 @@ module rename (
           target: init_rob_entry.target,
           wdata: init_rob_entry.wdata,
           store_strb: init_rob_entry.store_strb,
-          pdest: pdest[i],
+          pdest: pdest_arr[i],
           old_pdest: rename_in.rat.old_pdest[i],
           adest: rename_in.instr[i].waddr,
           wren: rename_in.instr[i].op.wren && (rename_in.instr[i].waddr != 5'h0),
@@ -192,7 +192,7 @@ module rename (
       rename_out.rat.rsrc_a[2*i+1] = rename_in.instr[i].op.rden2 ? rename_in.instr[i].raddr2 : 5'h0;
 
       rename_out.rat.waddr_a[i] = rename_in.instr[i].waddr;
-      rename_out.rat.waddr_p[i] = pdest[i];
+      rename_out.rat.waddr_p[i] = pdest_arr[i];
       rename_out.rat.wren[i]    = dispatch[i] && rename_in.instr[i].op.wren && (rename_in.instr[i].waddr != 5'h0);
 
       rename_out.rob_alloc[i] = dispatch[i];
