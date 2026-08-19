@@ -24,15 +24,14 @@ module arbiter (
     mem_in_type       mem_in;
     mem_in_type [1:0] imem_in;
     mem_in_type [1:0] dmem_in;
+    logic [1:0]       iactive;
+    logic [1:0]       dactive;
   } reg_type;
 
   localparam reg_type init_reg = '{default: 0};
 
   reg_type r, rin;
   reg_type v;
-
-  logic [0:0] iactive[0:1];
-  logic [0:0] dactive[0:1];
 
   always_comb begin
 
@@ -44,16 +43,16 @@ module arbiter (
       v.access_type = no_access;
     end
 
-    iactive[0] = (v.access_type == instr0_access);
-    iactive[1] = (v.access_type == instr1_access);
-    dactive[0] = (v.access_type == data0_access);
-    dactive[1] = (v.access_type == data1_access);
+    v.iactive[0] = (v.access_type == instr0_access);
+    v.iactive[1] = (v.access_type == instr1_access);
+    v.dactive[0] = (v.access_type == data0_access);
+    v.dactive[1] = (v.access_type == data1_access);
 
     for (int p = 0; p < 2; p++) begin
-      if (dmem_in[p].mem_valid == 1 && v.dmem_in[p].mem_valid == 0 && dactive[p] == 0) begin
+      if (dmem_in[p].mem_valid == 1 && v.dmem_in[p].mem_valid == 0 && v.dactive[p] == 0) begin
         v.dmem_in[p] = dmem_in[p];
       end
-      if (imem_in[p].mem_valid == 1 && v.imem_in[p].mem_valid == 0 && iactive[p] == 0) begin
+      if (imem_in[p].mem_valid == 1 && v.imem_in[p].mem_valid == 0 && v.iactive[p] == 0) begin
         v.imem_in[p] = imem_in[p];
       end
     end
