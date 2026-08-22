@@ -711,12 +711,9 @@ package wires;
       stall: 0
   };
 
-  typedef struct packed {
-    instruction_type [ISSUE_WIDTH-1:0] instr;
-    logic [ISSUE_WIDTH-1:0]            squash;
-  } decode_reg_type;
+  typedef struct packed {instruction_type [ISSUE_WIDTH-1:0] instr;} decode_reg_type;
 
-  localparam decode_reg_type init_decode_reg = '{instr: '{default: init_instruction}, squash: '0};
+  localparam decode_reg_type init_decode_reg = '{instr: '{default: init_instruction}};
 
   typedef struct packed {
     logic [0:0]               valid;
@@ -981,7 +978,7 @@ package wires;
 
   typedef struct packed {
     instruction_type [ISSUE_WIDTH-1:0]         instr;
-    logic [ISSUE_WIDTH-1:0][0:0]               instr_valid;
+    btac_out_type                              btac_out;
     logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] rob_tag;
     logic [ISSUE_WIDTH-1:0][0:0]               rob_alloc_ok;
     rat_out_type                               rat;
@@ -1206,7 +1203,6 @@ package wires;
   typedef struct packed {
     base_out_type [ISSUE_WIDTH-1:0]     base_out;
     compress_out_type [ISSUE_WIDTH-1:0] compress_out;
-    btac_out_type                       btac_out;
     logic [ISSUE_WIDTH-1:0][31:0]       pc;
     logic [ISSUE_WIDTH-1:0][31:0]       instr;
     logic [ISSUE_WIDTH-1:0][0:0]        ready;

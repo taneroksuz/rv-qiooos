@@ -24,6 +24,7 @@ module decode (
       v.instr[i].pc    = decode_in.ready[i] ? decode_in.pc[i] : 32'hFFFFFFFF;
       v.instr[i].instr = decode_in.ready[i] ? decode_in.instr[i] : 0;
       v.instr[i].op    = init_operation;
+      v.instr[i].pred  = init_prediction;
     end
 
     if (stall == 1) begin
@@ -121,21 +122,10 @@ module decode (
       end
     end
 
-    v.squash[0] = 1'b0;
-    for (int i = 1; i < ISSUE_WIDTH; i++) begin
-      v.squash[i] = v.squash[i-1] | decode_in.btac_out.pred[i-1].taken;
-    end
-
     rin = v;
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
       decode_out.instr[i] = r.instr[i];
-      if (v.squash[i]) begin
-        decode_out.instr[i].op = init_operation;
-      end
-      decode_out.instr[i].pred.taken = decode_in.btac_out.pred[i].taken;
-      decode_out.instr[i].pred.taddr = decode_in.btac_out.pred[i].taddr;
-      decode_out.instr[i].pred.tsat  = decode_in.btac_out.pred[i].tsat;
     end
 
   end

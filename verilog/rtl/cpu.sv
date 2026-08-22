@@ -106,11 +106,10 @@ module cpu (
       assign compress_in[i]            = decode_out.compress_in[i];
     end
   endgenerate
-  assign decode_in.btac_out = btac_out;
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_prf_raddr
-      assign prf_in.raddr[2*i]   = decode_out.instr[i].op.rden1 ? decode_out.instr[i].raddr1 : 5'h0;
-      assign prf_in.raddr[2*i+1] = decode_out.instr[i].op.rden2 ? decode_out.instr[i].raddr2 : 5'h0;
+      assign prf_in.raddr[2*i]   = rename_out.rat.rsrc_a[2*i];
+      assign prf_in.raddr[2*i+1] = rename_out.rat.rsrc_a[2*i+1];
     end
   endgenerate
   generate
@@ -153,7 +152,6 @@ module cpu (
       assign rs_mem_in.entry[i]           = rename_out.rs_entry[i];
       assign rs_mem_in.alloc[i]           = rename_out.rs_mem_alloc[i];
       assign rename_in.instr[i]           = decode_out.instr[i];
-      assign rename_in.instr_valid[i]     = decode_out.instr[i].op.valid;
       assign rename_in.rob_tag[i]         = rob_out.alloc_tag[i];
       assign rename_in.rob_alloc_ok[i]    = rob_out.alloc_ok[i];
       assign rename_in.rs_int_alloc_ok[i] = rs_int_out.alloc_ok[i];
@@ -200,6 +198,7 @@ module cpu (
   assign rs_int_in.rob_head   = rob_out.head_ptr;
   assign rs_mem_in.rob_head   = rob_out.head_ptr;
   assign rs_mem_in.load_busy  = msu_out.load_busy;
+  assign rename_in.btac_out   = btac_out;
   assign rename_in.rat        = rat_out;
   assign rename_in.prf        = prf_out;
   assign rename_in.fl         = fl_out;
