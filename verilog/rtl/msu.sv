@@ -233,4 +233,5 @@ module msu (
       r <= rin;
     end
   end
+
 endmodule

@@ -63,8 +63,8 @@ module buffer_ctrl (
 
   localparam BDEPTH = $clog2(BUFFER_DEPTH);
   localparam BWIDTH = $clog2(BUFFER_WIDTH);
-  localparam W = BDEPTH + BWIDTH;
-  localparam TOTAL = BUFFER_WIDTH * (BUFFER_DEPTH - 2);
+  localparam W      = BDEPTH + BWIDTH;
+  localparam TOTAL  = BUFFER_WIDTH * (BUFFER_DEPTH - 2);
 
   localparam WINDOW = 2 * ISSUE_WIDTH;
 

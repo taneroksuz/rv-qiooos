@@ -2,6 +2,7 @@ import configure::*;
 import constants::*;
 import wires::*;
 import functions::*;
+
 module rs_mem (
   input  logic                           reset,
   input  logic                           clock,
@@ -11,7 +12,8 @@ module rs_mem (
   output rs_mem_out_type                 rs_out
 );
   timeunit 1ns; timeprecision 1ps;
-  localparam MEM_ADDR_BITS = $clog2(RS_MEM_DEPTH);
+
+  localparam MEM_ADDR_BITS    = $clog2(RS_MEM_DEPTH);
   localparam MEM_BANK_ENTRIES = RS_MEM_DEPTH / ISSUE_WIDTH;
 
   typedef struct packed {
@@ -228,4 +230,5 @@ module rs_mem (
       end
     end
   end
+
 endmodule

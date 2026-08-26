@@ -2,6 +2,7 @@ import configure::*;
 import constants::*;
 import wires::*;
 import functions::*;
+
 module rename (
   input  logic           flush,
   input  rename_in_type  rename_in,
@@ -221,4 +222,5 @@ module rename (
       rename_out.rs_mem_alloc[i] = dispatch[i] && is_mem[i];
     end
   end
+
 endmodule

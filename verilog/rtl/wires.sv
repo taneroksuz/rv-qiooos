@@ -3,12 +3,12 @@ package wires;
 
   import configure::*;
 
-  localparam PRF_ADDR_BITS = $clog2(PRF_DEPTH);
-  localparam ROB_ADDR_BITS = $clog2(ROB_DEPTH);
-  localparam RS_ADDR_BITS = $clog2(RS_INT_DEPTH);
+  localparam PRF_ADDR_BITS   = $clog2(PRF_DEPTH);
+  localparam ROB_ADDR_BITS   = $clog2(ROB_DEPTH);
+  localparam RS_ADDR_BITS    = $clog2(RS_INT_DEPTH);
   localparam ISSUE_ADDR_BITS = $clog2(ISSUE_WIDTH);
-  localparam FL_CNT_BITS = $clog2(FLIST_DEPTH) + 1;
-  localparam FL_IDX_BITS = $clog2(FLIST_DEPTH);
+  localparam FL_CNT_BITS     = $clog2(FLIST_DEPTH) + 1;
+  localparam FL_IDX_BITS     = $clog2(FLIST_DEPTH);
 
   typedef struct packed {
     logic [0:0] bit_sh1add;

@@ -3,26 +3,26 @@ package configure;
 
   localparam HARDWARE = 0;
 
-  localparam PRF_DEPTH = 96;
-  localparam ARCH_REGS = 32;
-  localparam ROB_DEPTH = 32;
+  localparam PRF_DEPTH    = 96;
+  localparam ARCH_REGS    = 32;
+  localparam ROB_DEPTH    = 32;
   localparam RS_INT_DEPTH = 16;
   localparam RS_MEM_DEPTH = 8;
-  localparam FLIST_DEPTH = PRF_DEPTH - ARCH_REGS;
+  localparam FLIST_DEPTH  = PRF_DEPTH - ARCH_REGS;
 
-  localparam ISSUE_WIDTH = 4;
+  localparam ISSUE_WIDTH     = 4;
   localparam MEM_ISSUE_WIDTH = 2;
 
-  localparam ALU_COUNT = ISSUE_WIDTH;
-  localparam BCU_COUNT = 2;
-  localparam MUL_COUNT = 2;
-  localparam DIV_COUNT = 1;
-  localparam BITALU_COUNT = 1;
+  localparam ALU_COUNT     = ISSUE_WIDTH;
+  localparam BCU_COUNT     = 2;
+  localparam MUL_COUNT     = 2;
+  localparam DIV_COUNT     = 1;
+  localparam BITALU_COUNT  = 1;
   localparam CSR_ALU_COUNT = 1;
-  localparam LSU_COUNT = MEM_ISSUE_WIDTH;
+  localparam LSU_COUNT     = MEM_ISSUE_WIDTH;
 
   localparam AGU_BRANCH_COUNT = 2;
-  localparam AGU_COUNT = AGU_BRANCH_COUNT + MEM_ISSUE_WIDTH;
+  localparam AGU_COUNT        = AGU_BRANCH_COUNT + MEM_ISSUE_WIDTH;
 
   localparam TIM_WIDTH = 32;
   localparam TIM_DEPTH = 4096;

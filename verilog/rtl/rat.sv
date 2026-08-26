@@ -1,6 +1,7 @@
 import configure::*;
 import wires::*;
 import functions::*;
+
 module rat (
   input  logic        reset,
   input  logic        clock,
@@ -174,4 +175,5 @@ module rat (
       end
     end
   end
+
 endmodule

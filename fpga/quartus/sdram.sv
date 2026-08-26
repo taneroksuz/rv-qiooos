@@ -30,14 +30,14 @@ module sdram_ctrl (
   localparam ASIZE = COLSIZE + ROWSIZE + BANKSIZE;
 
   localparam INIT_PER = 30000;
-  localparam REF_PER = 1280;
-  localparam SC_CL = 3;
-  localparam SC_RCD = 3;
-  localparam SC_RP = 3;
-  localparam SC_RFC = 9;
-  localparam SC_MRD = 3;
-  localparam SC_WR = 2;
-  localparam SC_REF = 8;
+  localparam REF_PER  = 1280;
+  localparam SC_CL    = 3;
+  localparam SC_RCD   = 3;
+  localparam SC_RP    = 3;
+  localparam SC_RFC   = 9;
+  localparam SC_MRD   = 3;
+  localparam SC_WR    = 2;
+  localparam SC_REF   = 8;
 
   localparam logic [12:0] MODE_REG = {3'b000, 1'b0, 2'b00, 3'b011, 1'b0, 3'b000};
 

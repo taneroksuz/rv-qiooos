@@ -13,11 +13,11 @@ module arbiter (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam [2:0] no_access = 0;
+  localparam [2:0] no_access     = 0;
   localparam [2:0] instr0_access = 1;
   localparam [2:0] instr1_access = 2;
-  localparam [2:0] data0_access = 3;
-  localparam [2:0] data1_access = 4;
+  localparam [2:0] data0_access  = 3;
+  localparam [2:0] data1_access  = 4;
 
   typedef struct packed {
     logic [2:0]       access_type;

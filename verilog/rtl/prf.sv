@@ -1,6 +1,7 @@
 import configure::*;
 import wires::*;
 import functions::*;
+
 module prf (
   input  logic        reset,
   input  logic        clock,
@@ -63,4 +64,5 @@ module prf (
       end
     end
   end
+
 endmodule

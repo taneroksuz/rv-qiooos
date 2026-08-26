@@ -1,6 +1,7 @@
 import configure::*;
 import wires::*;
 import functions::*;
+
 module fl (
   input  logic       reset,
   input  logic       clock,
@@ -24,6 +25,7 @@ module fl (
     logic [ISSUE_WIDTH-1:0][0:0]               free_en;
     logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] free_tag;
   } fl_reg_type;
+
   localparam fl_reg_type init_fl_reg = '{
       spec_head: '0,
       comm_head: '0,
@@ -131,4 +133,5 @@ module fl (
       end
     end
   end
+
 endmodule

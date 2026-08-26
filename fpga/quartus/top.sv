@@ -2,21 +2,21 @@ import configure::*;
 import wires::*;
 
 module top (
-  input           CLOCK0_50,
-  input  [ 3 : 0] KEY,
-  output [ 9 : 0] LEDR,
-  input           FPGA_UART_RX,
-  output          FPGA_UART_TX,
-  output          DRAM_CLK,
-  output          DRAM_CKE,
-  output [ 1 : 0] DRAM_BA,
-  output          DRAM_CS_n,
-  output          DRAM_WE_n,
-  output          DRAM_CAS_n,
-  output          DRAM_RAS_n,
-  output [12 : 0] DRAM_ADDR,
-  output [ 3 : 0] DRAM_DQM,
-  inout  [31 : 0] DRAM_DQ
+  input         CLOCK0_50,
+  input  [ 3:0] KEY,
+  output [ 9:0] LEDR,
+  input         FPGA_UART_RX,
+  output        FPGA_UART_TX,
+  output        DRAM_CLK,
+  output        DRAM_CKE,
+  output [ 1:0] DRAM_BA,
+  output        DRAM_CS_n,
+  output        DRAM_WE_n,
+  output        DRAM_CAS_n,
+  output        DRAM_RAS_n,
+  output [12:0] DRAM_ADDR,
+  output [ 3:0] DRAM_DQM,
+  inout  [31:0] DRAM_DQ
 );
 
   timeunit 1ns; timeprecision 1ps;

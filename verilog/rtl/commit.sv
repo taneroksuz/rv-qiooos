@@ -2,6 +2,7 @@ import configure::*;
 import constants::*;
 import wires::*;
 import functions::*;
+
 module commit (
   input  logic           reset,
   input  logic           clock,
@@ -10,6 +11,7 @@ module commit (
   output commit_out_type commit_out
 );
   timeunit 1ns; timeprecision 1ps;
+
   typedef struct packed {
     csr_write_in_type                     csr_win;
     csr_exception_in_type                 csr_ein;
@@ -29,6 +31,7 @@ module commit (
     logic [MEM_ISSUE_WIDTH-1:0]           store_slot_found;
     logic [MEM_ISSUE_WIDTH-1:0][31:0]     store_slot_owner;
   } commit_reg_type;
+
   localparam commit_reg_type init_commit_reg = '{
       csr_win       : init_csr_write_in,
       csr_ein       : init_csr_exception_in,
@@ -42,8 +45,10 @@ module commit (
       e                : '{default: init_rob_entry},
       default: '0
   };
+
   commit_reg_type r, rin;
   commit_reg_type v;
+
   always_comb begin
     v = init_commit_reg;
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
@@ -159,6 +164,7 @@ module commit (
       commit_out.store_slot_entry[p] = r.store_slot_entry[p];
     end
   end
+
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       r <= init_commit_reg;
@@ -167,4 +173,5 @@ module commit (
       r <= rin;
     end
   end
+
 endmodule

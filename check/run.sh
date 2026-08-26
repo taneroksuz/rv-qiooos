@@ -27,6 +27,7 @@ FORMAT_FLAGS=(
   --class_member_variable_alignment=align
   --case_items_alignment=align
   --assignment_statement_alignment=align
+  --parameter_declaration_alignment=align
   --enum_assignment_statement_alignment=align
   --distribution_items_alignment=align
   --alignment_group_boundary=blank-lines
@@ -37,6 +38,10 @@ FORMAT_FLAGS=(
 )
 
 SV_FILES=$(find ${BASEDIR} -name "*.sv" | sort)
+
+RANGE_RE='s/\[[[:space:]]*([^][?:]*[^][?:[:space:]])[[:space:]]*:[[:space:]]*([^][?:]*[^][?:[:space:]])[[:space:]]*\]/[\1:\2]/g'
+
+sed -i -E "${RANGE_RE}" ${SV_FILES[@]}
 
 ${VERIBLE}-verilog-format ${FORMAT_FLAGS[@]} ${SV_FILES[@]}
 

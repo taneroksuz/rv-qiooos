@@ -2,6 +2,7 @@ import configure::*;
 import constants::*;
 import wires::*;
 import functions::*;
+
 module rs_int (
   input  logic           reset,
   input  logic           clock,
@@ -258,4 +259,5 @@ module rs_int (
       end
     end
   end
+
 endmodule

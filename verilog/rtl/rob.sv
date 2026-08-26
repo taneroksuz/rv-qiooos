@@ -12,11 +12,11 @@ module rob (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam ROB_BANKS = ISSUE_WIDTH;
-  localparam ROB_ROWS = ROB_DEPTH / ROB_BANKS;
+  localparam ROB_BANKS     = ISSUE_WIDTH;
+  localparam ROB_ROWS      = ROB_DEPTH / ROB_BANKS;
   localparam ROB_BANK_BITS = $clog2(ROB_BANKS);
-  localparam ROB_ROW_BITS = $clog2(ROB_ROWS);
-  localparam ROB_WPORTS = ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH;
+  localparam ROB_ROW_BITS  = $clog2(ROB_ROWS);
+  localparam ROB_WPORTS    = ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH;
 
   typedef struct packed {
     logic [ROB_ADDR_BITS-1:0]                  head;
