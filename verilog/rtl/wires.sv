@@ -931,6 +931,7 @@ package wires;
     logic [ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] write_tag;
     rob_entry_type [ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1:0]           write_entry;
     logic [ISSUE_WIDTH+2*MEM_ISSUE_WIDTH-1:0][0:0]               write_en;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]                             store_slot_free;
   } rob_in_type;
 
   typedef struct packed {
@@ -1061,6 +1062,7 @@ package wires;
     rob_entry_type [MEM_ISSUE_WIDTH-1:0]           rob_wentry;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               rob_wen;
     logic [MEM_ISSUE_WIDTH-1:0]                    load_busy;
+    logic [MEM_ISSUE_WIDTH-1:0]                    store_slot_free;
     mem_in_type [LSU_COUNT-1:0]                    dmem_in;
     lsu_in_type [LSU_COUNT-1:0]                    lsu_in;
   } msu_out_type;
@@ -1071,6 +1073,7 @@ package wires;
       rob_wentry: '{default: init_rob_entry},
       rob_wen: '{default: 0},
       load_busy: 0,
+      store_slot_free: 0,
       dmem_in: '{default: init_mem_in},
       lsu_in: '{default: '{ldata: 0, byteenable: 0, lsu_op: init_lsu_op}}
   };

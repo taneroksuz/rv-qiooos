@@ -175,6 +175,7 @@ module cpu (
       assign rob_in.write_tag[ISSUE_WIDTH+MEM_ISSUE_WIDTH+i]   = eu_out.rob_wtag_store[i];
       assign rob_in.write_entry[ISSUE_WIDTH+MEM_ISSUE_WIDTH+i] = eu_out.rob_wentry_store[i];
       assign rob_in.write_en[ISSUE_WIDTH+MEM_ISSUE_WIDTH+i]    = eu_out.rob_wen_store[i];
+      assign rob_in.store_slot_free[i]                         = msu_out.store_slot_free[i];
     end
   endgenerate
   generate

@@ -29,6 +29,7 @@ module rob (
     logic [ISSUE_WIDTH-1:0]                    h_stop;
     logic [ISSUE_WIDTH-1:0]                    commit;
     logic [31:0]                               store_count;
+    logic [31:0]                               store_room;
     logic [ISSUE_WIDTH-1:0]                    alloc_ok;
     logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] tail_idx;
     logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] head_idx;
@@ -166,14 +167,20 @@ module rob (
       end
     end
 
+    v.store_room = 0;
+    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
+      if (rob_in.store_slot_free[p]) begin
+        v.store_room = v.store_room + 1;
+      end
+    end
+
     v.store_count = 0;
-    v.commit[0]   = v.h_done[0] && (!v.h[0].store || (v.store_count < MEM_ISSUE_WIDTH));
+    v.commit[0]   = v.h_done[0] && (!v.h[0].store || (v.store_count < v.store_room));
     if (v.commit[0] && v.h[0].store) begin
       v.store_count = v.store_count + 1;
     end
     for (int k = 1; k < ISSUE_WIDTH; k++) begin
-      v.commit[k] = v.h_done[k] && v.commit[k-1] && !v.h_stop[k-1] &&
-          (!v.h[k].store || (v.store_count < MEM_ISSUE_WIDTH));
+      v.commit[k] = v.h_done[k] && v.commit[k-1] && !v.h_stop[k-1] && (!v.h[k].store || (v.store_count < v.store_room));
       if (v.commit[k] && v.h[k].store) begin
         v.store_count = v.store_count + 1;
       end
