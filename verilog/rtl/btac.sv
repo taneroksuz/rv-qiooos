@@ -129,6 +129,10 @@ module btac_ctrl (
     logic [ISSUE_WIDTH-1:0][0:0]         valid;
     logic [ISSUE_WIDTH-1:0][0:0]         branch;
     logic [ISSUE_WIDTH-1:0][0:0]         match;
+    logic [ISSUE_WIDTH-1:0][0:0]         alloc;
+    logic [ISSUE_WIDTH-1:0][0:0]         upd;
+    logic [ISSUE_WIDTH-1:0][0:0]         kill;
+    logic [B_DEPTH:0]                    fcount;
   } btb_reg_type;
 
   localparam btb_reg_type init_btb_reg = '{
@@ -142,7 +146,11 @@ module btac_ctrl (
       hit : '{default: 0},
       valid : '{default: 0},
       branch : '{default: 0},
-      match : '{default: 0}
+      match : '{default: 0},
+      alloc : '{default: 0},
+      upd : '{default: 0},
+      kill : '{default: 0},
+      fcount : 0
   };
 
   typedef struct packed {
@@ -151,14 +159,20 @@ module btac_ctrl (
     logic [1:0]                          wdata;
     logic [0:0]                          wen;
     logic [ISSUE_WIDTH-1:0][1:0]         sat;
+    logic [ISSUE_WIDTH-1:0][0:0]         upd;
   } bht_reg_type;
 
-  localparam bht_reg_type init_bht_reg = '{waddr : 0, raddr : '{default: 0}, wdata : 0, wen : 0, sat : '{default: 0}};
+  localparam bht_reg_type init_bht_reg = '{
+      waddr : 0,
+      raddr : '{default: 0},
+      wdata : 0,
+      wen : 0,
+      sat : '{default: 0},
+      upd : '{default: 0}
+  };
 
   btb_reg_type r_btb, rin_btb, v_btb;
   bht_reg_type r_bht, rin_bht, v_bht;
-
-  logic sel[0:ISSUE_WIDTH-1];
 
   always_comb begin
 
@@ -178,12 +192,14 @@ module btac_ctrl (
       btac_out.pred[k].taken = v_btb.branch[k] ? bht_out.rdata[k][1] & v_btb.match[k] & v_btb.valid[k] :
           v_btb.match[k] & v_btb.valid[k];
       btac_out.pred[k].tsat = bht_out.rdata[k];
+      btac_out.pred[k].tmatch = v_btb.match[k] & v_btb.valid[k];
     end
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
       v_btb.maddr[p] = 0;
       v_btb.miss[p]  = 0;
       v_btb.hit[p]   = 0;
+      v_btb.kill[p]  = 0;
     end
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
@@ -200,30 +216,42 @@ module btac_ctrl (
         v_btb.maddr[p] = btac_in.upd_npc[p];
         v_btb.miss[p]  = 1;
       end
+      if (btac_in.upd_branch[p] == 0 && btac_in.upd_jump[p] == 0 && btac_in.upd_pred[p].taken == 1) begin
+        v_btb.maddr[p] = btac_in.upd_npc[p];
+        v_btb.miss[p]  = 1;
+        v_btb.kill[p]  = 1;
+      end
     end
 
-    sel[0] = v_btb.hit[0] | v_btb.miss[0];
-    sel[1] = v_btb.hit[1] | v_btb.miss[1];
-    sel[2] = v_btb.hit[2] | v_btb.miss[2];
-    sel[3] = v_btb.hit[3] | v_btb.miss[3];
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
+      v_btb.alloc[p] = (btac_in.upd_branch[p] | btac_in.upd_jump[p]) & ~btac_in.upd_pred[p].tmatch;
+      v_btb.upd[p]   = v_btb.hit[p] | v_btb.miss[p] | v_btb.alloc[p];
+      v_bht.upd[p]   = v_btb.upd[p] & btac_in.upd_branch[p];
+    end
 
-    v_btb.wen = sel[0] | sel[1] | sel[2] | sel[3];
-    v_btb.waddr = sel[0] ? btac_in.upd_pc[0][B_DEPTH:1] :
-        sel[1] ? btac_in.upd_pc[1][B_DEPTH:1] : sel[2] ? btac_in.upd_pc[2][B_DEPTH:1] : btac_in.upd_pc[3][B_DEPTH:1];
-    v_btb.wdata = sel[0] ? {1'b1, btac_in.upd_branch[0], btac_in.upd_pc[0][31:B_DEPTH+1], v_btb.maddr[0]} :
-        sel[1] ? {1'b1, btac_in.upd_branch[1], btac_in.upd_pc[1][31:B_DEPTH+1], v_btb.maddr[1]} :
-        sel[2] ? {1'b1, btac_in.upd_branch[2], btac_in.upd_pc[2][31:B_DEPTH+1], v_btb.maddr[2]} :
-        {1'b1, btac_in.upd_branch[3], btac_in.upd_pc[3][31:B_DEPTH+1], v_btb.maddr[3]};
+    for (int p = 0; p < ISSUE_WIDTH; p++) begin
+      v_bht.sat[p] = v_btb.alloc[p] ? (btac_in.upd_jump[p] ? 2'b10 : 2'b01) :
+          saturation(btac_in.upd_pred[p].tsat, btac_in.upd_jump[p]);
+    end
 
-    v_bht.wen = (sel[0] & btac_in.upd_branch[0]) | (sel[1] & btac_in.upd_branch[1]) | (sel[2] & btac_in.upd_branch[2]) |
-        (sel[3] & btac_in.upd_branch[3]);
-    v_bht.waddr = sel[0] ? btac_in.upd_pc[0][T_DEPTH:1] :
-        sel[1] ? btac_in.upd_pc[1][T_DEPTH:1] : sel[2] ? btac_in.upd_pc[2][T_DEPTH:1] : btac_in.upd_pc[3][T_DEPTH:1];
-    v_bht.sat[0] = saturation(btac_in.upd_pred[0].tsat, btac_in.upd_jump[0]);
-    v_bht.sat[1] = saturation(btac_in.upd_pred[1].tsat, btac_in.upd_jump[1]);
-    v_bht.sat[2] = saturation(btac_in.upd_pred[2].tsat, btac_in.upd_jump[2]);
-    v_bht.sat[3] = saturation(btac_in.upd_pred[3].tsat, btac_in.upd_jump[3]);
-    v_bht.wdata = sel[0] ? v_bht.sat[0] : sel[1] ? v_bht.sat[1] : sel[2] ? v_bht.sat[2] : v_bht.sat[3];
+    v_btb.wen   = 0;
+    v_btb.waddr = btac_in.upd_pc[0][B_DEPTH:1];
+    v_btb.wdata = 0;
+    v_bht.wen   = 0;
+    v_bht.waddr = btac_in.upd_pc[0][T_DEPTH:1];
+    v_bht.wdata = 0;
+    for (int p = ISSUE_WIDTH - 1; p >= 0; p--) begin
+      if (v_btb.upd[p] == 1) begin
+        v_btb.wen   = 1;
+        v_btb.waddr = btac_in.upd_pc[p][B_DEPTH:1];
+        v_btb.wdata = {~v_btb.kill[p], btac_in.upd_branch[p], btac_in.upd_pc[p][31:B_DEPTH+1], btac_in.upd_addr[p]};
+      end
+      if (v_bht.upd[p] == 1) begin
+        v_bht.wen   = 1;
+        v_bht.waddr = btac_in.upd_pc[p][T_DEPTH:1];
+        v_bht.wdata = v_bht.sat[p];
+      end
+    end
 
     btb_in.wen   = v_btb.wen;
     btb_in.waddr = v_btb.waddr;
@@ -231,6 +259,19 @@ module btac_ctrl (
     bht_in.wen   = v_bht.wen;
     bht_in.waddr = v_bht.waddr;
     bht_in.wdata = v_bht.wdata;
+
+    if (r_btb.fcount[B_DEPTH] == 0) begin
+      v_btb.fcount = r_btb.fcount + 1;
+
+      btb_in.wen   = 1;
+      btb_in.waddr = r_btb.fcount[B_DEPTH-1:0];
+      btb_in.wdata = 0;
+
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
+        btac_out.pred[k].taken  = 0;
+        btac_out.pred[k].tmatch = 0;
+      end
+    end
 
     rin_btb = v_btb;
     rin_bht = v_bht;
@@ -319,9 +360,10 @@ module btac (
         rin = v;
 
         for (int k = 0; k < 4; k++) begin
-          btac_out.pred[k].taken = 0;
-          btac_out.pred[k].taddr = 0;
-          btac_out.pred[k].tsat  = 0;
+          btac_out.pred[k].taken  = 0;
+          btac_out.pred[k].taddr  = 0;
+          btac_out.pred[k].tsat   = 0;
+          btac_out.pred[k].tmatch = 0;
         end
         for (int p = 0; p < 4; p++) begin
           btac_out.pred_maddr[p] = v.maddr[p];

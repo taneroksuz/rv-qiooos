@@ -54,9 +54,10 @@ module rename (
       if (squash[i]) begin
         instr[i].op = init_operation;
       end
-      instr[i].pred.taken = rename_in.btac_out.pred[i].taken;
-      instr[i].pred.taddr = rename_in.btac_out.pred[i].taddr;
-      instr[i].pred.tsat  = rename_in.btac_out.pred[i].tsat;
+      instr[i].pred.taken  = rename_in.btac_out.pred[i].taken;
+      instr[i].pred.taddr  = rename_in.btac_out.pred[i].taddr;
+      instr[i].pred.tsat   = rename_in.btac_out.pred[i].tsat;
+      instr[i].pred.tmatch = rename_in.btac_out.pred[i].tmatch;
 
       instr_valid[i] = instr[i].op.valid;
     end
