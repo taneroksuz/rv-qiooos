@@ -58,11 +58,24 @@ module cache_ram (
 
   logic [32:0] ram[0:CACHE_DEPTH-1];
 
+  logic [32:0] ram_q;
+  logic [32:0] fwd_data;
+  logic [ 0:0] fwd;
+
   always_ff @(posedge clock) begin
     if (cache_ram_in.wren == 1) begin
       ram[cache_ram_in.waddr] <= {cache_ram_in.werror, cache_ram_in.wdata};
     end
-    {cache_ram_out.rerror, cache_ram_out.rdata} <= ram[cache_ram_in.raddr];
+    ram_q <= ram[cache_ram_in.raddr];
+  end
+
+  always_ff @(posedge clock) begin
+    fwd      <= cache_ram_in.wren && (cache_ram_in.waddr == cache_ram_in.raddr);
+    fwd_data <= {cache_ram_in.werror, cache_ram_in.wdata};
+  end
+
+  always_comb begin
+    {cache_ram_out.rerror, cache_ram_out.rdata} = fwd ? fwd_data : ram_q;
   end
 
 endmodule
@@ -81,13 +94,30 @@ module cache_tag_ram (
   logic [CTAG-1:0] tag_mem  [0:CACHE_DEPTH-1];
   logic [     0:0] valid_mem[0:CACHE_DEPTH-1];
 
+  logic [CTAG-1:0] tag_q;
+  logic [     0:0] valid_q;
+  logic [CTAG-1:0] fwd_tag;
+  logic [     0:0] fwd_valid;
+  logic [     0:0] fwd;
+
   always_ff @(posedge clock) begin
     if (cache_tag_in.wren == 1) begin
       tag_mem[cache_tag_in.waddr]   <= cache_tag_in.wtag;
       valid_mem[cache_tag_in.waddr] <= cache_tag_in.wvalid;
     end
-    cache_tag_out.rtag   <= tag_mem[cache_tag_in.raddr];
-    cache_tag_out.rvalid <= valid_mem[cache_tag_in.raddr];
+    tag_q   <= tag_mem[cache_tag_in.raddr];
+    valid_q <= valid_mem[cache_tag_in.raddr];
+  end
+
+  always_ff @(posedge clock) begin
+    fwd       <= cache_tag_in.wren && (cache_tag_in.waddr == cache_tag_in.raddr);
+    fwd_tag   <= cache_tag_in.wtag;
+    fwd_valid <= cache_tag_in.wvalid;
+  end
+
+  always_comb begin
+    cache_tag_out.rtag   = fwd ? fwd_tag : tag_q;
+    cache_tag_out.rvalid = fwd ? fwd_valid : valid_q;
   end
 
 endmodule
