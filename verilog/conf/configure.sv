@@ -65,9 +65,9 @@ package configure;
   localparam RAM_BASE = 32'h80000000;
   localparam RAM_MASK = 32'hFFF00000;
 
-  localparam CPU_FREQ = 1000000000;
-  localparam PER_FREQ = 200000000;
-  localparam RTC_FREQ = 1000000;
+  localparam CPU_FREQ = 25000000;  // 25MHz
+  localparam PER_FREQ = 5000000;   // 5MHz
+  localparam RTC_FREQ = 1000000;   // 1MHz
   localparam BAUDRATE = 115200;
 
   localparam CLK_DIVIDER_PER = CPU_FREQ / PER_FREQ;

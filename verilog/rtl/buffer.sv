@@ -71,31 +71,47 @@ module buffer_ctrl (
   localparam [W-1:0] one = 1;
 
   typedef struct packed {
-    logic [BUFFER_WIDTH-1:0][15:0] wdata;
-    logic [WINDOW-1:0][15:0]       rdata;
-    logic [WINDOW-1:0]             comp;
-    logic [W-1:0]                  wid;
-    logic [W-1:0]                  rid;
-    logic [31:0]                   pc_base;
-    logic [W-1:0]                  diff;
-    logic [W-1:0]                  count;
-    logic [W-1:0]                  align;
-    logic [ISSUE_WIDTH-1:0][31:0]  pc;
-    logic [ISSUE_WIDTH-1:0][31:0]  instr;
-    logic [ISSUE_WIDTH-1:0]        ready;
-    logic [0:0]                    wen;
-    logic [0:0]                    flush;
-    logic [0:0]                    stall;
-    logic [BWIDTH-1:0]             rid_bank;
-    logic [BDEPTH-1:0]             rid_row;
-    logic [BDEPTH-1:0]             rid_row_p1;
-    logic [BDEPTH-1:0]             wid_row;
+    logic [BUFFER_WIDTH-1:0][15:0]      wdata;
+    logic [WINDOW-1:0][15:0]            rdata;
+    logic [WINDOW-1:0]                  comp;
+    logic [ISSUE_WIDTH-1:0][WINDOW-1:0] sel_pos;
+    logic [ISSUE_WIDTH-1:0][W-1:0]      base_off;
+    logic [ISSUE_WIDTH-1:0][3:0]        need_idx;
+    logic [ISSUE_WIDTH-1:0][3:0]        step;
+    logic [W:0]                         avail;
+    logic [ISSUE_WIDTH-1:0]             base_comp;
+    logic [ISSUE_WIDTH-1:0][15:0]       sel_lo;
+    logic [ISSUE_WIDTH-1:0][15:0]       sel_hi;
+    logic [W-1:0]                       wid;
+    logic [W-1:0]                       rid;
+    logic [31:0]                        pc_base;
+    logic [W-1:0]                       diff;
+    logic [W-1:0]                       count;
+    logic [W-1:0]                       align;
+    logic [ISSUE_WIDTH-1:0][31:0]       pc;
+    logic [ISSUE_WIDTH-1:0][31:0]       instr;
+    logic [ISSUE_WIDTH-1:0]             ready;
+    logic [0:0]                         wen;
+    logic [0:0]                         flush;
+    logic [0:0]                         stall;
+    logic [BWIDTH-1:0]                  rid_bank;
+    logic [BDEPTH-1:0]                  rid_row;
+    logic [BDEPTH-1:0]                  rid_row_p1;
+    logic [BDEPTH-1:0]                  wid_row;
   } reg_type;
 
   parameter reg_type init_reg = '{
       wdata : '{default: '0},
       rdata : '{default: '0},
       comp : 0,
+      sel_pos : '{default: '0},
+      base_off : '{default: '0},
+      need_idx : '{default: '0},
+      step : '{default: '0},
+      avail : 0,
+      base_comp : 0,
+      sel_lo : '{default: '0},
+      sel_hi : '{default: '0},
       wid : 0,
       rid : 0,
       pc_base : 0,
@@ -115,18 +131,6 @@ module buffer_ctrl (
   };
 
   reg_type r, rin, v;
-
-  function automatic int slot_offset(input logic [WINDOW-1:0] comp, input int slot);
-    int off;
-    off = 0;
-    for (int k = 0; k < slot; k++) begin
-      off = off + (comp[off] ? 1 : 2);
-    end
-    return off;
-  endfunction
-
-  int         base;
-  logic [1:0] need;
 
   always_comb begin
 
@@ -189,19 +193,46 @@ module buffer_ctrl (
       v.ready[s] = 0;
     end
 
+    v.sel_pos[0] = WINDOW'(1);
+    for (int s = 1; s < ISSUE_WIDTH; s++) begin
+      v.sel_pos[s] = '0;
+      for (int k = 0; k < WINDOW; k++) begin
+        if (v.sel_pos[s-1][k] && v.comp[k] && (k + 1 < WINDOW)) begin
+          v.sel_pos[s][k+1] = 1'b1;
+        end
+        if (v.sel_pos[s-1][k] && !v.comp[k] && (k + 2 < WINDOW)) begin
+          v.sel_pos[s][k+2] = 1'b1;
+        end
+      end
+    end
+
     for (int s = 0; s < ISSUE_WIDTH; s++) begin
-      base = slot_offset(v.comp, s);
-      need = v.comp[base] ? 1 : 2;
-      if (v.count > v.align + W'(base) + (v.comp[base] ? W'(0) : W'(1))) begin
-        v.pc[s] = v.pc_base + 32'(2 * base);
-        if (v.comp[base]) begin
-          v.instr[s] = {16'b0, v.rdata[base]};
+      v.base_off[s]  = '0;
+      v.base_comp[s] = 1'b0;
+      v.need_idx[s]  = 4'h0;
+      v.step[s]      = 4'h1;
+      v.sel_lo[s]    = 16'h0;
+      v.sel_hi[s]    = 16'h0;
+      for (int k = 0; k < WINDOW; k++) begin
+        if (v.sel_pos[s][k]) begin
+          v.base_off[s]  = W'(unsigned'(k));
+          v.base_comp[s] = v.comp[k];
+          v.need_idx[s]  = v.comp[k] ? 4'(unsigned'(k)) : 4'(unsigned'(k + 1));
+          v.step[s]      = v.comp[k] ? 4'(unsigned'(k + 1)) : 4'(unsigned'(k + 2));
+          v.sel_lo[s]    = v.rdata[k];
+          v.sel_hi[s]    = (k + 1 < WINDOW) ? v.rdata[(k+1)&(WINDOW-1)] : 16'h0;
         end
-        else begin
-          v.instr[s] = {v.rdata[base+1], v.rdata[base]};
-        end
+      end
+    end
+
+    v.avail = {1'b0, v.count} - {1'b0, v.align};
+
+    for (int s = 0; s < ISSUE_WIDTH; s++) begin
+      if (!v.avail[W] && (v.avail[W-1:0] > W'(v.need_idx[s]))) begin
+        v.pc[s]    = v.pc_base + (32'(v.base_off[s]) << 1);
+        v.instr[s] = v.base_comp[s] ? {16'b0, v.sel_lo[s]} : {v.sel_hi[s], v.sel_lo[s]};
         v.ready[s] = 1;
-        v.diff     = W'(base) + W'(need);
+        v.diff     = W'(v.step[s]);
       end
     end
 

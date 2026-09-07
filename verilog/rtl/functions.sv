@@ -67,10 +67,9 @@ package functions;
     input [31:0] rs1;
     logic [5:0] res;
     begin
-      res = 0;
-      for (int i = 31; i >= 0; i = i - 1) begin
-        if (rs1[i] == 1) break;
-        res = res + 1;
+      res = 6'd32;
+      for (int i = 0; i < 32; i = i + 1) begin
+        if (rs1[i] == 1) res = 6'(31 - i);
       end
       bit_clz = {26'h0, res};
     end
@@ -79,21 +78,27 @@ package functions;
     input [31:0] rs1;
     logic [5:0] res;
     begin
-      res = 0;
-      for (int i = 0; i < 32; i = i + 1) begin
-        if (rs1[i] == 1) break;
-        res = res + 1;
+      res = 6'd32;
+      for (int i = 31; i >= 0; i = i - 1) begin
+        if (rs1[i] == 1) res = 6'(i);
       end
       bit_ctz = {26'h0, res};
     end
   endfunction
   function automatic [31:0] bit_cpop;
     input [31:0] rs1;
-    logic [5:0] res;
+    logic [1:0] l1 [0:15];
+    logic [2:0] l2 [ 0:7];
+    logic [3:0] l3 [ 0:3];
+    logic [4:0] l4 [ 0:1];
+    logic [5:0] l5;
     begin
-      res = 0;
-      for (int i = 0; i < 32; i = i + 1) if (rs1[i] == 1) res = res + 1;
-      bit_cpop = {26'h0, res};
+      for (int i = 0; i < 16; i = i + 1) l1[i] = 2'(rs1[2*i]) + 2'(rs1[2*i+1]);
+      for (int i = 0; i < 8; i = i + 1) l2[i] = 3'(l1[2*i]) + 3'(l1[2*i+1]);
+      for (int i = 0; i < 4; i = i + 1) l3[i] = 4'(l2[2*i]) + 4'(l2[2*i+1]);
+      for (int i = 0; i < 2; i = i + 1) l4[i] = 5'(l3[2*i]) + 5'(l3[2*i+1]);
+      l5       = 6'(l4[0]) + 6'(l4[1]);
+      bit_cpop = {26'h0, l5};
     end
   endfunction
   function automatic [31:0] bit_minmax;
@@ -101,18 +106,12 @@ package functions;
     input [31:0] rs2;
     input [1:0] op;
     logic [32:0] r1, r2;
+    logic [0:0] lt;
     begin
-      r1 = {1'b0, rs1};
-      r2 = {1'b0, rs2};
-      if (op == 0 || op == 2) begin
-        r1[32] = rs1[31];
-        r2[32] = rs2[31];
-      end
-      if (op == 2 || op == 3) begin
-        r1 = -r1;
-        r2 = -r2;
-      end
-      if ($signed(r1) < $signed(r2)) bit_minmax = rs2;
+      r1 = {op[0] ? 1'b0 : rs1[31], rs1};
+      r2 = {op[0] ? 1'b0 : rs2[31], rs2};
+      lt = $signed(r1) < $signed(r2);
+      if (lt ^ op[1]) bit_minmax = rs2;
       else bit_minmax = rs1;
     end
   endfunction
@@ -198,25 +197,6 @@ package functions;
       bit_shadd = rs2 + (rs1 << index);
     end
   endfunction
-  function automatic rs_entry_type rs_wakeup;
-    input rs_entry_type e;
-    input cdb_type c;
-    rs_entry_type t;
-    begin
-      t = e;
-      if (c.valid && t.valid) begin
-        if (!t.src1_ready && t.psrc1 == c.tag) begin
-          t.src1_ready = 1'b1;
-          t.rdata1     = c.data;
-        end
-        if (!t.src2_ready && t.psrc2 == c.tag) begin
-          t.src2_ready = 1'b1;
-          t.rdata2     = c.data;
-        end
-      end
-      rs_wakeup = t;
-    end
-  endfunction
   function automatic rs_entry_type rs_wakeup_all;
     input rs_entry_type e;
     input cdb_type [RS_CDB_COUNT-1:0] cd;
@@ -248,58 +228,16 @@ package functions;
       rs_wakeup_all = t;
     end
   endfunction
-  function automatic logic [31:0] prf_or_cdb;
-    input logic [PRF_ADDR_BITS-1:0] tag;
-    input logic prf_valid;
-    input logic [31:0] prf_data;
-    input cdb_type [ISSUE_WIDTH-1:0] c;
-    input cdb_type cl;
-    logic [ISSUE_WIDTH:0] hit, higher, sel;
-    logic [31:0] acc;
-    begin
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        hit[k] = c[k].valid && (c[k].tag == tag);
-      end
-      hit[ISSUE_WIDTH]    = cl.valid && (cl.tag == tag);
-      higher[ISSUE_WIDTH] = 1'b0;
-      for (int k = ISSUE_WIDTH - 1; k >= 0; k--) begin
-        higher[k] = higher[k+1] | hit[k+1];
-      end
-      for (int k = 0; k <= ISSUE_WIDTH; k++) begin
-        sel[k] = hit[k] & ~higher[k];
-      end
-      acc = (prf_valid && !(|hit)) ? prf_data : 32'h0;
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        acc = acc | ({32{sel[k]}} & c[k].data);
-      end
-      acc        = acc | ({32{sel[ISSUE_WIDTH]}} & cl.data);
-      prf_or_cdb = acc;
-    end
-  endfunction
-  function automatic logic src_ready;
-    input logic [PRF_ADDR_BITS-1:0] tag;
-    input logic prf_valid;
-    input cdb_type [ISSUE_WIDTH-1:0] c;
-    input cdb_type cl;
-    begin
-      src_ready = prf_valid;
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (c[k].valid && c[k].tag == tag) src_ready = 1'b1;
-      end
-      if (cl.valid && cl.tag == tag) src_ready = 1'b1;
-    end
-  endfunction
   function automatic logic [31:0] eu_result;
     input rs_entry_type e;
     input logic [31:0] npc_v;
-    input logic [31:0] alu_r, agu_r, mul_r, div_r, bit_r, csr_r;
+    input logic [31:0] alu_r, agu_r, div_r, bit_r, csr_r;
     begin
       if (e.op.alunit) eu_result = alu_r;
       else if (e.op.lui) eu_result = e.imm;
       else if (e.op.auipc) eu_result = agu_r;
       else if (e.op.jal) eu_result = npc_v;
       else if (e.op.jalr) eu_result = npc_v;
-      else if (e.op.mult) eu_result = mul_r;
       else if (e.op.division) eu_result = div_r;
       else if (e.op.bitm) eu_result = bit_r;
       else if (e.op.csreg) eu_result = csr_r;
@@ -312,6 +250,7 @@ package functions;
     input div_out_type dv;
     begin
       if (!valid) eu_done = 0;
+      else if (e.op.mult) eu_done = 0;
       else if (e.op.division) eu_done = dv.ready;
       else eu_done = 1;
     end

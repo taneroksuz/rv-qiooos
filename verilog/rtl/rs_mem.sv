@@ -17,7 +17,6 @@ module rs_mem (
   localparam MEM_BANK_ENTRIES = RS_MEM_DEPTH / ISSUE_WIDTH;
 
   typedef struct packed {
-    logic [MEM_ADDR_BITS:0]                        count;
     logic [RS_MEM_DEPTH-1:0]                       valid_bits;
     rs_entry_type [RS_MEM_DEPTH-1:0]               woken;
     rs_entry_type                                  cur_entry;
@@ -26,11 +25,16 @@ module rs_mem (
     logic [MEM_ISSUE_WIDTH-1:0]                    sel_found;
     logic [ISSUE_WIDTH-1:0][MEM_ADDR_BITS-1:0]     free_idx;
     logic [ISSUE_WIDTH-1:0]                        free_found;
-    logic [MEM_ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] best_age;
-    logic [ROB_ADDR_BITS-1:0]                      cand_age;
-    logic [ROB_DEPTH-1:0]                          store_valid;
-    logic [ROB_DEPTH-1:0][ROB_ADDR_BITS-1:0]       store_age;
-    logic [0:0]                                    older_store_block;
+    logic [RS_MEM_DEPTH-1:0]                       tag_wrap;
+    logic [RS_MEM_DEPTH-1:0][RS_MEM_DEPTH-1:0]     tag_lt;
+    logic [RS_MEM_DEPTH-1:0][RS_MEM_DEPTH-1:0]     lt;
+    logic [RS_MEM_DEPTH-1:0]                       is_min;
+    logic [RS_MEM_DEPTH-1:0]                       is_2nd;
+    logic [ROB_DEPTH-1:0]                          store_wrap;
+    logic [RS_MEM_DEPTH-1:0]                       older_store;
+    logic [RS_MEM_DEPTH-1:0]                       ent_ready;
+    logic [RS_MEM_DEPTH-1:0]                       ent_load;
+    logic [MEM_ISSUE_WIDTH-1:0]                    oldest_load;
     logic [MEM_ISSUE_WIDTH-1:0][MEM_ADDR_BITS-1:0] oldest_idx;
     logic [MEM_ISSUE_WIDTH-1:0]                    oldest_found;
     logic [MEM_ISSUE_WIDTH-1:0]                    oldest_ready;
@@ -39,7 +43,6 @@ module rs_mem (
   } rs_mem_reg_type;
 
   localparam rs_mem_reg_type init_rs_mem_reg = '{
-      count: '0,
       valid_bits: '0,
       woken: '{default: init_rs_entry},
       cur_entry: init_rs_entry,
@@ -50,25 +53,18 @@ module rs_mem (
 
   rs_mem_reg_type r, rin, v;
 
-  function automatic logic [ROB_ADDR_BITS-1:0] rob_age(input logic [ROB_ADDR_BITS-1:0] head,
-                                                       input logic [ROB_ADDR_BITS-1:0] tag);
-    rob_age = tag - head;
-  endfunction
-
   always_comb begin
-    v                   = r;
-    rs_out              = '0;
-    v.sel_idx           = '0;
-    v.sel_found         = '0;
-    v.free_idx          = '0;
-    v.free_found        = '0;
-    v.best_age          = '0;
-    v.cand_age          = '0;
-    v.older_store_block = 1'b0;
-    v.oldest_idx        = '0;
-    v.oldest_found      = '0;
-    v.oldest_ready      = '0;
-    v.port_busy         = rs_in.load_busy;
+    v              = r;
+    rs_out         = '0;
+    v.sel_idx      = '0;
+    v.sel_found    = '0;
+    v.free_idx     = '0;
+    v.free_found   = '0;
+    v.oldest_idx   = '0;
+    v.oldest_found = '0;
+    v.oldest_ready = '0;
+    v.oldest_load  = '0;
+    v.port_busy    = rs_in.load_busy;
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v.cdb_all[k]                             = rs_in.cdb[k];
@@ -82,45 +78,66 @@ module rs_mem (
       v.cur_entry       = array[i];
       v.cur_entry.valid = r.valid_bits[i];
       v.woken[i]        = rs_wakeup_all(v.cur_entry, v.cdb_all);
-
-      if (v.woken[i].valid) begin
-        v.cand_age = rob_age(rs_in.rob_head, v.woken[i].rob_tag);
-        if (!v.oldest_found[0] || (v.cand_age < v.best_age[0])) begin
-          if (v.oldest_found[0]) begin
-            v.oldest_idx[1]   = v.oldest_idx[0];
-            v.oldest_found[1] = 1'b1;
-            v.best_age[1]     = v.best_age[0];
-          end
-          v.oldest_idx[0]   = MEM_ADDR_BITS'(unsigned'(i));
-          v.oldest_found[0] = 1'b1;
-          v.best_age[0]     = v.cand_age;
-        end
-        else if (!v.oldest_found[1] || (v.cand_age < v.best_age[1])) begin
-          v.oldest_idx[1]   = MEM_ADDR_BITS'(unsigned'(i));
-          v.oldest_found[1] = 1'b1;
-          v.best_age[1]     = v.cand_age;
-        end
-      end
-
+      v.tag_wrap[i]     = array[i].rob_tag < rs_in.rob_head;
     end
 
     for (int j = 0; j < ROB_DEPTH; j++) begin
-      v.store_valid[j] = rob_store_pending[j];
-      v.store_age[j]   = rob_age(rs_in.rob_head, ROB_ADDR_BITS'(unsigned'(j)));
+      v.store_wrap[j] = ROB_ADDR_BITS'(unsigned'(j)) < rs_in.rob_head;
     end
 
-    for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
-      if (v.oldest_found[p]) begin
-        v.older_store_block = 1'b0;
-        if (v.woken[v.oldest_idx[p]].op.load) begin
-          for (int j = 0; j < ROB_DEPTH; j++) begin
-            if (v.store_valid[j] && (v.store_age[j] < v.best_age[p])) begin
-              v.older_store_block = 1'b1;
-            end
-          end
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      for (int j = 0; j < RS_MEM_DEPTH; j++) begin
+        v.tag_lt[i][j] = (array[i].rob_tag < array[j].rob_tag) || ((array[i].rob_tag == array[j].rob_tag) && (i < j));
+        v.lt[i][j]     = (v.tag_wrap[i] == v.tag_wrap[j]) ? v.tag_lt[i][j] : v.tag_wrap[j];
+      end
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      v.older_store[i] = 1'b0;
+      for (int j = 0; j < ROB_DEPTH; j++) begin
+        if (rob_store_pending[j] && ((v.store_wrap[j] == v.tag_wrap[i]) ?
+                                     (ROB_ADDR_BITS'(unsigned'(j)) < array[i].rob_tag) : v.tag_wrap[i])) begin
+          v.older_store[i] = 1'b1;
         end
-        v.oldest_ready[p] = v.woken[v.oldest_idx[p]].src1_ready && v.woken[v.oldest_idx[p]].src2_ready &&
-            (v.woken[v.oldest_idx[p]].op.store || (v.woken[v.oldest_idx[p]].op.load && !v.older_store_block));
+      end
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      v.is_min[i] = r.valid_bits[i];
+      for (int j = 0; j < RS_MEM_DEPTH; j++) begin
+        if (j != i) begin
+          v.is_min[i] = v.is_min[i] & (~r.valid_bits[j] | v.lt[i][j]);
+        end
+      end
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      v.is_2nd[i] = r.valid_bits[i] & ~v.is_min[i];
+      for (int j = 0; j < RS_MEM_DEPTH; j++) begin
+        if (j != i) begin
+          v.is_2nd[i] = v.is_2nd[i] & (~r.valid_bits[j] | v.is_min[j] | v.lt[i][j]);
+        end
+      end
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      v.ent_load[i] = v.woken[i].op.load;
+      v.ent_ready[i] = v.woken[i].src1_ready && v.woken[i].src2_ready &&
+          (v.woken[i].op.store || (v.woken[i].op.load && !v.older_store[i]));
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      if (v.is_min[i]) begin
+        v.oldest_idx[0]   = MEM_ADDR_BITS'(unsigned'(i));
+        v.oldest_found[0] = 1'b1;
+        v.oldest_ready[0] = v.ent_ready[i];
+        v.oldest_load[0]  = v.ent_load[i];
+      end
+      if (v.is_2nd[i]) begin
+        v.oldest_idx[1]   = MEM_ADDR_BITS'(unsigned'(i));
+        v.oldest_found[1] = 1'b1;
+        v.oldest_ready[1] = v.ent_ready[i];
+        v.oldest_load[1]  = v.ent_load[i];
       end
     end
     v.sel_found[0] = 1'b0;
@@ -136,7 +153,7 @@ module rs_mem (
       end
     end
     if (v.sel_found[0] && v.oldest_found[1] && v.oldest_ready[1]) begin
-      if (!(v.woken[v.oldest_idx[0]].op.load ^ v.woken[v.oldest_idx[1]].op.load)) begin
+      if (!(v.oldest_load[0] ^ v.oldest_load[1])) begin
         if (!v.port_busy[1]) begin
           v.sel_idx[1]   = v.oldest_idx[1];
           v.sel_found[1] = 1'b1;
@@ -174,20 +191,17 @@ module rs_mem (
       rs_out       = '0;
       v.sel_found  = '0;
       v.free_found = '0;
-      v.count      = '0;
       v.valid_bits = '0;
     end
     else begin
       for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
         if (v.sel_found[p]) begin
           v.valid_bits[v.sel_idx[p]] = 1'b0;
-          v.count                    = v.count - 1'b1;
         end
       end
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (rs_in.alloc[k] && v.free_found[k]) begin
           v.valid_bits[v.free_idx[k]] = 1'b1;
-          v.count                     = v.count + 1'b1;
         end
       end
     end

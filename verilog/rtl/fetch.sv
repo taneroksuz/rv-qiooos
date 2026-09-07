@@ -160,6 +160,7 @@ module fetch (
       fetch_out.btac_in.upd_addr[p]   = fetch_in.entry[p].target;
       fetch_out.btac_in.upd_jump[p]   = fetch_in.entry[p].jump;
       fetch_out.btac_in.upd_branch[p] = fetch_in.entry[p].branch;
+      fetch_out.btac_in.upd_tmiss[p]  = fetch_in.entry[p].tmiss;
       fetch_out.btac_in.upd_pred[p]   = fetch_in.entry[p].pred;
     end
 

@@ -113,7 +113,7 @@ module rename (
 
     for (int j = 0; j < 2 * ISSUE_WIDTH; j++) begin
       src_tag = rename_in.rat.psrc[j];
-      src_pv  = rename_in.rat.psrc_valid[j] && rename_in.prf.rvalid[j];
+      src_pv  = rename_in.rat.psrc_valid[j];
 
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
         src_hit[k] = rename_in.cdb[k].valid && (rename_in.cdb[k].tag == src_tag);

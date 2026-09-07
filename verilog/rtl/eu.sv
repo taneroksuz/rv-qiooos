@@ -12,6 +12,8 @@ module eu (
 );
   timeunit 1ns; timeprecision 1ps;
 
+  localparam MUL_WB_BASE = ISSUE_WIDTH - MUL_COUNT;
+
   typedef struct packed {
     cdb_type [ISSUE_WIDTH-1:0]                     cdb;
     logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0]     rob_wtag;
@@ -28,7 +30,6 @@ module eu (
     logic [ISSUE_WIDTH-1:0]                        agu_exception_lane;
     logic [ISSUE_WIDTH-1:0][7:0]                   agu_ecause_lane;
     logic [ISSUE_WIDTH-1:0][31:0]                  agu_etval_lane;
-    logic [ISSUE_WIDTH-1:0][31:0]                  mul_result_lane;
     logic [ISSUE_WIDTH-1:0][31:0]                  bit_result_lane;
     logic [ISSUE_WIDTH-1:0]                        branch_taken_lane;
     logic [ISSUE_WIDTH-1:0][31:0]                  eu_result_lane;
@@ -40,6 +41,10 @@ module eu (
     logic [BCU_COUNT-1:0]                          bcu_found;
     logic [MUL_COUNT-1:0][1:0]                     mul_owner;
     logic [MUL_COUNT-1:0]                          mul_found;
+    logic [MUL_COUNT-1:0]                          mul_pend;
+    logic [MUL_COUNT-1:0][PRF_ADDR_BITS-1:0]       mul_pdest;
+    logic [MUL_COUNT-1:0][ROB_ADDR_BITS-1:0]       mul_rtag;
+    logic [MUL_COUNT-1:0]                          mul_wren;
     logic [BITALU_COUNT-1:0][1:0]                  bitalu_owner;
     logic [BITALU_COUNT-1:0]                       bitalu_found;
     logic [1:0]                                    csr_owner;
@@ -240,13 +245,11 @@ module eu (
       eu_out.mul_in[p].mul_op = v.mul_found[p] ? rs_mul_op(v.int_issue[v.mul_owner[p]].unit_op) : init_mul_op;
     end
 
-    for (int l = 0; l < ISSUE_WIDTH; l++) begin
-      v.mul_result_lane[l] = 32'h0;
-      for (int p = 0; p < MUL_COUNT; p++) begin
-        if (v.mul_found[p] && (v.mul_owner[p] == 2'(l))) begin
-          v.mul_result_lane[l] = eu_in.mul_out[p].result;
-        end
-      end
+    for (int p = 0; p < MUL_COUNT; p++) begin
+      v.mul_pend[p]  = v.mul_found[p] & ~flush;
+      v.mul_pdest[p] = v.int_issue[v.mul_owner[p]].pdest;
+      v.mul_rtag[p]  = v.int_issue[v.mul_owner[p]].rob_tag;
+      v.mul_wren[p]  = v.int_issue[v.mul_owner[p]].op.wren;
     end
 
     for (int p = 0; p < BITALU_COUNT; p++) begin
@@ -317,7 +320,6 @@ module eu (
         v.npc_lane[l],
         eu_in.alu_out[l].result,
         v.agu_result_lane[l],
-        v.mul_result_lane[l],
         eu_in.div_out.result,
         v.bit_result_lane[l],
         eu_in.csr.cdata
@@ -413,6 +415,21 @@ module eu (
         end
       end
 
+      for (int p = 0; p < MUL_COUNT; p++) begin
+        if (r.mul_pend[p]) begin
+          if (r.mul_wren[p]) begin
+            v.cdb[MUL_WB_BASE+p].valid = 1'b1;
+            v.cdb[MUL_WB_BASE+p].tag   = r.mul_pdest[p];
+            v.cdb[MUL_WB_BASE+p].data  = eu_in.mul_out[p].result;
+          end
+          v.rob_wtag[MUL_WB_BASE+p]          = r.mul_rtag[p];
+          v.rob_wen[MUL_WB_BASE+p]           = 1'b1;
+          v.rob_wentry[MUL_WB_BASE+p]        = init_rob_entry;
+          v.rob_wentry[MUL_WB_BASE+p].done   = 1'b1;
+          v.rob_wentry[MUL_WB_BASE+p].result = eu_in.mul_out[p].result;
+        end
+      end
+
       for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
         if (eu_in.mem_issue_valid[p] && eu_in.mem_issue[p].op.store) begin
           v.rob_wtag_store[p]              = eu_in.mem_issue[p].rob_tag;
@@ -443,6 +460,13 @@ module eu (
       eu_out.rob_wen_store[p]    = r.rob_wen_store[p];
     end
     eu_out.div_busy = r.div_pending_valid;
+
+    for (int l = 0; l < ISSUE_WIDTH; l++) begin
+      eu_out.lane_block[l] = 1'b0;
+    end
+    for (int p = 0; p < MUL_COUNT; p++) begin
+      eu_out.lane_block[MUL_WB_BASE+p] = r.mul_pend[p];
+    end
 
   end
 

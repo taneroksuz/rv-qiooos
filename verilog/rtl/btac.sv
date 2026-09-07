@@ -132,6 +132,7 @@ module btac_ctrl (
     logic [ISSUE_WIDTH-1:0][0:0]         alloc;
     logic [ISSUE_WIDTH-1:0][0:0]         upd;
     logic [ISSUE_WIDTH-1:0][0:0]         kill;
+    logic [ISSUE_WIDTH-1:0][0:0]         tmiss;
     logic [B_DEPTH:0]                    fcount;
   } btb_reg_type;
 
@@ -150,6 +151,7 @@ module btac_ctrl (
       alloc : '{default: 0},
       upd : '{default: 0},
       kill : '{default: 0},
+      tmiss : '{default: 0},
       fcount : 0
   };
 
@@ -196,31 +198,11 @@ module btac_ctrl (
     end
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin
-      v_btb.maddr[p] = 0;
-      v_btb.miss[p]  = 0;
-      v_btb.hit[p]   = 0;
-      v_btb.kill[p]  = 0;
-    end
-
-    for (int p = 0; p < ISSUE_WIDTH; p++) begin
-      if (btac_in.upd_pred[p].taken == 1 && btac_in.upd_jump[p] == 1) begin
-        v_btb.maddr[p] = btac_in.upd_addr[p];
-        v_btb.miss[p]  = |(btac_in.upd_addr[p] ^ btac_in.upd_pred[p].taddr);
-        v_btb.hit[p]   = ~v_btb.miss[p];
-      end
-      if (btac_in.upd_pred[p].taken == 0 && btac_in.upd_jump[p] == 1) begin
-        v_btb.maddr[p] = btac_in.upd_addr[p];
-        v_btb.miss[p]  = 1;
-      end
-      if (btac_in.upd_branch[p] == 1 && btac_in.upd_pred[p].taken == 1 && btac_in.upd_jump[p] == 0) begin
-        v_btb.maddr[p] = btac_in.upd_npc[p];
-        v_btb.miss[p]  = 1;
-      end
-      if (btac_in.upd_branch[p] == 0 && btac_in.upd_jump[p] == 0 && btac_in.upd_pred[p].taken == 1) begin
-        v_btb.maddr[p] = btac_in.upd_npc[p];
-        v_btb.miss[p]  = 1;
-        v_btb.kill[p]  = 1;
-      end
+      v_btb.tmiss[p] = btac_in.upd_tmiss[p];
+      v_btb.maddr[p] = btac_in.upd_jump[p] ? btac_in.upd_addr[p] : btac_in.upd_npc[p];
+      v_btb.miss[p]  = btac_in.upd_jump[p] ? (~btac_in.upd_pred[p].taken | v_btb.tmiss[p]) : btac_in.upd_pred[p].taken;
+      v_btb.hit[p]   = btac_in.upd_jump[p] & btac_in.upd_pred[p].taken & ~v_btb.tmiss[p];
+      v_btb.kill[p]  = ~btac_in.upd_branch[p] & ~btac_in.upd_jump[p] & btac_in.upd_pred[p].taken;
     end
 
     for (int p = 0; p < ISSUE_WIDTH; p++) begin

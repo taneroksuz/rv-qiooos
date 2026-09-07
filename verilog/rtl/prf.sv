@@ -45,8 +45,7 @@ module prf (
     end
 
     for (int i = 0; i < 2 * ISSUE_WIDTH; i++) begin
-      prf_out.rdata[i]  = v.rdata[i];
-      prf_out.rvalid[i] = 1'b1;
+      prf_out.rdata[i] = v.rdata[i];
     end
   end
 

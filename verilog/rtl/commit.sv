@@ -13,23 +13,23 @@ module commit (
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
-    csr_write_in_type                     csr_win;
-    csr_exception_in_type                 csr_ein;
-    rat_in_type                           rat_i;
-    prf_in_type                           prf_i;
-    fl_in_type                            fl_i;
-    logic [0:0]                           flush_all;
-    commit_entry_type [ISSUE_WIDTH-1:0]   commit_entry;
-    logic [MEM_ISSUE_WIDTH-1:0][0:0]      store_slot_valid;
-    store_slot_type [MEM_ISSUE_WIDTH-1:0] store_slot_entry;
-    rob_entry_type [ISSUE_WIDTH-1:0]      e;
-    logic [ISSUE_WIDTH-1:0]               c;
-    logic [ISSUE_WIDTH-1:0]               entry_flush;
-    logic [ISSUE_WIDTH-1:0]               do_commit;
-    logic [0:0]                           any_flush;
-    logic [0:0]                           irq_take;
-    logic [MEM_ISSUE_WIDTH-1:0]           store_slot_found;
-    logic [MEM_ISSUE_WIDTH-1:0][31:0]     store_slot_owner;
+    csr_write_in_type                                csr_win;
+    csr_exception_in_type                            csr_ein;
+    rat_in_type                                      rat_i;
+    prf_in_type                                      prf_i;
+    fl_in_type                                       fl_i;
+    logic [0:0]                                      flush_all;
+    commit_entry_type [ISSUE_WIDTH-1:0]              commit_entry;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]                 store_slot_valid;
+    store_slot_type [MEM_ISSUE_WIDTH-1:0]            store_slot_entry;
+    rob_entry_type [ISSUE_WIDTH-1:0]                 e;
+    logic [ISSUE_WIDTH-1:0]                          c;
+    logic [ISSUE_WIDTH-1:0]                          entry_flush;
+    logic [ISSUE_WIDTH-1:0]                          do_commit;
+    logic [0:0]                                      any_flush;
+    logic [0:0]                                      irq_take;
+    logic [MEM_ISSUE_WIDTH-1:0]                      store_slot_found;
+    logic [MEM_ISSUE_WIDTH-1:0][ISSUE_ADDR_BITS-1:0] store_slot_owner;
   } commit_reg_type;
 
   localparam commit_reg_type init_commit_reg = '{
@@ -82,21 +82,22 @@ module commit (
         v.commit_entry[p].jump   = v.e[p].jump;
         v.commit_entry[p].branch = v.e[p].branch;
         v.commit_entry[p].fence  = v.e[p].fence;
+        v.commit_entry[p].tmiss  = (v.e[p].target != v.e[p].pred.taddr);
       end
     end
 
     v.store_slot_found[0] = 1'b0;
     v.store_slot_found[1] = 1'b0;
-    v.store_slot_owner[0] = 0;
-    v.store_slot_owner[1] = 0;
+    v.store_slot_owner[0] = '0;
+    v.store_slot_owner[1] = '0;
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (v.do_commit[k] && v.e[k].store) begin
         if (!v.store_slot_found[0]) begin
-          v.store_slot_owner[0] = k;
+          v.store_slot_owner[0] = ISSUE_ADDR_BITS'(unsigned'(k));
           v.store_slot_found[0] = 1'b1;
         end
         else if (!v.store_slot_found[1]) begin
-          v.store_slot_owner[1] = k;
+          v.store_slot_owner[1] = ISSUE_ADDR_BITS'(unsigned'(k));
           v.store_slot_found[1] = 1'b1;
         end
       end

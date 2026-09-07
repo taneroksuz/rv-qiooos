@@ -28,15 +28,21 @@ module rob (
     logic [ISSUE_WIDTH-1:0]                    h_done;
     logic [ISSUE_WIDTH-1:0]                    h_stop;
     logic [ISSUE_WIDTH-1:0]                    commit;
-    logic [31:0]                               store_count;
-    logic [31:0]                               store_room;
+    logic [2:0]                                store_count;
+    logic [2:0]                                store_room;
     logic [ISSUE_WIDTH-1:0]                    alloc_ok;
-    logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] tail_idx;
     logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] head_idx;
     logic [ROB_WPORTS-1:0][ROB_ADDR_BITS-1:0]  wtag;
     rob_entry_type [ROB_WPORTS-1:0]            wentry;
     logic [ROB_WPORTS-1:0]                     wen;
     logic [ROB_WPORTS-1:0]                     wv;
+    logic [ROB_WPORTS-1:0]                     wclr;
+    logic [ROB_WPORTS-1:0]                     write_ok;
+    logic [2:0]                                commit_cnt;
+    logic [2:0]                                alloc_cnt;
+    logic [ROB_ADDR_BITS:0]                    count_c;
+    logic [ROB_DEPTH-1:0]                      clr_bits;
+    logic [ROB_DEPTH-1:0]                      set_bits;
     logic [ISSUE_WIDTH-1:0][ROB_WPORTS-1:0]    h_hit;
     logic [ROB_BANK_BITS-1:0]                  head_bank;
     logic [ROB_BANK_BITS-1:0]                  tail_bank;
@@ -75,10 +81,6 @@ module rob (
       v.head_idx[k] = r.head + ROB_ADDR_BITS'(unsigned'(k));
       v.h_done[k]   = 1'b0;
       v.h_stop[k]   = 1'b0;
-    end
-
-    for (int i = 0; i < ISSUE_WIDTH; i++) begin
-      v.tail_idx[i] = r.tail_ptr;
     end
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
@@ -148,7 +150,7 @@ module rob (
     end
 
     for (int i = 0; i < ROB_DEPTH; i++) begin
-      rob_store_pending[i] = (flush ? 1'b0 : r.valid_bits[i]) & array[i].store;
+      rob_store_pending[i] = r.valid_bits[i] & array[i].store;
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
@@ -157,9 +159,9 @@ module rob (
           v.h[k].fence || v.h[k].wfi || v.h[k].ecall || v.h[k].ebreak || v.h[k].csreg;
     end
 
-    rob_out = init_rob_out;
+    rob_out          = init_rob_out;
+    rob_out.head_ptr = r.head;
     if (!flush) begin
-      rob_out.head_ptr = r.head;
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         rob_out.alloc_tag[i] = r.tail_ptr + ROB_ADDR_BITS'(i);
         rob_out.alloc_ok[i]  = (r.count <= ROB_DEPTH - ISSUE_WIDTH);
@@ -167,26 +169,56 @@ module rob (
       end
     end
 
-    v.store_room = 0;
+    v.store_room = 3'b0;
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       if (rob_in.store_slot_free[p]) begin
-        v.store_room = v.store_room + 1;
+        v.store_room = v.store_room + 3'b1;
       end
     end
 
-    v.store_count = 0;
+    v.store_count = 3'b0;
     v.commit[0]   = v.h_done[0] && (!v.h[0].store || (v.store_count < v.store_room));
     if (v.commit[0] && v.h[0].store) begin
-      v.store_count = v.store_count + 1;
+      v.store_count = v.store_count + 3'b1;
     end
     for (int k = 1; k < ISSUE_WIDTH; k++) begin
       v.commit[k] = v.h_done[k] && v.commit[k-1] && !v.h_stop[k-1] && (!v.h[k].store || (v.store_count < v.store_room));
       if (v.commit[k] && v.h[k].store) begin
-        v.store_count = v.store_count + 1;
+        v.store_count = v.store_count + 3'b1;
       end
     end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       rob_out.commit_valid[k] = flush ? 1'b0 : v.commit[k];
+    end
+
+    v.commit_cnt = 3'b0;
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      if (v.commit[k]) begin
+        v.commit_cnt = v.commit_cnt + 3'b1;
+      end
+    end
+
+    v.count_c = r.count - (ROB_ADDR_BITS + 1)'(v.commit_cnt);
+
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
+      v.alloc_ok[i] = !flush && rob_in.alloc[i] && (r.count <= (ROB_ADDR_BITS + 1)'(ROB_DEPTH - ISSUE_WIDTH));
+    end
+
+    v.alloc_cnt = 3'b0;
+    for (int i = 0; i < ISSUE_WIDTH; i++) begin
+      if (v.alloc_ok[i]) begin
+        v.alloc_cnt = v.alloc_cnt + 3'b1;
+      end
+    end
+
+    for (int i = 0; i < ROB_DEPTH; i++) begin
+      v.clr_bits[i] = (ROB_ADDR_BITS'(unsigned'(i)) - r.head) < ROB_ADDR_BITS'(v.commit_cnt);
+      v.set_bits[i] = (ROB_ADDR_BITS'(unsigned'(i)) - r.tail_ptr) < ROB_ADDR_BITS'(v.alloc_cnt);
+    end
+
+    for (int p = 0; p < ROB_WPORTS; p++) begin
+      v.wclr[p]     = (v.wtag[p] - r.head) < ROB_ADDR_BITS'(v.commit_cnt);
+      v.write_ok[p] = v.wv[p] && !v.wclr[p];
     end
 
     if (flush) begin
@@ -196,22 +228,11 @@ module rob (
       v.valid_bits = '0;
     end
     else begin
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (v.commit[k]) begin
-          v.valid_bits[v.head] = 1'b0;
-          v.head               = v.head + ROB_ADDR_BITS'(1);
-          v.count              = v.count - 1'b1;
-        end
-      end
-
-      for (int i = 0; i < ISSUE_WIDTH; i++) begin
-        v.alloc_ok[i] = rob_in.alloc[i] && (v.count < ROB_DEPTH);
-        if (v.alloc_ok[i]) begin
-          v.tail_idx[i]            = v.tail_ptr;
-          v.valid_bits[v.tail_ptr] = 1'b1;
-          v.tail_ptr               = v.tail_ptr + ROB_ADDR_BITS'(1);
-          v.count                  = v.count + 1'b1;
-        end
+      v.head     = r.head + ROB_ADDR_BITS'(v.commit_cnt);
+      v.tail_ptr = r.tail_ptr + ROB_ADDR_BITS'(v.alloc_cnt);
+      v.count    = v.count_c + (ROB_ADDR_BITS + 1)'(v.alloc_cnt);
+      for (int i = 0; i < ROB_DEPTH; i++) begin
+        v.valid_bits[i] = (r.valid_bits[i] & ~v.clr_bits[i]) | v.set_bits[i];
       end
     end
 
@@ -253,7 +274,7 @@ module rob (
         end
 
         for (int p = 0; p < ISSUE_WIDTH; p++) begin
-          if (rin.wen[p] && rin.valid_bits[rin.wtag[p]]) begin
+          if (rin.write_ok[p]) begin
             array[rin.wtag[p]].done       <= 1'b1;
             array[rin.wtag[p]].result     <= rin.wentry[p].result;
             array[rin.wtag[p]].exception  <= rin.wentry[p].exception;
@@ -266,7 +287,7 @@ module rob (
           end
         end
         for (int p = ISSUE_WIDTH; p < ISSUE_WIDTH + MEM_ISSUE_WIDTH; p++) begin
-          if (rin.wen[p] && rin.valid_bits[rin.wtag[p]]) begin
+          if (rin.write_ok[p]) begin
             array[rin.wtag[p]].done      <= 1'b1;
             array[rin.wtag[p]].result    <= rin.wentry[p].result;
             array[rin.wtag[p]].exception <= rin.wentry[p].exception;
@@ -274,7 +295,7 @@ module rob (
           end
         end
         for (int p = ISSUE_WIDTH + MEM_ISSUE_WIDTH; p < ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH; p++) begin
-          if (rin.wen[p] && rin.valid_bits[rin.wtag[p]]) begin
+          if (rin.write_ok[p]) begin
             array[rin.wtag[p]].done       <= 1'b1;
             array[rin.wtag[p]].target     <= rin.wentry[p].target;
             array[rin.wtag[p]].wdata      <= rin.wentry[p].wdata;

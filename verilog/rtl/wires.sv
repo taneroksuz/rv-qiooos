@@ -337,6 +337,7 @@ package wires;
     logic [ISSUE_WIDTH-1:0][31:0]     upd_addr;
     logic [ISSUE_WIDTH-1:0][0:0]      upd_jump;
     logic [ISSUE_WIDTH-1:0][0:0]      upd_branch;
+    logic [ISSUE_WIDTH-1:0][0:0]      upd_tmiss;
     prediction_type [ISSUE_WIDTH-1:0] upd_pred;
   } btac_in_type;
 
@@ -782,6 +783,7 @@ package wires;
     logic [0:0]     jump;
     logic [0:0]     branch;
     logic [0:0]     fence;
+    logic [0:0]     tmiss;
   } commit_entry_type;
 
   localparam commit_entry_type init_commit_entry = '{
@@ -791,7 +793,8 @@ package wires;
       pred: init_prediction,
       jump: 0,
       branch: 0,
-      fence: 0
+      fence: 0,
+      tmiss: 0
   };
 
   typedef struct packed {
@@ -879,10 +882,7 @@ package wires;
     logic [ISSUE_WIDTH-1:0][0:0]   wren;
   } prf_in_type;
 
-  typedef struct packed {
-    logic [2*ISSUE_WIDTH-1:0][31:0] rdata;
-    logic [2*ISSUE_WIDTH-1:0][0:0]  rvalid;
-  } prf_out_type;
+  typedef struct packed {logic [2*ISSUE_WIDTH-1:0][31:0] rdata;} prf_out_type;
 
   localparam prf_in_type init_prf_in = 0;
 
@@ -897,8 +897,6 @@ package wires;
   typedef struct packed {
     logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] alloc_tag;
     logic [ISSUE_WIDTH-1:0][0:0]               alloc_ok;
-    logic [0:0]                                empty;
-    logic [0:0]                                has_two;
   } fl_out_type;
 
   localparam fl_in_type init_fl_in = 0;
@@ -963,6 +961,7 @@ package wires;
     logic [0:0]                     div_busy;
     logic [0:0]                     csr_commit;
     logic [ROB_ADDR_BITS-1:0]       rob_head;
+    logic [ISSUE_WIDTH-1:0][0:0]    lane_block;
   } rs_int_in_type;
 
   typedef struct packed {
@@ -1034,6 +1033,7 @@ package wires;
     rob_entry_type [MEM_ISSUE_WIDTH-1:0]           rob_wentry_store;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               rob_wen_store;
     logic [0:0]                                    div_busy;
+    logic [ISSUE_WIDTH-1:0][0:0]                   lane_block;
   } eu_out_type;
 
   typedef struct packed {

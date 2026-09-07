@@ -158,6 +158,7 @@ module cpu (
       assign rename_in.rs_mem_alloc_ok[i] = rs_mem_out.alloc_ok[i];
       assign eu_in.int_issue[i]           = rs_int_out.issue[i];
       assign eu_in.int_issue_valid[i]     = rs_int_out.issue_valid[i];
+      assign rs_int_in.lane_block[i]      = eu_out.lane_block[i];
     end
   endgenerate
   generate
