@@ -10,7 +10,7 @@ module rename (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  logic    rob_ok;
+  logic    rob_ok       [ISSUE_WIDTH];
   logic    stall;
   cdb_type cdb_load_any;
 
@@ -29,6 +29,8 @@ module rename (
   logic [              0:0] fl_ok_arr [ISSUE_WIDTH];
 
   logic [2:0] fl_count;
+  logic [2:0] int_count;
+  logic [2:0] mem_count;
 
   logic        src_rdy [2*ISSUE_WIDTH];
   logic [31:0] src_data[2*ISSUE_WIDTH];
@@ -67,19 +69,25 @@ module rename (
       fl_ok_arr[i]  = rename_in.fl.alloc_ok[i];
     end
 
-    rob_ok = rename_in.rob_alloc_ok[0];
-
-    fl_count = 0;
+    fl_count  = 0;
+    int_count = 0;
+    mem_count = 0;
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
       is_mem[i]  = instr_valid[i] && (instr[i].op.load || instr[i].op.store);
       need_fl[i] = instr_valid[i] && instr[i].op.wren && (instr[i].waddr != 5'h0);
+      rob_ok[i]  = rename_in.rob_alloc_ok[i];
 
       if (is_mem[i]) begin
-        rs_ok[i] = rename_in.rs_mem_alloc_ok[i];
+        rs_ok[i]  = rename_in.rs_mem_alloc_ok[ISSUE_ADDR_BITS'(mem_count)];
+        mem_count = mem_count + 1;
+      end
+      else if (instr_valid[i]) begin
+        rs_ok[i]  = rename_in.rs_int_alloc_ok[ISSUE_ADDR_BITS'(int_count)];
+        int_count = int_count + 1;
       end
       else begin
-        rs_ok[i] = rename_in.rs_int_alloc_ok[i];
+        rs_ok[i] = 1'b1;
       end
 
       if (need_fl[i]) begin
@@ -93,9 +101,9 @@ module rename (
       end
     end
 
-    can_dispatch[0] = instr_valid[0] && rob_ok && rs_ok[0] && fl_ok[0] && !flush;
+    can_dispatch[0] = instr_valid[0] && rob_ok[0] && rs_ok[0] && fl_ok[0] && !flush;
     for (int i = 1; i < ISSUE_WIDTH; i++) begin
-      can_dispatch[i] = instr_valid[i] && can_dispatch[i-1] && rob_ok && rs_ok[i] && fl_ok[i] && !flush;
+      can_dispatch[i] = instr_valid[i] && can_dispatch[i-1] && rob_ok[i] && rs_ok[i] && fl_ok[i] && !flush;
     end
 
     stall = 1'b0;

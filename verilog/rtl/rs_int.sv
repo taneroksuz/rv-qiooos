@@ -15,38 +15,45 @@ module rs_int (
   localparam RS_BANK_ENTRIES = RS_INT_DEPTH / ISSUE_WIDTH;
 
   typedef struct packed {
-    logic [RS_INT_DEPTH-1:0]                  valid_bits;
-    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0] sel_idx;
-    logic [ISSUE_WIDTH-1:0]                   sel_found;
-    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0] cand_idx;
-    logic [ISSUE_WIDTH-1:0]                   cand_found;
-    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0] free_idx;
-    logic [ISSUE_WIDTH-1:0]                   free_found;
-    logic [3:0]                               csr_inflight;
-    logic [0:0]                               csr_drain;
-    rs_int_out_type                           rs_o;
-    rs_entry_type [RS_INT_DEPTH-1:0]          view;
-    rs_entry_type [RS_INT_DEPTH-1:0]          woken;
-    logic [RS_INT_DEPTH-1:0]                  ready_vec;
-    logic [RS_INT_DEPTH-1:0]                  cls_mul;
-    logic [RS_INT_DEPTH-1:0]                  cls_div;
-    logic [RS_INT_DEPTH-1:0]                  cls_bit;
-    logic [RS_INT_DEPTH-1:0]                  cls_csr;
-    logic [RS_INT_DEPTH-1:0]                  cls_agu;
-    logic [ISSUE_WIDTH-1:0]                   cand_mul;
-    logic [ISSUE_WIDTH-1:0]                   cand_div;
-    logic [ISSUE_WIDTH-1:0]                   cand_bit;
-    logic [ISSUE_WIDTH-1:0]                   cand_csr;
-    logic [ISSUE_WIDTH-1:0]                   cand_agu;
-    logic [ISSUE_WIDTH-1:0][2:0]              pre_mul;
-    logic [ISSUE_WIDTH-1:0][2:0]              pre_div;
-    logic [ISSUE_WIDTH-1:0][2:0]              pre_bit;
-    logic [ISSUE_WIDTH-1:0][2:0]              pre_csr;
-    logic [ISSUE_WIDTH-1:0][2:0]              pre_agu;
-    cdb_type [RS_CDB_COUNT-1:0]               cdb_all;
-    rs_entry_type [ISSUE_WIDTH-1:0]           issue_arr;
-    logic [RS_INT_DEPTH-1:0]                  slot_free;
-    logic [RS_INT_DEPTH-1:0]                  slot_issued;
+    logic [RS_INT_DEPTH-1:0]                      valid_bits;
+    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0]     sel_idx;
+    logic [ISSUE_WIDTH-1:0]                       sel_found;
+    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0]     cand_idx;
+    logic [ISSUE_WIDTH-1:0]                       cand_found;
+    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0]     free_idx;
+    logic [ISSUE_WIDTH-1:0]                       free_found;
+    logic [3:0]                                   csr_inflight;
+    logic [0:0]                                   csr_drain;
+    rs_int_out_type                               rs_o;
+    rs_entry_type [RS_INT_DEPTH-1:0]              view;
+    rs_entry_type [RS_INT_DEPTH-1:0]              woken;
+    logic [RS_INT_DEPTH-1:0]                      ready_vec;
+    logic [RS_INT_DEPTH-1:0]                      cls_mul;
+    logic [RS_INT_DEPTH-1:0]                      cls_div;
+    logic [RS_INT_DEPTH-1:0]                      cls_bit;
+    logic [RS_INT_DEPTH-1:0]                      cls_csr;
+    logic [RS_INT_DEPTH-1:0]                      cls_agu;
+    logic [ISSUE_WIDTH-1:0]                       cand_mul;
+    logic [ISSUE_WIDTH-1:0]                       cand_div;
+    logic [ISSUE_WIDTH-1:0]                       cand_bit;
+    logic [ISSUE_WIDTH-1:0]                       cand_csr;
+    logic [ISSUE_WIDTH-1:0]                       cand_agu;
+    logic [ISSUE_WIDTH-1:0][2:0]                  pre_mul;
+    logic [ISSUE_WIDTH-1:0][2:0]                  pre_div;
+    logic [ISSUE_WIDTH-1:0][2:0]                  pre_bit;
+    logic [ISSUE_WIDTH-1:0][2:0]                  pre_csr;
+    logic [ISSUE_WIDTH-1:0][2:0]                  pre_agu;
+    cdb_type [RS_CDB_COUNT-1:0]                   cdb_all;
+    rs_entry_type [ISSUE_WIDTH-1:0]               issue_arr;
+    logic [RS_INT_DEPTH-1:0]                      slot_free;
+    logic [RS_INT_DEPTH-1:0]                      slot_issued;
+    logic [3:0]                                   free_cnt;
+    logic [ISSUE_WIDTH-1:0][ISSUE_ADDR_BITS-1:0]  alloc_rank;
+    logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0]     alloc_slot;
+    logic [ISSUE_WIDTH-1:0]                       alloc_en;
+    logic [3:0]                                   inv_cnt;
+    logic [RS_INT_DEPTH-1:0]                      slot_wr;
+    logic [RS_INT_DEPTH-1:0][ISSUE_ADDR_BITS-1:0] slot_src;
   } rs_int_reg_type;
 
   localparam rs_int_out_type init_rs_int_out = '0;
@@ -158,11 +165,33 @@ module rs_int (
       v.slot_free[i] = ~v.woken[i].valid | v.slot_issued[i];
     end
 
+    v.free_cnt = 4'b0;
+    for (int i = 0; i < RS_INT_DEPTH; i++) begin
+      if (v.slot_free[i] && (v.free_cnt < 4'(ISSUE_WIDTH))) begin
+        v.free_idx[ISSUE_ADDR_BITS'(v.free_cnt)]   = RS_ADDR_BITS'(unsigned'(i));
+        v.free_found[ISSUE_ADDR_BITS'(v.free_cnt)] = 1'b1;
+        v.free_cnt                                 = v.free_cnt + 4'b1;
+      end
+    end
+
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      for (int m = RS_BANK_ENTRIES - 1; m >= 0; m--) begin
-        if (v.slot_free[m*ISSUE_WIDTH+k]) begin
-          v.free_idx[k]   = RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k));
-          v.free_found[k] = 1'b1;
+      v.alloc_rank[k] = '0;
+      for (int j = 0; j < k; j++) begin
+        if (rs_in.alloc[j]) begin
+          v.alloc_rank[k] = v.alloc_rank[k] + ISSUE_ADDR_BITS'(1);
+        end
+      end
+      v.alloc_en[k]   = rs_in.alloc[k] & v.free_found[v.alloc_rank[k]];
+      v.alloc_slot[k] = v.free_idx[v.alloc_rank[k]];
+    end
+
+    for (int i = 0; i < RS_INT_DEPTH; i++) begin
+      v.slot_wr[i]  = 1'b0;
+      v.slot_src[i] = '0;
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
+        if (v.alloc_en[k] && (v.alloc_slot[k] == RS_ADDR_BITS'(unsigned'(i)))) begin
+          v.slot_wr[i]  = 1'b1;
+          v.slot_src[i] = ISSUE_ADDR_BITS'(unsigned'(k));
         end
       end
     end
@@ -173,13 +202,14 @@ module rs_int (
       v.rs_o.issue_valid[k] = v.sel_found[k];
     end
 
-    for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      v.rs_o.alloc_ok[k] = 1'b0;
-      for (int m = 0; m < RS_BANK_ENTRIES; m++) begin
-        if (!r.valid_bits[m*ISSUE_WIDTH+k]) begin
-          v.rs_o.alloc_ok[k] = 1'b1;
-        end
+    v.inv_cnt = 4'b0;
+    for (int i = 0; i < RS_INT_DEPTH; i++) begin
+      if (!r.valid_bits[i]) begin
+        v.inv_cnt = v.inv_cnt + 4'b1;
       end
+    end
+    for (int k = 0; k < ISSUE_WIDTH; k++) begin
+      v.rs_o.alloc_ok[k] = (v.inv_cnt > 4'(unsigned'(k)));
     end
 
     v.rs_o.csr_rin = '0;
@@ -194,6 +224,8 @@ module rs_int (
       v.valid_bits  = '0;
       v.sel_found   = '0;
       v.free_found  = '0;
+      v.alloc_en    = '0;
+      v.slot_wr     = '0;
       v.slot_issued = '0;
       v.rs_o        = init_rs_int_out;
     end
@@ -204,8 +236,8 @@ module rs_int (
         end
       end
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (rs_in.alloc[k] && v.free_found[k]) begin
-          v.valid_bits[v.free_idx[k]] = 1'b1;
+        if (v.alloc_en[k]) begin
+          v.valid_bits[v.alloc_slot[k]] = 1'b1;
         end
       end
       v.csr_drain = 1'b0;
@@ -243,19 +275,15 @@ module rs_int (
     end
     else begin
       if (!flush) begin
-        for (int k = 0; k < ISSUE_WIDTH; k++) begin
-          for (int m = 0; m < RS_BANK_ENTRIES; m++) begin
-            if (rs_in.alloc[k] && rin.free_found[k] &&
-                (rin.free_idx[k] == RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)))) begin
-              array[m*ISSUE_WIDTH+k] <= rs_in.entry[k];
-            end
-            else if (r.valid_bits[m*ISSUE_WIDTH+k] && rin.valid_bits[m*ISSUE_WIDTH+k] &&
-                     !rin.slot_issued[m*ISSUE_WIDTH+k]) begin
-              array[m*ISSUE_WIDTH+k].src1_ready <= rin.woken[m*ISSUE_WIDTH+k].src1_ready;
-              array[m*ISSUE_WIDTH+k].src2_ready <= rin.woken[m*ISSUE_WIDTH+k].src2_ready;
-              array[m*ISSUE_WIDTH+k].rdata1     <= rin.woken[m*ISSUE_WIDTH+k].rdata1;
-              array[m*ISSUE_WIDTH+k].rdata2     <= rin.woken[m*ISSUE_WIDTH+k].rdata2;
-            end
+        for (int i = 0; i < RS_INT_DEPTH; i++) begin
+          if (rin.slot_wr[i]) begin
+            array[i] <= rs_in.entry[rin.slot_src[i]];
+          end
+          else if (r.valid_bits[i] && rin.valid_bits[i] && !rin.slot_issued[i]) begin
+            array[i].src1_ready <= rin.woken[i].src1_ready;
+            array[i].src2_ready <= rin.woken[i].src2_ready;
+            array[i].rdata1     <= rin.woken[i].rdata1;
+            array[i].rdata2     <= rin.woken[i].rdata2;
           end
         end
       end

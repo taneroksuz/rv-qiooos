@@ -164,7 +164,7 @@ module rob (
     if (!flush) begin
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         rob_out.alloc_tag[i] = r.tail_ptr + ROB_ADDR_BITS'(i);
-        rob_out.alloc_ok[i]  = (r.count <= ROB_DEPTH - ISSUE_WIDTH);
+        rob_out.alloc_ok[i]  = (r.count <= (ROB_ADDR_BITS + 1)'(ROB_DEPTH - 1 - i));
         rob_out.entry[i]     = v.h[i];
       end
     end
@@ -201,7 +201,7 @@ module rob (
     v.count_c = r.count - (ROB_ADDR_BITS + 1)'(v.commit_cnt);
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
-      v.alloc_ok[i] = !flush && rob_in.alloc[i] && (r.count <= (ROB_ADDR_BITS + 1)'(ROB_DEPTH - ISSUE_WIDTH));
+      v.alloc_ok[i] = !flush && rob_in.alloc[i] && (r.count <= (ROB_ADDR_BITS + 1)'(ROB_DEPTH - 1 - i));
     end
 
     v.alloc_cnt = 3'b0;

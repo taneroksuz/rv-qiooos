@@ -13,8 +13,7 @@ module rs_mem (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam MEM_ADDR_BITS    = $clog2(RS_MEM_DEPTH);
-  localparam MEM_BANK_ENTRIES = RS_MEM_DEPTH / ISSUE_WIDTH;
+  localparam MEM_ADDR_BITS = $clog2(RS_MEM_DEPTH);
 
   typedef struct packed {
     logic [RS_MEM_DEPTH-1:0]                       valid_bits;
@@ -28,6 +27,7 @@ module rs_mem (
     logic [RS_MEM_DEPTH-1:0]                       tag_wrap;
     logic [RS_MEM_DEPTH-1:0][RS_MEM_DEPTH-1:0]     tag_lt;
     logic [RS_MEM_DEPTH-1:0][RS_MEM_DEPTH-1:0]     lt;
+    logic [RS_MEM_DEPTH-1:0]                       elig;
     logic [RS_MEM_DEPTH-1:0]                       is_min;
     logic [RS_MEM_DEPTH-1:0]                       is_2nd;
     logic [ROB_DEPTH-1:0]                          store_wrap;
@@ -40,6 +40,14 @@ module rs_mem (
     logic [MEM_ISSUE_WIDTH-1:0]                    oldest_ready;
     logic [MEM_ISSUE_WIDTH-1:0]                    port_busy;
     logic [RS_MEM_DEPTH-1:0]                       slot_free;
+    logic [RS_MEM_DEPTH-1:0]                       slot_issued;
+    logic [2:0]                                    free_cnt;
+    logic [ISSUE_WIDTH-1:0][ISSUE_ADDR_BITS-1:0]   alloc_rank;
+    logic [ISSUE_WIDTH-1:0][MEM_ADDR_BITS-1:0]     alloc_slot;
+    logic [ISSUE_WIDTH-1:0]                        alloc_en;
+    logic [2:0]                                    inv_cnt;
+    logic [RS_MEM_DEPTH-1:0]                       slot_wr;
+    logic [RS_MEM_DEPTH-1:0][ISSUE_ADDR_BITS-1:0]  slot_src;
   } rs_mem_reg_type;
 
   localparam rs_mem_reg_type init_rs_mem_reg = '{
@@ -103,27 +111,28 @@ module rs_mem (
     end
 
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-      v.is_min[i] = r.valid_bits[i];
-      for (int j = 0; j < RS_MEM_DEPTH; j++) begin
-        if (j != i) begin
-          v.is_min[i] = v.is_min[i] & (~r.valid_bits[j] | v.lt[i][j]);
-        end
-      end
-    end
-
-    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-      v.is_2nd[i] = r.valid_bits[i] & ~v.is_min[i];
-      for (int j = 0; j < RS_MEM_DEPTH; j++) begin
-        if (j != i) begin
-          v.is_2nd[i] = v.is_2nd[i] & (~r.valid_bits[j] | v.is_min[j] | v.lt[i][j]);
-        end
-      end
-    end
-
-    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
       v.ent_load[i] = v.woken[i].op.load;
       v.ent_ready[i] = v.woken[i].src1_ready && v.woken[i].src2_ready &&
           (v.woken[i].op.store || (v.woken[i].op.load && !v.older_store[i]));
+      v.elig[i] = r.valid_bits[i] & v.ent_ready[i];
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      v.is_min[i] = v.elig[i];
+      for (int j = 0; j < RS_MEM_DEPTH; j++) begin
+        if (j != i) begin
+          v.is_min[i] = v.is_min[i] & (~v.elig[j] | v.lt[i][j]);
+        end
+      end
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      v.is_2nd[i] = v.elig[i] & ~v.is_min[i];
+      for (int j = 0; j < RS_MEM_DEPTH; j++) begin
+        if (j != i) begin
+          v.is_2nd[i] = v.is_2nd[i] & (~v.elig[j] | v.is_min[j] | v.lt[i][j]);
+        end
+      end
     end
 
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
@@ -142,34 +151,51 @@ module rs_mem (
     end
     v.sel_found[0] = 1'b0;
     v.sel_found[1] = 1'b0;
-    if (v.oldest_found[0] && v.oldest_ready[0]) begin
-      if (!v.port_busy[0]) begin
-        v.sel_idx[0]   = v.oldest_idx[0];
-        v.sel_found[0] = 1'b1;
-      end
-      else if (!v.port_busy[1]) begin
-        v.sel_idx[1]   = v.oldest_idx[0];
-        v.sel_found[1] = 1'b1;
-      end
-    end
-    if (v.sel_found[0] && v.oldest_found[1] && v.oldest_ready[1]) begin
-      if (!(v.oldest_load[0] ^ v.oldest_load[1])) begin
-        if (!v.port_busy[1]) begin
-          v.sel_idx[1]   = v.oldest_idx[1];
-          v.sel_found[1] = 1'b1;
+    for (int c = 0; c < MEM_ISSUE_WIDTH; c++) begin
+      if (v.oldest_found[c] && v.oldest_ready[c]) begin
+        for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
+          if (!v.sel_found[p] && (!v.oldest_load[c] || !v.port_busy[p])) begin
+            v.sel_idx[p]   = v.oldest_idx[c];
+            v.sel_found[p] = 1'b1;
+            break;
+          end
         end
       end
     end
 
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-      v.slot_free[i] = (!v.woken[i].valid || (v.sel_found[0] && (v.sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) ||
-                        (v.sel_found[1] && (v.sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))));
+      v.slot_issued[i] = ((v.sel_found[0] && (v.sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) ||
+                          (v.sel_found[1] && (v.sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))));
+      v.slot_free[i] = !v.woken[i].valid || v.slot_issued[i];
     end
+
+    v.free_cnt = 3'b0;
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      if (v.slot_free[i] && (v.free_cnt < 3'(ISSUE_WIDTH))) begin
+        v.free_idx[ISSUE_ADDR_BITS'(v.free_cnt)]   = MEM_ADDR_BITS'(unsigned'(i));
+        v.free_found[ISSUE_ADDR_BITS'(v.free_cnt)] = 1'b1;
+        v.free_cnt                                 = v.free_cnt + 3'b1;
+      end
+    end
+
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      for (int m = MEM_BANK_ENTRIES - 1; m >= 0; m--) begin
-        if (v.slot_free[m*ISSUE_WIDTH+k]) begin
-          v.free_idx[k]   = MEM_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k));
-          v.free_found[k] = 1'b1;
+      v.alloc_rank[k] = '0;
+      for (int j = 0; j < k; j++) begin
+        if (rs_in.alloc[j]) begin
+          v.alloc_rank[k] = v.alloc_rank[k] + ISSUE_ADDR_BITS'(1);
+        end
+      end
+      v.alloc_en[k]   = rs_in.alloc[k] & v.free_found[v.alloc_rank[k]];
+      v.alloc_slot[k] = v.free_idx[v.alloc_rank[k]];
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      v.slot_wr[i]  = 1'b0;
+      v.slot_src[i] = '0;
+      for (int k = 0; k < ISSUE_WIDTH; k++) begin
+        if (v.alloc_en[k] && (v.alloc_slot[k] == MEM_ADDR_BITS'(unsigned'(i)))) begin
+          v.slot_wr[i]  = 1'b1;
+          v.slot_src[i] = ISSUE_ADDR_BITS'(unsigned'(k));
         end
       end
     end
@@ -179,18 +205,15 @@ module rs_mem (
       rs_out.issue_valid[p] = v.sel_found[p];
     end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      rs_out.alloc_ok[k] = 1'b0;
-      for (int m = 0; m < MEM_BANK_ENTRIES; m++) begin
-        if (!r.valid_bits[m*ISSUE_WIDTH+k]) begin
-          rs_out.alloc_ok[k] = 1'b1;
-        end
-      end
+      rs_out.alloc_ok[k] = v.free_found[k];
     end
 
     if (flush) begin
       rs_out       = '0;
       v.sel_found  = '0;
       v.free_found = '0;
+      v.alloc_en   = '0;
+      v.slot_wr    = '0;
       v.valid_bits = '0;
     end
     else begin
@@ -200,8 +223,8 @@ module rs_mem (
         end
       end
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (rs_in.alloc[k] && v.free_found[k]) begin
-          v.valid_bits[v.free_idx[k]] = 1'b1;
+        if (v.alloc_en[k]) begin
+          v.valid_bits[v.alloc_slot[k]] = 1'b1;
         end
       end
     end
@@ -225,20 +248,15 @@ module rs_mem (
     end
     else begin
       if (!flush) begin
-        for (int k = 0; k < ISSUE_WIDTH; k++) begin
-          for (int m = 0; m < MEM_BANK_ENTRIES; m++) begin
-            if (rs_in.alloc[k] && rin.free_found[k] &&
-                (rin.free_idx[k] == MEM_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)))) begin
-              array[m*ISSUE_WIDTH+k] <= rs_in.entry[k];
-            end
-            else if (r.valid_bits[m*ISSUE_WIDTH+k] && rin.valid_bits[m*ISSUE_WIDTH+k] &&
-                     !(rin.sel_found[0] && (rin.sel_idx[0] == MEM_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)))) &&
-                     !(rin.sel_found[1] && (rin.sel_idx[1] == MEM_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k))))) begin
-              array[m*ISSUE_WIDTH+k].src1_ready <= rin.woken[m*ISSUE_WIDTH+k].src1_ready;
-              array[m*ISSUE_WIDTH+k].src2_ready <= rin.woken[m*ISSUE_WIDTH+k].src2_ready;
-              array[m*ISSUE_WIDTH+k].rdata1     <= rin.woken[m*ISSUE_WIDTH+k].rdata1;
-              array[m*ISSUE_WIDTH+k].rdata2     <= rin.woken[m*ISSUE_WIDTH+k].rdata2;
-            end
+        for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+          if (rin.slot_wr[i]) begin
+            array[i] <= rs_in.entry[rin.slot_src[i]];
+          end
+          else if (r.valid_bits[i] && rin.valid_bits[i] && !rin.slot_issued[i]) begin
+            array[i].src1_ready <= rin.woken[i].src1_ready;
+            array[i].src2_ready <= rin.woken[i].src2_ready;
+            array[i].rdata1     <= rin.woken[i].rdata1;
+            array[i].rdata2     <= rin.woken[i].rdata2;
           end
         end
       end
