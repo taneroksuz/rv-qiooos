@@ -3,11 +3,11 @@ package configure;
 
   localparam HARDWARE = 0;
 
-  localparam PRF_DEPTH    = 96;
+  localparam PRF_DEPTH    = 64;
   localparam ARCH_REGS    = 32;
-  localparam ROB_DEPTH    = 32;
-  localparam RS_INT_DEPTH = 16;
-  localparam RS_MEM_DEPTH = 8;
+  localparam ROB_DEPTH    = 16;
+  localparam RS_INT_DEPTH = 8;
+  localparam RS_MEM_DEPTH = 4;
   localparam FLIST_DEPTH  = PRF_DEPTH - ARCH_REGS;
 
   localparam ISSUE_WIDTH     = 4;
