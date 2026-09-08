@@ -12,7 +12,7 @@ module rs_int (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam RS_BANK_ENTRIES = RS_INT_DEPTH / ISSUE_WIDTH;
+  localparam RS_BANK_ENTRIES = (RS_INT_DEPTH + ISSUE_WIDTH - 1) / ISSUE_WIDTH;
 
   typedef struct packed {
     logic [RS_INT_DEPTH-1:0]                      valid_bits;
@@ -22,7 +22,7 @@ module rs_int (
     logic [ISSUE_WIDTH-1:0]                       cand_found;
     logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0]     free_idx;
     logic [ISSUE_WIDTH-1:0]                       free_found;
-    logic [3:0]                                   csr_inflight;
+    logic [ROB_CNT_BITS-1:0]                      csr_inflight;
     logic [0:0]                                   csr_drain;
     rs_int_out_type                               rs_o;
     rs_entry_type [RS_INT_DEPTH-1:0]              view;
@@ -38,20 +38,20 @@ module rs_int (
     logic [ISSUE_WIDTH-1:0]                       cand_bit;
     logic [ISSUE_WIDTH-1:0]                       cand_csr;
     logic [ISSUE_WIDTH-1:0]                       cand_agu;
-    logic [ISSUE_WIDTH-1:0][2:0]                  pre_mul;
-    logic [ISSUE_WIDTH-1:0][2:0]                  pre_div;
-    logic [ISSUE_WIDTH-1:0][2:0]                  pre_bit;
-    logic [ISSUE_WIDTH-1:0][2:0]                  pre_csr;
-    logic [ISSUE_WIDTH-1:0][2:0]                  pre_agu;
+    logic [ISSUE_WIDTH-1:0][ISSUE_CNT_BITS-1:0]   pre_mul;
+    logic [ISSUE_WIDTH-1:0][ISSUE_CNT_BITS-1:0]   pre_div;
+    logic [ISSUE_WIDTH-1:0][ISSUE_CNT_BITS-1:0]   pre_bit;
+    logic [ISSUE_WIDTH-1:0][ISSUE_CNT_BITS-1:0]   pre_csr;
+    logic [ISSUE_WIDTH-1:0][ISSUE_CNT_BITS-1:0]   pre_agu;
     cdb_type [RS_CDB_COUNT-1:0]                   cdb_all;
     rs_entry_type [ISSUE_WIDTH-1:0]               issue_arr;
     logic [RS_INT_DEPTH-1:0]                      slot_free;
     logic [RS_INT_DEPTH-1:0]                      slot_issued;
-    logic [3:0]                                   free_cnt;
+    logic [ISSUE_CNT_BITS-1:0]                    free_cnt;
     logic [ISSUE_WIDTH-1:0][ISSUE_ADDR_BITS-1:0]  alloc_rank;
     logic [ISSUE_WIDTH-1:0][RS_ADDR_BITS-1:0]     alloc_slot;
     logic [ISSUE_WIDTH-1:0]                       alloc_en;
-    logic [3:0]                                   inv_cnt;
+    logic [RS_INT_CNT_BITS-1:0]                   inv_cnt;
     logic [RS_INT_DEPTH-1:0]                      slot_wr;
     logic [RS_INT_DEPTH-1:0][ISSUE_ADDR_BITS-1:0] slot_src;
   } rs_int_reg_type;
@@ -115,7 +115,7 @@ module rs_int (
       v.cand_idx[k]   = RS_ADDR_BITS'(unsigned'(k));
       v.cand_found[k] = 1'b0;
       for (int m = RS_BANK_ENTRIES - 1; m >= 0; m--) begin
-        if (v.ready_vec[m*ISSUE_WIDTH+k] && !rs_in.lane_block[k]) begin
+        if ((m * ISSUE_WIDTH + k) < RS_INT_DEPTH && v.ready_vec[m*ISSUE_WIDTH+k] && !rs_in.lane_block[k]) begin
           v.cand_idx[k]   = RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k));
           v.cand_found[k] = 1'b1;
         end
@@ -128,36 +128,38 @@ module rs_int (
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      v.pre_mul[k] = 3'b0;
-      v.pre_div[k] = 3'b0;
-      v.pre_bit[k] = 3'b0;
-      v.pre_csr[k] = 3'b0;
-      v.pre_agu[k] = 3'b0;
+      v.pre_mul[k] = '0;
+      v.pre_div[k] = '0;
+      v.pre_bit[k] = '0;
+      v.pre_csr[k] = '0;
+      v.pre_agu[k] = '0;
       for (int j = 0; j < k; j++) begin
         if (v.cand_found[j]) begin
-          if (v.cand_mul[j]) v.pre_mul[k] = v.pre_mul[k] + 3'b1;
-          if (v.cand_div[j]) v.pre_div[k] = v.pre_div[k] + 3'b1;
-          if (v.cand_bit[j]) v.pre_bit[k] = v.pre_bit[k] + 3'b1;
-          if (v.cand_csr[j]) v.pre_csr[k] = v.pre_csr[k] + 3'b1;
-          if (v.cand_agu[j]) v.pre_agu[k] = v.pre_agu[k] + 3'b1;
+          if (v.cand_mul[j]) v.pre_mul[k] = v.pre_mul[k] + ISSUE_CNT_BITS'(1);
+          if (v.cand_div[j]) v.pre_div[k] = v.pre_div[k] + ISSUE_CNT_BITS'(1);
+          if (v.cand_bit[j]) v.pre_bit[k] = v.pre_bit[k] + ISSUE_CNT_BITS'(1);
+          if (v.cand_csr[j]) v.pre_csr[k] = v.pre_csr[k] + ISSUE_CNT_BITS'(1);
+          if (v.cand_agu[j]) v.pre_agu[k] = v.pre_agu[k] + ISSUE_CNT_BITS'(1);
         end
       end
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v.sel_idx[k] = v.cand_idx[k];
-      if (v.cand_mul[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_mul[k] < 3'(MUL_COUNT));
-      else if (v.cand_div[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_div[k] < 3'(DIV_COUNT));
-      else if (v.cand_bit[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_bit[k] < 3'(BITALU_COUNT));
-      else if (v.cand_csr[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_csr[k] < 3'(CSR_ALU_COUNT));
-      else if (v.cand_agu[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_agu[k] < 3'(AGU_BRANCH_COUNT));
+      if (v.cand_mul[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_mul[k] < ISSUE_CNT_BITS'(MUL_COUNT));
+      else if (v.cand_div[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_div[k] < ISSUE_CNT_BITS'(DIV_COUNT));
+      else if (v.cand_bit[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_bit[k] < ISSUE_CNT_BITS'(BITALU_COUNT));
+      else if (v.cand_csr[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_csr[k] < ISSUE_CNT_BITS'(CSR_ALU_COUNT));
+      else if (v.cand_agu[k]) v.sel_found[k] = v.cand_found[k] & (v.pre_agu[k] < ISSUE_CNT_BITS'(AGU_BRANCH_COUNT));
       else v.sel_found[k] = v.cand_found[k];
     end
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       for (int m = 0; m < RS_BANK_ENTRIES; m++) begin
-        v.slot_issued[m*ISSUE_WIDTH+k] = v.sel_found[k] &&
-            (v.sel_idx[k] == RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)));
+        if ((m * ISSUE_WIDTH + k) < RS_INT_DEPTH) begin
+          v.slot_issued[m*ISSUE_WIDTH+k] = v.sel_found[k] &&
+              (v.sel_idx[k] == RS_ADDR_BITS'(unsigned'(m * ISSUE_WIDTH + k)));
+        end
       end
     end
 
@@ -165,12 +167,12 @@ module rs_int (
       v.slot_free[i] = ~v.woken[i].valid | v.slot_issued[i];
     end
 
-    v.free_cnt = 4'b0;
+    v.free_cnt = '0;
     for (int i = 0; i < RS_INT_DEPTH; i++) begin
-      if (v.slot_free[i] && (v.free_cnt < 4'(ISSUE_WIDTH))) begin
+      if (v.slot_free[i] && (v.free_cnt < ISSUE_CNT_BITS'(ISSUE_WIDTH))) begin
         v.free_idx[ISSUE_ADDR_BITS'(v.free_cnt)]   = RS_ADDR_BITS'(unsigned'(i));
         v.free_found[ISSUE_ADDR_BITS'(v.free_cnt)] = 1'b1;
-        v.free_cnt                                 = v.free_cnt + 4'b1;
+        v.free_cnt                                 = v.free_cnt + ISSUE_CNT_BITS'(1);
       end
     end
 
@@ -202,14 +204,14 @@ module rs_int (
       v.rs_o.issue_valid[k] = v.sel_found[k];
     end
 
-    v.inv_cnt = 4'b0;
+    v.inv_cnt = '0;
     for (int i = 0; i < RS_INT_DEPTH; i++) begin
       if (!r.valid_bits[i]) begin
-        v.inv_cnt = v.inv_cnt + 4'b1;
+        v.inv_cnt = v.inv_cnt + RS_INT_CNT_BITS'(1);
       end
     end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      v.rs_o.alloc_ok[k] = (v.inv_cnt > 4'(unsigned'(k)));
+      v.rs_o.alloc_ok[k] = (v.inv_cnt > RS_INT_CNT_BITS'(unsigned'(k)));
     end
 
     v.rs_o.csr_rin = '0;
@@ -243,14 +245,14 @@ module rs_int (
       v.csr_drain = 1'b0;
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (v.sel_found[k] && v.issue_arr[k].op.csreg && v.issue_arr[k].op.cwren) begin
-          v.csr_inflight = v.csr_inflight + 4'b1;
+          v.csr_inflight = v.csr_inflight + ROB_CNT_BITS'(1);
         end
       end
       if (rs_in.csr_commit && v.csr_inflight > 0) begin
-        if (v.csr_inflight == 4'b1) begin
+        if (v.csr_inflight == ROB_CNT_BITS'(1)) begin
           v.csr_drain = 1'b1;
         end
-        v.csr_inflight = v.csr_inflight - 4'b1;
+        v.csr_inflight = v.csr_inflight - ROB_CNT_BITS'(1);
       end
     end
 

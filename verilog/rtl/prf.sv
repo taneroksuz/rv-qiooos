@@ -11,11 +11,11 @@ module prf (
   timeunit 1ns; timeprecision 1ps;
 
   typedef struct packed {
-    logic [ISSUE_WIDTH-1:0][0:0]    wen;
-    logic [ISSUE_WIDTH-1:0][4:0]    waddr;
-    logic [ISSUE_WIDTH-1:0][31:0]   wdata;
-    logic [2*ISSUE_WIDTH-1:0][4:0]  raddr;
-    logic [2*ISSUE_WIDTH-1:0][31:0] rdata;
+    logic [ISSUE_WIDTH-1:0][0:0]                  wen;
+    logic [ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0]   waddr;
+    logic [ISSUE_WIDTH-1:0][31:0]                 wdata;
+    logic [2*ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0] raddr;
+    logic [2*ISSUE_WIDTH-1:0][31:0]               rdata;
   } prf_reg_type;
 
   logic [31:0] mem[0:ARCH_REGS-1] = '{default: '0};

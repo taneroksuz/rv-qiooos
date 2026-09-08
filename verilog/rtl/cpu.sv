@@ -15,6 +15,16 @@ module cpu (
   input  logic        [63:0] mtime
 );
   timeunit 1ns; timeprecision 1ps;
+
+  if (ARCH_REGS != 32) $error("configure::ARCH_REGS must be 32 for the RV32I register encoding");
+  if (PRF_DEPTH <= ARCH_REGS) $error("configure::PRF_DEPTH must be greater than ARCH_REGS");
+  if (FLIST_DEPTH < ISSUE_WIDTH) $error("configure::PRF_DEPTH - ARCH_REGS must be at least ISSUE_WIDTH");
+  if (ISSUE_WIDTH != (1 << ISSUE_ADDR_BITS)) $error("configure::ISSUE_WIDTH must be a power of two");
+  if (ROB_DEPTH % ISSUE_WIDTH != 0) $error("configure::ROB_DEPTH must be a multiple of ISSUE_WIDTH");
+  if (ROB_DEPTH < ISSUE_WIDTH) $error("configure::ROB_DEPTH must be at least ISSUE_WIDTH");
+  if (RS_INT_DEPTH < ISSUE_WIDTH) $error("configure::RS_INT_DEPTH must be at least ISSUE_WIDTH");
+  if (RS_MEM_DEPTH < ISSUE_WIDTH) $error("configure::RS_MEM_DEPTH must be at least ISSUE_WIDTH");
+
   cdb_type cdb[0:ISSUE_WIDTH-1], cdb_load[0:MEM_ISSUE_WIDTH-1];
   cdb_type                          cdb_exec          [             0:1];
   cdb_type                          cdb_commit        [ 0:ISSUE_WIDTH-1];

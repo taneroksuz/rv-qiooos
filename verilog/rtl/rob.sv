@@ -14,9 +14,23 @@ module rob (
 
   localparam ROB_BANKS     = ISSUE_WIDTH;
   localparam ROB_ROWS      = ROB_DEPTH / ROB_BANKS;
-  localparam ROB_BANK_BITS = $clog2(ROB_BANKS);
-  localparam ROB_ROW_BITS  = $clog2(ROB_ROWS);
+  localparam ROB_BANK_BITS = index_bits(ROB_BANKS);
+  localparam ROB_ROW_BITS  = index_bits(ROB_ROWS);
   localparam ROB_WPORTS    = ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH;
+
+  function automatic logic [ROB_ADDR_BITS-1:0] rob_wrap(input logic [ROB_ADDR_BITS:0] ptr);
+    rob_wrap = ROB_ADDR_BITS'((ptr >= (ROB_ADDR_BITS + 1)'(ROB_DEPTH)) ? ptr - (ROB_ADDR_BITS + 1)'(ROB_DEPTH) : ptr);
+  endfunction
+
+  function automatic logic [ROB_ADDR_BITS:0] rob_dist(input logic [ROB_ADDR_BITS-1:0] idx,
+                                                      input logic [ROB_ADDR_BITS-1:0] base);
+    rob_dist = (idx >= base) ? (ROB_ADDR_BITS + 1)'(idx) - (ROB_ADDR_BITS + 1)'(base) :
+        (ROB_ADDR_BITS + 1)'(ROB_DEPTH) + (ROB_ADDR_BITS + 1)'(idx) - (ROB_ADDR_BITS + 1)'(base);
+  endfunction
+
+  function automatic logic [ROB_ROW_BITS-1:0] rob_row_wrap(input logic [ROB_ROW_BITS:0] row);
+    rob_row_wrap = ROB_ROW_BITS'((row >= (ROB_ROW_BITS + 1)'(ROB_ROWS)) ? row - (ROB_ROW_BITS + 1)'(ROB_ROWS) : row);
+  endfunction
 
   typedef struct packed {
     logic [ROB_ADDR_BITS-1:0]                  head;
@@ -28,8 +42,8 @@ module rob (
     logic [ISSUE_WIDTH-1:0]                    h_done;
     logic [ISSUE_WIDTH-1:0]                    h_stop;
     logic [ISSUE_WIDTH-1:0]                    commit;
-    logic [2:0]                                store_count;
-    logic [2:0]                                store_room;
+    logic [ISSUE_CNT_BITS-1:0]                 store_count;
+    logic [ISSUE_CNT_BITS-1:0]                 store_room;
     logic [ISSUE_WIDTH-1:0]                    alloc_ok;
     logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] head_idx;
     logic [ROB_WPORTS-1:0][ROB_ADDR_BITS-1:0]  wtag;
@@ -38,8 +52,8 @@ module rob (
     logic [ROB_WPORTS-1:0]                     wv;
     logic [ROB_WPORTS-1:0]                     wclr;
     logic [ROB_WPORTS-1:0]                     write_ok;
-    logic [2:0]                                commit_cnt;
-    logic [2:0]                                alloc_cnt;
+    logic [ISSUE_CNT_BITS-1:0]                 commit_cnt;
+    logic [ISSUE_CNT_BITS-1:0]                 alloc_cnt;
     logic [ROB_ADDR_BITS:0]                    count_c;
     logic [ROB_DEPTH-1:0]                      clr_bits;
     logic [ROB_DEPTH-1:0]                      set_bits;
@@ -78,7 +92,7 @@ module rob (
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v.commit[k]   = 1'b0;
       v.alloc_ok[k] = 1'b0;
-      v.head_idx[k] = r.head + ROB_ADDR_BITS'(unsigned'(k));
+      v.head_idx[k] = rob_wrap((ROB_ADDR_BITS + 1)'(r.head) + (ROB_ADDR_BITS + 1)'(unsigned'(k)));
       v.h_done[k]   = 1'b0;
       v.h_stop[k]   = 1'b0;
     end
@@ -88,10 +102,11 @@ module rob (
       v.alloc_entry_w[i].valid = 1'b1;
     end
 
-    v.head_bank = r.head[ROB_BANK_BITS-1:0];
-    v.head_row  = r.head[ROB_ADDR_BITS-1:ROB_BANK_BITS];
+    v.head_bank = ROB_BANK_BITS'(r.head % ROB_BANKS);
+    v.head_row  = ROB_ROW_BITS'(r.head / ROB_BANKS);
     for (int b = 0; b < ROB_BANKS; b++) begin
-      v.bank_rrow[b]  = v.head_row + ROB_ROW_BITS'((b < int'(v.head_bank)) ? 1 : 0);
+      v.bank_rrow[b] =
+          rob_row_wrap((ROB_ROW_BITS + 1)'(v.head_row) + (ROB_ROW_BITS + 1)'((b < int'(v.head_bank)) ? 1 : 0));
       v.bank_rdata[b] = array[int'(v.bank_rrow[b])*ROB_BANKS+b];
     end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
@@ -163,38 +178,38 @@ module rob (
     rob_out.head_ptr = r.head;
     if (!flush) begin
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
-        rob_out.alloc_tag[i] = r.tail_ptr + ROB_ADDR_BITS'(i);
+        rob_out.alloc_tag[i] = rob_wrap((ROB_ADDR_BITS + 1)'(r.tail_ptr) + (ROB_ADDR_BITS + 1)'(i));
         rob_out.alloc_ok[i]  = (r.count <= (ROB_ADDR_BITS + 1)'(ROB_DEPTH - 1 - i));
         rob_out.entry[i]     = v.h[i];
       end
     end
 
-    v.store_room = 3'b0;
+    v.store_room = '0;
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       if (rob_in.store_slot_free[p]) begin
-        v.store_room = v.store_room + 3'b1;
+        v.store_room = v.store_room + ISSUE_CNT_BITS'(1);
       end
     end
 
-    v.store_count = 3'b0;
+    v.store_count = '0;
     v.commit[0]   = v.h_done[0] && (!v.h[0].store || (v.store_count < v.store_room));
     if (v.commit[0] && v.h[0].store) begin
-      v.store_count = v.store_count + 3'b1;
+      v.store_count = v.store_count + ISSUE_CNT_BITS'(1);
     end
     for (int k = 1; k < ISSUE_WIDTH; k++) begin
       v.commit[k] = v.h_done[k] && v.commit[k-1] && !v.h_stop[k-1] && (!v.h[k].store || (v.store_count < v.store_room));
       if (v.commit[k] && v.h[k].store) begin
-        v.store_count = v.store_count + 3'b1;
+        v.store_count = v.store_count + ISSUE_CNT_BITS'(1);
       end
     end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       rob_out.commit_valid[k] = flush ? 1'b0 : v.commit[k];
     end
 
-    v.commit_cnt = 3'b0;
+    v.commit_cnt = '0;
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (v.commit[k]) begin
-        v.commit_cnt = v.commit_cnt + 3'b1;
+        v.commit_cnt = v.commit_cnt + ISSUE_CNT_BITS'(1);
       end
     end
 
@@ -204,20 +219,20 @@ module rob (
       v.alloc_ok[i] = !flush && rob_in.alloc[i] && (r.count <= (ROB_ADDR_BITS + 1)'(ROB_DEPTH - 1 - i));
     end
 
-    v.alloc_cnt = 3'b0;
+    v.alloc_cnt = '0;
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
       if (v.alloc_ok[i]) begin
-        v.alloc_cnt = v.alloc_cnt + 3'b1;
+        v.alloc_cnt = v.alloc_cnt + ISSUE_CNT_BITS'(1);
       end
     end
 
     for (int i = 0; i < ROB_DEPTH; i++) begin
-      v.clr_bits[i] = (ROB_ADDR_BITS'(unsigned'(i)) - r.head) < ROB_ADDR_BITS'(v.commit_cnt);
-      v.set_bits[i] = (ROB_ADDR_BITS'(unsigned'(i)) - r.tail_ptr) < ROB_ADDR_BITS'(v.alloc_cnt);
+      v.clr_bits[i] = rob_dist(ROB_ADDR_BITS'(unsigned'(i)), r.head) < (ROB_ADDR_BITS + 1)'(v.commit_cnt);
+      v.set_bits[i] = rob_dist(ROB_ADDR_BITS'(unsigned'(i)), r.tail_ptr) < (ROB_ADDR_BITS + 1)'(v.alloc_cnt);
     end
 
     for (int p = 0; p < ROB_WPORTS; p++) begin
-      v.wclr[p]     = (v.wtag[p] - r.head) < ROB_ADDR_BITS'(v.commit_cnt);
+      v.wclr[p]     = rob_dist(v.wtag[p], r.head) < (ROB_ADDR_BITS + 1)'(v.commit_cnt);
       v.write_ok[p] = v.wv[p] && !v.wclr[p];
     end
 
@@ -228,21 +243,22 @@ module rob (
       v.valid_bits = '0;
     end
     else begin
-      v.head     = r.head + ROB_ADDR_BITS'(v.commit_cnt);
-      v.tail_ptr = r.tail_ptr + ROB_ADDR_BITS'(v.alloc_cnt);
+      v.head     = rob_wrap((ROB_ADDR_BITS + 1)'(r.head) + (ROB_ADDR_BITS + 1)'(v.commit_cnt));
+      v.tail_ptr = rob_wrap((ROB_ADDR_BITS + 1)'(r.tail_ptr) + (ROB_ADDR_BITS + 1)'(v.alloc_cnt));
       v.count    = v.count_c + (ROB_ADDR_BITS + 1)'(v.alloc_cnt);
       for (int i = 0; i < ROB_DEPTH; i++) begin
         v.valid_bits[i] = (r.valid_bits[i] & ~v.clr_bits[i]) | v.set_bits[i];
       end
     end
 
-    v.tail_bank = r.tail_ptr[ROB_BANK_BITS-1:0];
-    v.tail_row  = r.tail_ptr[ROB_ADDR_BITS-1:ROB_BANK_BITS];
+    v.tail_bank = ROB_BANK_BITS'(r.tail_ptr % ROB_BANKS);
+    v.tail_row  = ROB_ROW_BITS'(r.tail_ptr / ROB_BANKS);
     for (int b = 0; b < ROB_BANKS; b++) begin
-      v.bank_lane[b]  = ROB_BANK_BITS'(b) - v.tail_bank;
+      v.bank_lane[b] = ROB_BANK_BITS'(b) - v.tail_bank;
       v.bank_wdata[b] = v.alloc_entry_w[v.bank_lane[b]];
-      v.bank_wrow[b]  = v.tail_row + ROB_ROW_BITS'((b < int'(v.tail_bank)) ? 1 : 0);
-      v.bank_wen[b]   = v.alloc_ok[v.bank_lane[b]];
+      v.bank_wrow[b] =
+          rob_row_wrap((ROB_ROW_BITS + 1)'(v.tail_row) + (ROB_ROW_BITS + 1)'((b < int'(v.tail_bank)) ? 1 : 0));
+      v.bank_wen[b] = v.alloc_ok[v.bank_lane[b]];
     end
 
     rin = v;

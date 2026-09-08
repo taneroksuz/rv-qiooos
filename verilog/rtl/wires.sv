@@ -3,12 +3,26 @@ package wires;
 
   import configure::*;
 
-  localparam PRF_ADDR_BITS   = $clog2(PRF_DEPTH);
-  localparam ROB_ADDR_BITS   = $clog2(ROB_DEPTH);
-  localparam RS_ADDR_BITS    = $clog2(RS_INT_DEPTH);
-  localparam ISSUE_ADDR_BITS = $clog2(ISSUE_WIDTH);
-  localparam FL_CNT_BITS     = $clog2(FLIST_DEPTH) + 1;
-  localparam FL_IDX_BITS     = $clog2(FLIST_DEPTH);
+  function automatic int unsigned index_bits(input int unsigned depth);
+    index_bits = (depth < 2) ? 1 : $clog2(depth);
+  endfunction
+
+  function automatic int unsigned count_bits(input int unsigned depth);
+    count_bits = $clog2(depth + 1);
+  endfunction
+
+  localparam PRF_ADDR_BITS    = index_bits(PRF_DEPTH);
+  localparam AREG_ADDR_BITS   = index_bits(ARCH_REGS);
+  localparam ROB_ADDR_BITS    = index_bits(ROB_DEPTH);
+  localparam RS_ADDR_BITS     = index_bits(RS_INT_DEPTH);
+  localparam RS_MEM_ADDR_BITS = index_bits(RS_MEM_DEPTH);
+  localparam ISSUE_ADDR_BITS  = index_bits(ISSUE_WIDTH);
+  localparam FL_IDX_BITS      = index_bits(FLIST_DEPTH);
+  localparam FL_CNT_BITS      = count_bits(FLIST_DEPTH + ISSUE_WIDTH);
+  localparam ROB_CNT_BITS     = count_bits(ROB_DEPTH);
+  localparam RS_INT_CNT_BITS  = count_bits(RS_INT_DEPTH);
+  localparam RS_MEM_CNT_BITS  = count_bits(RS_MEM_DEPTH);
+  localparam ISSUE_CNT_BITS   = count_bits(ISSUE_WIDTH);
 
   typedef struct packed {
     logic [0:0] bit_sh1add;
@@ -718,32 +732,32 @@ package wires;
   localparam decode_reg_type init_decode_reg = '{instr: '{default: init_instruction}};
 
   typedef struct packed {
-    logic [0:0]               valid;
-    logic [0:0]               done;
-    logic [0:0]               exception;
-    logic [7:0]               ecause;
-    logic [31:0]              pc;
-    logic [31:0]              pnpc;
-    prediction_type           pred;
-    logic [31:0]              result;
-    logic [31:0]              target;
-    logic [31:0]              wdata;
-    logic [3:0]               store_strb;
-    logic [PRF_ADDR_BITS-1:0] pdest;
-    logic [PRF_ADDR_BITS-1:0] old_pdest;
-    logic [4:0]               adest;
-    logic [0:0]               wren;
-    logic [0:0]               store;
-    logic [0:0]               branch;
-    logic [0:0]               jump;
-    logic [0:0]               mret;
-    logic [0:0]               fence;
-    logic [0:0]               ecall;
-    logic [0:0]               ebreak;
-    logic [0:0]               wfi;
-    logic [0:0]               csreg;
-    logic [0:0]               cwren;
-    logic [11:0]              caddr;
+    logic [0:0]                valid;
+    logic [0:0]                done;
+    logic [0:0]                exception;
+    logic [7:0]                ecause;
+    logic [31:0]               pc;
+    logic [31:0]               pnpc;
+    prediction_type            pred;
+    logic [31:0]               result;
+    logic [31:0]               target;
+    logic [31:0]               wdata;
+    logic [3:0]                store_strb;
+    logic [PRF_ADDR_BITS-1:0]  pdest;
+    logic [PRF_ADDR_BITS-1:0]  old_pdest;
+    logic [AREG_ADDR_BITS-1:0] adest;
+    logic [0:0]                wren;
+    logic [0:0]                store;
+    logic [0:0]                branch;
+    logic [0:0]                jump;
+    logic [0:0]                mret;
+    logic [0:0]                fence;
+    logic [0:0]                ecall;
+    logic [0:0]                ebreak;
+    logic [0:0]                wfi;
+    logic [0:0]                csreg;
+    logic [0:0]                cwren;
+    logic [11:0]               caddr;
   } rob_entry_type;
 
   localparam rob_entry_type init_rob_entry = '{
@@ -876,10 +890,10 @@ package wires;
   localparam cdb_type init_cdb = '{valid: 0, tag: 0, data: 0};
 
   typedef struct packed {
-    logic [2*ISSUE_WIDTH-1:0][4:0] raddr;
-    logic [ISSUE_WIDTH-1:0][4:0]   waddr;
-    logic [ISSUE_WIDTH-1:0][31:0]  wdata;
-    logic [ISSUE_WIDTH-1:0][0:0]   wren;
+    logic [2*ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0] raddr;
+    logic [ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0]   waddr;
+    logic [ISSUE_WIDTH-1:0][31:0]                 wdata;
+    logic [ISSUE_WIDTH-1:0][0:0]                  wren;
   } prf_in_type;
 
   typedef struct packed {logic [2*ISSUE_WIDTH-1:0][31:0] rdata;} prf_out_type;
@@ -904,13 +918,13 @@ package wires;
   localparam fl_out_type init_fl_out = 0;
 
   typedef struct packed {
-    logic [2*ISSUE_WIDTH-1:0][4:0]             rsrc_a;
-    logic [ISSUE_WIDTH-1:0][4:0]               waddr_a;
-    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] waddr_p;
-    logic [ISSUE_WIDTH-1:0][0:0]               wren;
-    logic [ISSUE_WIDTH-1:0][4:0]               commit_addr;
-    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] commit_tag;
-    logic [ISSUE_WIDTH-1:0][0:0]               commit_valid;
+    logic [2*ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0] rsrc_a;
+    logic [ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0]   waddr_a;
+    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0]    waddr_p;
+    logic [ISSUE_WIDTH-1:0][0:0]                  wren;
+    logic [ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0]   commit_addr;
+    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0]    commit_tag;
+    logic [ISSUE_WIDTH-1:0][0:0]                  commit_valid;
   } rat_in_type;
 
   typedef struct packed {

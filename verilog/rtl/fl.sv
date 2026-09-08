@@ -11,6 +11,10 @@ module fl (
 );
   timeunit 1ns; timeprecision 1ps;
 
+  function automatic logic [FL_CNT_BITS-1:0] fl_wrap(input logic [FL_CNT_BITS-1:0] ptr);
+    fl_wrap = (ptr >= FL_CNT_BITS'(FLIST_DEPTH)) ? ptr - FL_CNT_BITS'(FLIST_DEPTH) : ptr;
+  endfunction
+
   typedef struct packed {
     logic [FL_CNT_BITS-1:0]                    spec_head;
     logic [FL_CNT_BITS-1:0]                    comm_head;
@@ -27,7 +31,7 @@ module fl (
   localparam fl_reg_type init_fl_reg = '{
       spec_head: '0,
       comm_head: '0,
-      tail: FL_CNT_BITS'(FLIST_DEPTH),
+      tail: '0,
       spec_count: FL_CNT_BITS'(FLIST_DEPTH),
       do_free: '0,
       free_slot: '0,
@@ -55,8 +59,8 @@ module fl (
     end
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
-      v.spec_head_pn[i] = r.spec_head + FL_CNT_BITS'(i);
-      v.alloc_slot[i]   = v.spec_head_pn[i][FL_IDX_BITS-1:0];
+      v.spec_head_pn[i] = fl_wrap(r.spec_head + FL_CNT_BITS'(i));
+      v.alloc_slot[i]   = FL_IDX_BITS'(v.spec_head_pn[i]);
     end
 
     fl_out = '0;
@@ -73,10 +77,10 @@ module fl (
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         if (v.free_en[i]) begin
           v.do_free[i]   = 1'b1;
-          v.free_slot[i] = v.tail[FL_IDX_BITS-1:0];
-          v.tail         = v.tail + 1'b1;
-          v.spec_head    = v.spec_head + 1'b1;
-          v.comm_head    = v.comm_head + 1'b1;
+          v.free_slot[i] = FL_IDX_BITS'(v.tail);
+          v.tail         = fl_wrap(v.tail + FL_CNT_BITS'(1));
+          v.spec_head    = fl_wrap(v.spec_head + FL_CNT_BITS'(1));
+          v.comm_head    = fl_wrap(v.comm_head + FL_CNT_BITS'(1));
         end
       end
     end
@@ -84,17 +88,17 @@ module fl (
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         if (v.free_en[i] && (v.spec_count < FL_CNT_BITS'(FLIST_DEPTH))) begin
           v.do_free[i]   = 1'b1;
-          v.free_slot[i] = v.tail[FL_IDX_BITS-1:0];
-          v.tail         = v.tail + 1'b1;
-          v.spec_count   = v.spec_count + 1'b1;
-          v.comm_head    = v.comm_head + 1'b1;
+          v.free_slot[i] = FL_IDX_BITS'(v.tail);
+          v.tail         = fl_wrap(v.tail + FL_CNT_BITS'(1));
+          v.spec_count   = v.spec_count + FL_CNT_BITS'(1);
+          v.comm_head    = fl_wrap(v.comm_head + FL_CNT_BITS'(1));
         end
       end
 
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         if (fl_in.alloc[i] && (v.spec_count >= 1)) begin
-          v.spec_head  = v.spec_head + 1'b1;
-          v.spec_count = v.spec_count - 1'b1;
+          v.spec_head  = fl_wrap(v.spec_head + FL_CNT_BITS'(1));
+          v.spec_count = v.spec_count - FL_CNT_BITS'(1);
         end
       end
     end

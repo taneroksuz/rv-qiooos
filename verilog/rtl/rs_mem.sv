@@ -13,7 +13,7 @@ module rs_mem (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  localparam MEM_ADDR_BITS = $clog2(RS_MEM_DEPTH);
+  localparam MEM_ADDR_BITS = RS_MEM_ADDR_BITS;
 
   typedef struct packed {
     logic [RS_MEM_DEPTH-1:0]                       valid_bits;
@@ -41,11 +41,11 @@ module rs_mem (
     logic [MEM_ISSUE_WIDTH-1:0]                    port_busy;
     logic [RS_MEM_DEPTH-1:0]                       slot_free;
     logic [RS_MEM_DEPTH-1:0]                       slot_issued;
-    logic [2:0]                                    free_cnt;
+    logic [ISSUE_CNT_BITS-1:0]                     free_cnt;
     logic [ISSUE_WIDTH-1:0][ISSUE_ADDR_BITS-1:0]   alloc_rank;
     logic [ISSUE_WIDTH-1:0][MEM_ADDR_BITS-1:0]     alloc_slot;
     logic [ISSUE_WIDTH-1:0]                        alloc_en;
-    logic [2:0]                                    inv_cnt;
+    logic [RS_MEM_CNT_BITS-1:0]                    inv_cnt;
     logic [RS_MEM_DEPTH-1:0]                       slot_wr;
     logic [RS_MEM_DEPTH-1:0][ISSUE_ADDR_BITS-1:0]  slot_src;
   } rs_mem_reg_type;
@@ -149,8 +149,7 @@ module rs_mem (
         v.oldest_load[1]  = v.ent_load[i];
       end
     end
-    v.sel_found[0] = 1'b0;
-    v.sel_found[1] = 1'b0;
+    v.sel_found = '0;
     for (int c = 0; c < MEM_ISSUE_WIDTH; c++) begin
       if (v.oldest_found[c] && v.oldest_ready[c]) begin
         for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
@@ -164,17 +163,21 @@ module rs_mem (
     end
 
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-      v.slot_issued[i] = ((v.sel_found[0] && (v.sel_idx[0] == MEM_ADDR_BITS'(unsigned'(i)))) ||
-                          (v.sel_found[1] && (v.sel_idx[1] == MEM_ADDR_BITS'(unsigned'(i)))));
+      v.slot_issued[i] = 1'b0;
+      for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
+        if (v.sel_found[p] && (v.sel_idx[p] == MEM_ADDR_BITS'(unsigned'(i)))) begin
+          v.slot_issued[i] = 1'b1;
+        end
+      end
       v.slot_free[i] = !v.woken[i].valid || v.slot_issued[i];
     end
 
-    v.free_cnt = 3'b0;
+    v.free_cnt = '0;
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
-      if (v.slot_free[i] && (v.free_cnt < 3'(ISSUE_WIDTH))) begin
+      if (v.slot_free[i] && (v.free_cnt < ISSUE_CNT_BITS'(ISSUE_WIDTH))) begin
         v.free_idx[ISSUE_ADDR_BITS'(v.free_cnt)]   = MEM_ADDR_BITS'(unsigned'(i));
         v.free_found[ISSUE_ADDR_BITS'(v.free_cnt)] = 1'b1;
-        v.free_cnt                                 = v.free_cnt + 3'b1;
+        v.free_cnt                                 = v.free_cnt + ISSUE_CNT_BITS'(1);
       end
     end
 
