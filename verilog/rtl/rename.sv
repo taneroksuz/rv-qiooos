@@ -10,9 +10,8 @@ module rename (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  logic    rob_ok       [ISSUE_WIDTH];
-  logic    stall;
-  cdb_type cdb_load_any;
+  logic rob_ok[ISSUE_WIDTH];
+  logic stall;
 
   instruction_type                     instr       [ISSUE_WIDTH];
   logic                                squash      [ISSUE_WIDTH];
@@ -35,16 +34,11 @@ module rename (
   logic        src_rdy [2*ISSUE_WIDTH];
   logic [31:0] src_data[2*ISSUE_WIDTH];
 
-  logic [PRF_ADDR_BITS-1:0] src_tag;
-  logic                     src_pv;
-  logic [    ISSUE_WIDTH:0] src_hit;
-
   rs_entry_type  e;
   rob_entry_type re;
 
   always_comb begin
-    rename_out   = '0;
-    cdb_load_any = rename_in.cdb_load[0].valid ? rename_in.cdb_load[0] : rename_in.cdb_load[1];
+    rename_out = '0;
 
     squash[0] = 1'b0;
     for (int i = 1; i < ISSUE_WIDTH; i++) begin
@@ -120,20 +114,8 @@ module rename (
     rename_out.stall = stall;
 
     for (int j = 0; j < 2 * ISSUE_WIDTH; j++) begin
-      src_tag = rename_in.rat.psrc[j];
-      src_pv  = rename_in.rat.psrc_valid[j];
-
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        src_hit[k] = rename_in.cdb[k].valid && (rename_in.cdb[k].tag == src_tag);
-      end
-      src_hit[ISSUE_WIDTH] = cdb_load_any.valid && (cdb_load_any.tag == src_tag);
-
-      src_rdy[j]  = src_pv || (|src_hit);
-      src_data[j] = src_pv ? rename_in.prf.rdata[j] : 32'h0;
-      for (int k = 0; k < ISSUE_WIDTH; k++) begin
-        if (src_hit[k]) src_data[j] = rename_in.cdb[k].data;
-      end
-      if (src_hit[ISSUE_WIDTH]) src_data[j] = cdb_load_any.data;
+      src_rdy[j]  = rename_in.prf.rready[j];
+      src_data[j] = rename_in.prf.rdata[j];
     end
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin

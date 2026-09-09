@@ -4,12 +4,14 @@ import wires::*;
 import functions::*;
 
 module rs_mem (
-  input  logic                           reset,
-  input  logic                           clock,
-  input  logic                           flush,
-  input  rs_mem_in_type                  rs_in,
-  input  logic           [ROB_DEPTH-1:0] rob_store_pending,
-  output rs_mem_out_type                 rs_out
+  input  logic                                          reset,
+  input  logic                                          clock,
+  input  logic                                          flush,
+  input  rs_mem_in_type                                 rs_in,
+  input  logic                          [ROB_DEPTH-1:0] rob_store_pending,
+  input  logic                          [ROB_DEPTH-1:0] rob_store_known,
+  input  logic           [ROB_DEPTH-1:0][         29:0] rob_store_addr,
+  output rs_mem_out_type                                rs_out
 );
   timeunit 1ns; timeprecision 1ps;
 
@@ -48,6 +50,9 @@ module rs_mem (
     logic [RS_MEM_CNT_BITS-1:0]                    inv_cnt;
     logic [RS_MEM_DEPTH-1:0]                       slot_wr;
     logic [RS_MEM_DEPTH-1:0][ISSUE_ADDR_BITS-1:0]  slot_src;
+    logic [RS_MEM_DEPTH-1:0][29:0]                 addr;
+    logic [RS_MEM_DEPTH-1:0]                       ent_store;
+    logic [ROB_DEPTH-1:0]                          store_in_rs;
   } rs_mem_reg_type;
 
   localparam rs_mem_reg_type init_rs_mem_reg = '{
@@ -75,8 +80,7 @@ module rs_mem (
     v.port_busy    = rs_in.load_busy;
 
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      v.cdb_all[k]                             = rs_in.cdb[k];
-      v.cdb_all[ISSUE_WIDTH+MEM_ISSUE_WIDTH+k] = rs_in.cdb_commit[k];
+      v.cdb_all[k] = rs_in.cdb[k];
     end
     for (int k = 0; k < MEM_ISSUE_WIDTH; k++) begin
       v.cdb_all[ISSUE_WIDTH+k] = rs_in.cdb_load[k];
@@ -86,6 +90,7 @@ module rs_mem (
       v.cur_entry       = array[i];
       v.cur_entry.valid = r.valid_bits[i];
       v.woken[i]        = rs_wakeup_all(v.cur_entry, v.cdb_all);
+      v.addr[i]         = 30'((v.woken[i].rdata1 + v.woken[i].imm) >> 2);
       v.tag_wrap[i]     = array[i].rob_tag < rs_in.rob_head;
     end
 
@@ -101,10 +106,35 @@ module rs_mem (
     end
 
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      v.ent_store[i] = r.valid_bits[i] & v.woken[i].op.store;
+    end
+
+    for (int j = 0; j < ROB_DEPTH; j++) begin
+      v.store_in_rs[j] = 1'b0;
+      for (int s = 0; s < RS_MEM_DEPTH; s++) begin
+        if (v.ent_store[s] && (array[s].rob_tag == ROB_ADDR_BITS'(unsigned'(j)))) begin
+          v.store_in_rs[j] = 1'b1;
+        end
+      end
+    end
+
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
       v.older_store[i] = 1'b0;
       for (int j = 0; j < ROB_DEPTH; j++) begin
         if (rob_store_pending[j] && ((v.store_wrap[j] == v.tag_wrap[i]) ?
                                      (ROB_ADDR_BITS'(unsigned'(j)) < array[i].rob_tag) : v.tag_wrap[i])) begin
+          if (rob_store_known[j] ? (rob_store_addr[j] == v.addr[i]) : !v.store_in_rs[j]) begin
+            v.older_store[i] = 1'b1;
+          end
+        end
+      end
+      for (int s = 0; s < RS_MEM_DEPTH; s++) begin
+        if ((s != i) && v.ent_store[s] && v.lt[s][i] && (!v.woken[s].src1_ready || (v.addr[s] == v.addr[i]))) begin
+          v.older_store[i] = 1'b1;
+        end
+      end
+      for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
+        if (rs_in.store_slot_busy[p] && (rs_in.store_slot_addr[p] == v.addr[i])) begin
           v.older_store[i] = 1'b1;
         end
       end

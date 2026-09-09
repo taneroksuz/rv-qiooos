@@ -11,21 +11,21 @@ module rat (
 );
   timeunit 1ns; timeprecision 1ps;
 
-  logic [PRF_ADDR_BITS:0] spec[0:ARCH_REGS-1];
-  logic [PRF_ADDR_BITS:0] comm[0:ARCH_REGS-1];
+  logic [PRF_ADDR_BITS-1:0] spec[0:ARCH_REGS-1];
+  logic [PRF_ADDR_BITS-1:0] comm[0:ARCH_REGS-1];
 
   initial begin
     for (int j = 0; j < ARCH_REGS; j++) begin
-      spec[j] = {1'b1, PRF_ADDR_BITS'(j)};
-      comm[j] = {1'b1, PRF_ADDR_BITS'(j)};
+      spec[j] = PRF_ADDR_BITS'(j);
+      comm[j] = PRF_ADDR_BITS'(j);
     end
   end
 
   typedef struct packed {
-    logic [ARCH_REGS-1:0][PRF_ADDR_BITS:0]        spec_next;
-    logic [ARCH_REGS-1:0][PRF_ADDR_BITS:0]        comm_next;
-    logic [2*ISSUE_WIDTH-1:0][PRF_ADDR_BITS:0]    eff;
-    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS:0]      old;
+    logic [ARCH_REGS-1:0][PRF_ADDR_BITS-1:0]      spec_next;
+    logic [ARCH_REGS-1:0][PRF_ADDR_BITS-1:0]      comm_next;
+    logic [2*ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0]  eff;
+    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0]    old;
     logic [2*ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0] rsrc_a;
     logic [ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0]   waddr_a;
     logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0]    waddr_p;
@@ -47,18 +47,9 @@ module rat (
 
     for (int r = 0; r < 2 * ISSUE_WIDTH; r++) begin
       v.eff[r] = spec[v.rsrc_a[r]];
-      for (int c = 0; c < ISSUE_WIDTH; c++) begin
-        if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != AREG_ADDR_BITS'(0)) &&
-            (v.rsrc_a[r] == rat_in.commit_addr[c]) && (v.eff[r][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
-          v.eff[r] = {1'b1, rat_in.commit_tag[c]};
-        end
-      end
-    end
-
-    for (int r = 0; r < 2 * ISSUE_WIDTH; r++) begin
       for (int w = 0; w < r / 2; w++) begin
         if (v.wren[w] && (v.rsrc_a[r] == v.waddr_a[w]) && (v.waddr_a[w] != AREG_ADDR_BITS'(0))) begin
-          v.eff[r] = {1'b0, v.waddr_p[w]};
+          v.eff[r] = v.waddr_p[w];
         end
       end
     end
@@ -67,36 +58,32 @@ module rat (
       v.old[k] = spec[v.waddr_a[k]];
       for (int w = 0; w < k; w++) begin
         if (v.wren[w] && (v.waddr_a[w] == v.waddr_a[k]) && (v.waddr_a[w] != AREG_ADDR_BITS'(0))) begin
-          v.old[k] = {1'b0, v.waddr_p[w]};
+          v.old[k] = v.waddr_p[w];
         end
       end
     end
 
     rat_out = init_rat_out;
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      rat_out.old_pdest[k] = v.old[k][PRF_ADDR_BITS-1:0];
+      rat_out.old_pdest[k] = v.old[k];
     end
 
     for (int r = 0; r < 2 * ISSUE_WIDTH; r++) begin
-      rat_out.psrc[r]       = v.eff[r][PRF_ADDR_BITS-1:0];
-      rat_out.psrc_valid[r] = v.eff[r][PRF_ADDR_BITS];
+      rat_out.psrc[r] = v.eff[r];
     end
 
     for (int j = 0; j < ARCH_REGS; j++) begin
-      v.spec_next[j] = flush ? comm[j] : spec[j];
       v.comm_next[j] = comm[j];
       for (int c = 0; c < ISSUE_WIDTH; c++) begin
         if (rat_in.commit_valid[c] && (rat_in.commit_addr[c] != AREG_ADDR_BITS'(0)) &&
             (rat_in.commit_addr[c] == AREG_ADDR_BITS'(j))) begin
-          v.comm_next[j] = {1'b1, rat_in.commit_tag[c]};
-          if (flush || (spec[j][PRF_ADDR_BITS-1:0] == rat_in.commit_tag[c])) begin
-            v.spec_next[j] = {1'b1, rat_in.commit_tag[c]};
-          end
+          v.comm_next[j] = rat_in.commit_tag[c];
         end
       end
+      v.spec_next[j] = flush ? v.comm_next[j] : spec[j];
       for (int k = 0; k < ISSUE_WIDTH; k++) begin
         if (v.wren[k] && (v.waddr_a[k] != AREG_ADDR_BITS'(0)) && (v.waddr_a[k] == AREG_ADDR_BITS'(j))) begin
-          v.spec_next[j] = {1'b0, v.waddr_p[k]};
+          v.spec_next[j] = v.waddr_p[k];
         end
       end
     end
@@ -105,8 +92,8 @@ module rat (
   always_ff @(posedge clock) begin
     if (reset == 0) begin
       for (int j = 0; j < ARCH_REGS; j++) begin
-        spec[j] <= {1'b1, PRF_ADDR_BITS'(j)};
-        comm[j] <= {1'b1, PRF_ADDR_BITS'(j)};
+        spec[j] <= PRF_ADDR_BITS'(j);
+        comm[j] <= PRF_ADDR_BITS'(j);
       end
     end
     else begin

@@ -23,6 +23,7 @@ package wires;
   localparam RS_INT_CNT_BITS  = count_bits(RS_INT_DEPTH);
   localparam RS_MEM_CNT_BITS  = count_bits(RS_MEM_DEPTH);
   localparam ISSUE_CNT_BITS   = count_bits(ISSUE_WIDTH);
+  localparam PRF_WPORTS       = ISSUE_WIDTH + MEM_ISSUE_WIDTH;
 
   typedef struct packed {
     logic [0:0] bit_sh1add;
@@ -890,13 +891,18 @@ package wires;
   localparam cdb_type init_cdb = '{valid: 0, tag: 0, data: 0};
 
   typedef struct packed {
-    logic [2*ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0] raddr;
-    logic [ISSUE_WIDTH-1:0][AREG_ADDR_BITS-1:0]   waddr;
-    logic [ISSUE_WIDTH-1:0][31:0]                 wdata;
-    logic [ISSUE_WIDTH-1:0][0:0]                  wren;
+    logic [2*ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] raddr;
+    logic [PRF_WPORTS-1:0][PRF_ADDR_BITS-1:0]    waddr;
+    logic [PRF_WPORTS-1:0][31:0]                 wdata;
+    logic [PRF_WPORTS-1:0][0:0]                  wren;
+    logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0]   aaddr;
+    logic [ISSUE_WIDTH-1:0][0:0]                 aren;
   } prf_in_type;
 
-  typedef struct packed {logic [2*ISSUE_WIDTH-1:0][31:0] rdata;} prf_out_type;
+  typedef struct packed {
+    logic [2*ISSUE_WIDTH-1:0][31:0] rdata;
+    logic [2*ISSUE_WIDTH-1:0][0:0]  rready;
+  } prf_out_type;
 
   localparam prf_in_type init_prf_in = 0;
 
@@ -929,7 +935,6 @@ package wires;
 
   typedef struct packed {
     logic [2*ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0] psrc;
-    logic [2*ISSUE_WIDTH-1:0][0:0]               psrc_valid;
     logic [ISSUE_WIDTH-1:0][PRF_ADDR_BITS-1:0]   old_pdest;
   } rat_out_type;
 
@@ -957,13 +962,14 @@ package wires;
   localparam rob_out_type init_rob_out = 0;
 
   typedef struct packed {
-    rs_entry_type [ISSUE_WIDTH-1:0] entry;
-    logic [ISSUE_WIDTH-1:0][0:0]    alloc;
-    cdb_type [ISSUE_WIDTH-1:0]      cdb;
-    cdb_type [MEM_ISSUE_WIDTH-1:0]  cdb_load;
-    cdb_type [ISSUE_WIDTH-1:0]      cdb_commit;
-    logic [ROB_ADDR_BITS-1:0]       rob_head;
-    logic [MEM_ISSUE_WIDTH-1:0]     load_busy;
+    rs_entry_type [ISSUE_WIDTH-1:0]   entry;
+    logic [ISSUE_WIDTH-1:0][0:0]      alloc;
+    cdb_type [ISSUE_WIDTH-1:0]        cdb;
+    cdb_type [MEM_ISSUE_WIDTH-1:0]    cdb_load;
+    logic [ROB_ADDR_BITS-1:0]         rob_head;
+    logic [MEM_ISSUE_WIDTH-1:0]       load_busy;
+    logic [MEM_ISSUE_WIDTH-1:0]       store_slot_busy;
+    logic [MEM_ISSUE_WIDTH-1:0][29:0] store_slot_addr;
   } rs_mem_in_type;
 
   typedef struct packed {
@@ -971,7 +977,6 @@ package wires;
     logic [ISSUE_WIDTH-1:0][0:0]    alloc;
     cdb_type [ISSUE_WIDTH-1:0]      cdb;
     cdb_type [MEM_ISSUE_WIDTH-1:0]  cdb_load;
-    cdb_type [ISSUE_WIDTH-1:0]      cdb_commit;
     logic [0:0]                     div_busy;
     logic [0:0]                     csr_commit;
     logic [ROB_ADDR_BITS-1:0]       rob_head;
@@ -1001,8 +1006,6 @@ package wires;
     fl_out_type                                fl;
     logic [ISSUE_WIDTH-1:0][0:0]               rs_int_alloc_ok;
     logic [ISSUE_WIDTH-1:0][0:0]               rs_mem_alloc_ok;
-    cdb_type [ISSUE_WIDTH-1:0]                 cdb;
-    cdb_type [MEM_ISSUE_WIDTH-1:0]             cdb_load;
   } rename_in_type;
 
   typedef struct packed {
@@ -1077,6 +1080,8 @@ package wires;
     logic [MEM_ISSUE_WIDTH-1:0][0:0]               rob_wen;
     logic [MEM_ISSUE_WIDTH-1:0]                    load_busy;
     logic [MEM_ISSUE_WIDTH-1:0]                    store_slot_free;
+    logic [MEM_ISSUE_WIDTH-1:0]                    store_slot_busy;
+    logic [MEM_ISSUE_WIDTH-1:0][29:0]              store_slot_addr;
     mem_in_type [LSU_COUNT-1:0]                    dmem_in;
     lsu_in_type [LSU_COUNT-1:0]                    lsu_in;
   } msu_out_type;
@@ -1088,6 +1093,8 @@ package wires;
       rob_wen: '{default: 0},
       load_busy: 0,
       store_slot_free: 0,
+      store_slot_busy: 0,
+      store_slot_addr: '{default: '0},
       dmem_in: '{default: init_mem_in},
       lsu_in: '{default: '{ldata: 0, byteenable: 0, lsu_op: init_lsu_op}}
   };
@@ -1102,7 +1109,6 @@ package wires;
     csr_write_in_type                     csr_win;
     csr_exception_in_type                 csr_ein;
     rat_in_type                           rat_i;
-    prf_in_type                           prf_i;
     fl_in_type                            fl_i;
     logic [0:0]                           flush;
     commit_entry_type [ISSUE_WIDTH-1:0]   commit_entry;
@@ -1114,7 +1120,6 @@ package wires;
       csr_win: init_csr_write_in,
       csr_ein: init_csr_exception_in,
       rat_i: init_rat_in,
-      prf_i: init_prf_in,
       fl_i: init_fl_in,
       flush: 0,
       commit_entry: '{default: init_commit_entry},

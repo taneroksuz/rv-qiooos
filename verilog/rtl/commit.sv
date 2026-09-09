@@ -16,7 +16,6 @@ module commit (
     csr_write_in_type                                csr_win;
     csr_exception_in_type                            csr_ein;
     rat_in_type                                      rat_i;
-    prf_in_type                                      prf_i;
     fl_in_type                                       fl_i;
     logic [0:0]                                      flush_all;
     commit_entry_type [ISSUE_WIDTH-1:0]              commit_entry;
@@ -36,7 +35,6 @@ module commit (
       csr_win       : init_csr_write_in,
       csr_ein       : init_csr_exception_in,
       rat_i         : init_rat_in,
-      prf_i         : init_prf_in,
       fl_i          : init_fl_in,
       flush_all     : 0,
       commit_entry  : '{default: init_commit_entry},
@@ -119,9 +117,6 @@ module commit (
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       if (v.do_commit[k]) begin
         v.csr_ein.valid[k]      = 1'b1;
-        v.prf_i.wren[k]         = v.e[k].wren & ~v.e[k].exception;
-        v.prf_i.waddr[k]        = v.e[k].adest;
-        v.prf_i.wdata[k]        = v.e[k].result;
         v.rat_i.commit_addr[k]  = v.e[k].adest;
         v.rat_i.commit_tag[k]   = v.e[k].pdest;
         v.rat_i.commit_valid[k] = v.e[k].wren & ~v.e[k].exception;
@@ -154,7 +149,6 @@ module commit (
     commit_out.csr_win = r.csr_win;
     commit_out.csr_ein = r.csr_ein;
     commit_out.rat_i   = r.rat_i;
-    commit_out.prf_i   = r.prf_i;
     commit_out.fl_i    = r.fl_i;
     commit_out.flush   = r.flush_all;
     for (int p = 0; p < ISSUE_WIDTH; p++) begin

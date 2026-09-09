@@ -26,62 +26,62 @@ module cpu (
   if (RS_MEM_DEPTH < ISSUE_WIDTH) $error("configure::RS_MEM_DEPTH must be at least ISSUE_WIDTH");
 
   cdb_type cdb[0:ISSUE_WIDTH-1], cdb_load[0:MEM_ISSUE_WIDTH-1];
-  cdb_type                          cdb_exec          [             0:1];
-  cdb_type                          cdb_commit        [ 0:ISSUE_WIDTH-1];
-  csr_read_in_type                  csr_rin;
-  alu_in_type                       alu_in            [   0:ALU_COUNT-1];
-  alu_out_type                      alu_out           [   0:ALU_COUNT-1];
-  bcu_in_type                       bcu_in            [   0:BCU_COUNT-1];
-  bcu_out_type                      bcu_out           [   0:BCU_COUNT-1];
-  mul_in_type                       mul_in            [   0:MUL_COUNT-1];
-  mul_out_type                      mul_out           [   0:MUL_COUNT-1];
-  div_in_type                       div_in;
-  div_out_type                      div_out;
-  bit_alu_in_type                   bit_alu_in        [0:BITALU_COUNT-1];
-  bit_alu_out_type                  bit_alu_out       [0:BITALU_COUNT-1];
-  csr_alu_in_type                   csr_alu_in;
-  csr_alu_out_type                  csr_alu_out;
-  lsu_in_type                       lsu_in            [   0:LSU_COUNT-1];
-  lsu_out_type                      lsu_out           [   0:LSU_COUNT-1];
-  csr_out_type                      csr_out;
-  agu_in_type                       agu_in            [   0:AGU_COUNT-1];
-  agu_out_type                      agu_out           [   0:AGU_COUNT-1];
-  btac_in_type                      btac_in;
-  btac_out_type                     btac_out;
-  buffer_in_type                    buffer_in;
-  buffer_out_type                   buffer_out;
-  compress_in_type                  compress_in       [ 0:ISSUE_WIDTH-1];
-  compress_out_type                 compress_out      [ 0:ISSUE_WIDTH-1];
-  base_in_type                      base_in           [ 0:ISSUE_WIDTH-1];
-  base_out_type                     base_out          [ 0:ISSUE_WIDTH-1];
-  fetch_in_type                     fetch_in;
-  fetch_out_type                    fetch_out;
-  decode_in_type                    decode_in;
-  decode_out_type                   decode_out;
-  prf_in_type                       prf_in;
-  prf_out_type                      prf_out;
-  fl_in_type                        fl_in;
-  fl_out_type                       fl_out;
-  rat_in_type                       rat_in;
-  rat_out_type                      rat_out;
-  rob_in_type                       rob_in;
-  rob_out_type                      rob_out;
-  rs_int_in_type                    rs_int_in;
-  rs_int_out_type                   rs_int_out;
-  rs_mem_in_type                    rs_mem_in;
-  rs_mem_out_type                   rs_mem_out;
-  rename_in_type                    rename_in;
-  rename_out_type                   rename_out;
-  eu_in_type                        eu_in;
-  eu_out_type                       eu_out;
-  msu_in_type                       msu_in;
-  msu_out_type                      msu_out;
-  commit_in_type                    commit_in;
-  commit_out_type                   commit_out;
-  cache_in_type                     cache_in;
-  cache_out_type                    cache_out;
-  logic             [ROB_DEPTH-1:0] rob_store_pending;
-  logic             [          0:0] commit_flush;
+  csr_read_in_type                        csr_rin;
+  alu_in_type                             alu_in            [   0:ALU_COUNT-1];
+  alu_out_type                            alu_out           [   0:ALU_COUNT-1];
+  bcu_in_type                             bcu_in            [   0:BCU_COUNT-1];
+  bcu_out_type                            bcu_out           [   0:BCU_COUNT-1];
+  mul_in_type                             mul_in            [   0:MUL_COUNT-1];
+  mul_out_type                            mul_out           [   0:MUL_COUNT-1];
+  div_in_type                             div_in;
+  div_out_type                            div_out;
+  bit_alu_in_type                         bit_alu_in        [0:BITALU_COUNT-1];
+  bit_alu_out_type                        bit_alu_out       [0:BITALU_COUNT-1];
+  csr_alu_in_type                         csr_alu_in;
+  csr_alu_out_type                        csr_alu_out;
+  lsu_in_type                             lsu_in            [   0:LSU_COUNT-1];
+  lsu_out_type                            lsu_out           [   0:LSU_COUNT-1];
+  csr_out_type                            csr_out;
+  agu_in_type                             agu_in            [   0:AGU_COUNT-1];
+  agu_out_type                            agu_out           [   0:AGU_COUNT-1];
+  btac_in_type                            btac_in;
+  btac_out_type                           btac_out;
+  buffer_in_type                          buffer_in;
+  buffer_out_type                         buffer_out;
+  compress_in_type                        compress_in       [ 0:ISSUE_WIDTH-1];
+  compress_out_type                       compress_out      [ 0:ISSUE_WIDTH-1];
+  base_in_type                            base_in           [ 0:ISSUE_WIDTH-1];
+  base_out_type                           base_out          [ 0:ISSUE_WIDTH-1];
+  fetch_in_type                           fetch_in;
+  fetch_out_type                          fetch_out;
+  decode_in_type                          decode_in;
+  decode_out_type                         decode_out;
+  prf_in_type                             prf_in;
+  prf_out_type                            prf_out;
+  fl_in_type                              fl_in;
+  fl_out_type                             fl_out;
+  rat_in_type                             rat_in;
+  rat_out_type                            rat_out;
+  rob_in_type                             rob_in;
+  rob_out_type                            rob_out;
+  rs_int_in_type                          rs_int_in;
+  rs_int_out_type                         rs_int_out;
+  rs_mem_in_type                          rs_mem_in;
+  rs_mem_out_type                         rs_mem_out;
+  rename_in_type                          rename_in;
+  rename_out_type                         rename_out;
+  eu_in_type                              eu_in;
+  eu_out_type                             eu_out;
+  msu_in_type                             msu_in;
+  msu_out_type                            msu_out;
+  commit_in_type                          commit_in;
+  commit_out_type                         commit_out;
+  cache_in_type                           cache_in;
+  cache_out_type                          cache_out;
+  logic             [ROB_DEPTH-1:0]       rob_store_pending;
+  logic             [ROB_DEPTH-1:0]       rob_store_known;
+  logic             [ROB_DEPTH-1:0][29:0] rob_store_addr;
+  logic             [          0:0]       commit_flush;
 
   genvar i;
 
@@ -117,16 +117,28 @@ module cpu (
     end
   endgenerate
   generate
-    for (i = 0; i < ISSUE_WIDTH; i++) begin : g_prf_raddr
-      assign prf_in.raddr[2*i]   = rename_out.rat.rsrc_a[2*i];
-      assign prf_in.raddr[2*i+1] = rename_out.rat.rsrc_a[2*i+1];
+    for (i = 0; i < 2 * ISSUE_WIDTH; i++) begin : g_prf_raddr
+      assign prf_in.raddr[i] = rat_out.psrc[i];
     end
   endgenerate
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_prf_wport
-      assign prf_in.waddr[i] = commit_out.prf_i.waddr[i];
-      assign prf_in.wdata[i] = commit_out.prf_i.wdata[i];
-      assign prf_in.wren[i]  = commit_out.prf_i.wren[i];
+      assign prf_in.waddr[i] = cdb[i].tag;
+      assign prf_in.wdata[i] = cdb[i].data;
+      assign prf_in.wren[i]  = cdb[i].valid;
+    end
+  endgenerate
+  generate
+    for (i = 0; i < MEM_ISSUE_WIDTH; i++) begin : g_prf_wport_load
+      assign prf_in.waddr[ISSUE_WIDTH+i] = cdb_load[i].tag;
+      assign prf_in.wdata[ISSUE_WIDTH+i] = cdb_load[i].data;
+      assign prf_in.wren[ISSUE_WIDTH+i]  = cdb_load[i].valid;
+    end
+  endgenerate
+  generate
+    for (i = 0; i < ISSUE_WIDTH; i++) begin : g_prf_aport
+      assign prf_in.aaddr[i] = rename_out.rat.waddr_p[i];
+      assign prf_in.aren[i]  = rename_out.rat.wren[i];
     end
   endgenerate
   generate
@@ -191,18 +203,14 @@ module cpu (
   endgenerate
   generate
     for (i = 0; i < ISSUE_WIDTH; i++) begin : g_cdb_fanin
-      assign rs_int_in.cdb[i]        = cdb[i];
-      assign rs_mem_in.cdb[i]        = cdb[i];
-      assign rename_in.cdb[i]        = cdb[i];
-      assign rs_int_in.cdb_commit[i] = cdb_commit[i];
-      assign rs_mem_in.cdb_commit[i] = cdb_commit[i];
+      assign rs_int_in.cdb[i] = cdb[i];
+      assign rs_mem_in.cdb[i] = cdb[i];
     end
   endgenerate
   generate
     for (i = 0; i < MEM_ISSUE_WIDTH; i++) begin : g_cdb_load_fanin
       assign rs_int_in.cdb_load[i] = cdb_load[i];
       assign rs_mem_in.cdb_load[i] = cdb_load[i];
-      assign rename_in.cdb_load[i] = cdb_load[i];
     end
   endgenerate
   assign rs_int_in.div_busy   = eu_out.div_busy;
@@ -253,31 +261,25 @@ module cpu (
   endgenerate
   assign eu_in.div_out = div_out;
   assign div_in        = eu_out.div_in;
-  assign cdb_exec[0]   = eu_out.cdb[0];
-  assign cdb_exec[1]   = eu_out.cdb[1];
   generate
-    for (i = 0; i < ISSUE_WIDTH; i++) begin : g_cdb_commit_derive
-      assign cdb_commit[i].valid = commit_out.prf_i.wren[i];
-      assign cdb_commit[i].tag   = commit_out.rat_i.commit_tag[i];
-      assign cdb_commit[i].data  = commit_out.prf_i.wdata[i];
+    for (i = 0; i < ISSUE_WIDTH; i++) begin : g_cdb_exec
+      assign cdb[i] = eu_out.cdb[i];
     end
   endgenerate
-  assign cdb[0] = cdb_exec[0].valid ? cdb_exec[0] : cdb_commit[0];
-  assign cdb[1] = cdb_exec[1].valid ? cdb_exec[1] : cdb_commit[1];
-  assign cdb[2] = eu_out.cdb[2];
-  assign cdb[3] = eu_out.cdb[3];
   generate
     for (i = 0; i < MEM_ISSUE_WIDTH; i++) begin : g_msu_mem_issue
-      assign msu_in.issue[i]        = eu_in.mem_issue[i];
-      assign msu_in.issue_valid[i]  = eu_in.mem_issue_valid[i];
-      assign msu_in.agu_out[i]      = agu_out[AGU_BRANCH_COUNT+i];
-      assign msu_in.lsu_out[i]      = lsu_out[i];
-      assign msu_in.dmem_out[i]     = dmem_out[i];
-      assign msu_in.commit_store[i] = commit_out.store_slot_valid[i];
-      assign msu_in.commit_entry[i] = commit_out.store_slot_entry[i];
-      assign dmem_in[i]             = msu_out.dmem_in[i];
-      assign lsu_in[i]              = msu_out.lsu_in[i];
-      assign cdb_load[i]            = msu_out.cdb[i];
+      assign msu_in.issue[i]              = eu_in.mem_issue[i];
+      assign msu_in.issue_valid[i]        = eu_in.mem_issue_valid[i];
+      assign msu_in.agu_out[i]            = agu_out[AGU_BRANCH_COUNT+i];
+      assign msu_in.lsu_out[i]            = lsu_out[i];
+      assign msu_in.dmem_out[i]           = dmem_out[i];
+      assign msu_in.commit_store[i]       = commit_out.store_slot_valid[i];
+      assign msu_in.commit_entry[i]       = commit_out.store_slot_entry[i];
+      assign rs_mem_in.store_slot_busy[i] = msu_out.store_slot_busy[i];
+      assign rs_mem_in.store_slot_addr[i] = msu_out.store_slot_addr[i];
+      assign dmem_in[i]                   = msu_out.dmem_in[i];
+      assign lsu_in[i]                    = msu_out.lsu_in[i];
+      assign cdb_load[i]                  = msu_out.cdb[i];
     end
   endgenerate
   assign commit_in.irpt = csr_out.irpt;
@@ -430,7 +432,9 @@ module cpu (
     .flush            (commit_flush),
     .rob_in           (rob_in),
     .rob_out          (rob_out),
-    .rob_store_pending(rob_store_pending)
+    .rob_store_pending(rob_store_pending),
+    .rob_store_known  (rob_store_known),
+    .rob_store_addr   (rob_store_addr)
   );
   rs_int rs_int_comp (
     .reset (reset),
@@ -445,6 +449,8 @@ module cpu (
     .flush            (commit_flush),
     .rs_in            (rs_mem_in),
     .rob_store_pending(rob_store_pending),
+    .rob_store_known  (rob_store_known),
+    .rob_store_addr   (rob_store_addr),
     .rs_out           (rs_mem_out)
   );
   rename rename_comp (

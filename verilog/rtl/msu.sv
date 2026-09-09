@@ -229,6 +229,8 @@ module msu (
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
       msu_out.load_busy[p]       = v.slot_blocked[p];
       msu_out.store_slot_free[p] = v.slot_free_next[p];
+      msu_out.store_slot_busy[p] = v.store_pending[p];
+      msu_out.store_slot_addr[p] = v.store_entry[p].target[31:2];
     end
   end
 

@@ -2,7 +2,7 @@ package functions;
   timeunit 1ns; timeprecision 1ps;
   import configure::*;
   import wires::*;
-  localparam RS_CDB_COUNT = 2 * ISSUE_WIDTH + MEM_ISSUE_WIDTH;
+  localparam RS_CDB_COUNT = ISSUE_WIDTH + MEM_ISSUE_WIDTH;
   function automatic [31:0] multiplexer;
     input [31:0] data0;
     input [31:0] data1;
