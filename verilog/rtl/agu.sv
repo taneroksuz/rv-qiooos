@@ -10,9 +10,8 @@ module agu (
 
   logic [0:0] misalign;
 
-  logic [ 0:0] exception;
-  logic [ 7:0] ecause;
-  logic [31:0] etval;
+  logic [0:0] exception;
+  logic [7:0] ecause;
 
   logic [0:0] imem_access;
   logic [0:0] dmem_access;
@@ -27,7 +26,6 @@ module agu (
 
     exception = 0;
     ecause    = 0;
-    etval     = 0;
 
     imem_access = agu_in.jal | agu_in.jalr | agu_in.branch;
     dmem_access = agu_in.load | agu_in.store;
@@ -75,18 +73,15 @@ module agu (
       if (imem_access == 1) begin
         exception = 1;
         ecause    = except_instr_addr_misalign;
-        etval     = address;
       end
       if (dmem_access == 1) begin
         if (agu_in.load == 1) begin
           exception = 1;
           ecause    = except_load_addr_misalign;
-          etval     = address;
         end
         if (agu_in.store == 1) begin
           exception = 1;
           ecause    = except_store_addr_misalign;
-          etval     = address;
         end
       end
     end
@@ -96,7 +91,6 @@ module agu (
 
     agu_out.exception = exception;
     agu_out.ecause    = ecause;
-    agu_out.etval     = etval;
 
   end
 

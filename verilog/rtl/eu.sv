@@ -178,15 +178,14 @@ module eu (
       v.agu_result_lane[l]    = v.npc_lane[l];
       v.agu_exception_lane[l] = 1'b0;
       v.agu_ecause_lane[l]    = '0;
-      v.agu_etval_lane[l]     = 32'h0;
       for (int p = 0; p < AGU_BRANCH_COUNT; p++) begin
         if (v.agu_found[p] && (v.agu_owner[p] == 2'(l))) begin
           v.agu_result_lane[l]    = eu_in.agu_out[p].address;
           v.agu_exception_lane[l] = eu_in.agu_out[p].exception;
           v.agu_ecause_lane[l]    = eu_in.agu_out[p].ecause;
-          v.agu_etval_lane[l]     = eu_in.agu_out[p].etval;
         end
       end
+      v.agu_etval_lane[l] = v.agu_exception_lane[l] ? v.agu_result_lane[l] : 32'h0;
     end
 
     for (int p = 0; p < BCU_COUNT; p++) begin
@@ -432,15 +431,16 @@ module eu (
 
       for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
         if (eu_in.mem_issue_valid[p] && eu_in.mem_issue[p].op.store) begin
-          v.rob_wtag_store[p]              = eu_in.mem_issue[p].rob_tag;
-          v.rob_wen_store[p]               = 1'b1;
-          v.rob_wentry_store[p].done       = 1'b1;
-          v.rob_wentry_store[p].target     = eu_in.agu_out[AGU_BRANCH_COUNT+p].address;
-          v.rob_wentry_store[p].wdata      = v.mstore_data[p];
+          v.rob_wtag_store[p] = eu_in.mem_issue[p].rob_tag;
+          v.rob_wen_store[p] = 1'b1;
+          v.rob_wentry_store[p].done = 1'b1;
+          v.rob_wentry_store[p].target = eu_in.agu_out[AGU_BRANCH_COUNT+p].address;
+          v.rob_wentry_store[p].wdata = v.mstore_data[p];
           v.rob_wentry_store[p].store_strb = eu_in.agu_out[AGU_BRANCH_COUNT+p].byteenable;
-          v.rob_wentry_store[p].exception  = eu_in.agu_out[AGU_BRANCH_COUNT+p].exception;
-          v.rob_wentry_store[p].ecause     = eu_in.agu_out[AGU_BRANCH_COUNT+p].ecause;
-          v.rob_wentry_store[p].result     = eu_in.agu_out[AGU_BRANCH_COUNT+p].etval;
+          v.rob_wentry_store[p].exception = eu_in.agu_out[AGU_BRANCH_COUNT+p].exception;
+          v.rob_wentry_store[p].ecause = eu_in.agu_out[AGU_BRANCH_COUNT+p].ecause;
+          v.rob_wentry_store[p].result = eu_in.agu_out[AGU_BRANCH_COUNT+p].exception ?
+              eu_in.agu_out[AGU_BRANCH_COUNT+p].address : 32'h0;
         end
       end
 

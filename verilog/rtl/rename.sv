@@ -108,7 +108,7 @@ module rename (
     end
 
     for (int i = 0; i < ISSUE_WIDTH; i++) begin
-      dispatch[i] = stall ? 1'b0 : can_dispatch[i];
+      dispatch[i] = ~stall & instr_valid[i];
     end
 
     rename_out.stall = stall;

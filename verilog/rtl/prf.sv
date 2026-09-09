@@ -20,6 +20,10 @@ module prf (
     logic [2*ISSUE_WIDTH-1:0][31:0]              rdata;
     logic [2*ISSUE_WIDTH-1:0][0:0]               rready;
     logic [PRF_DEPTH-1:0]                        ready_next;
+    logic [PRF_DEPTH-1:0]                        dwen;
+    logic [PRF_DEPTH-1:0][31:0]                  dwdata;
+    logic [PRF_DEPTH-1:0]                        wset;
+    logic [PRF_DEPTH-1:0]                        aclr;
   } prf_reg_type;
 
   logic [         31:0] data  [0:PRF_DEPTH-1];
@@ -66,16 +70,24 @@ module prf (
       prf_out.rready[i] = v.rready[i];
     end
 
-    v.ready_next = ready;
-    for (int w = 0; w < PRF_WPORTS; w++) begin
-      if (v.wen[w]) begin
-        v.ready_next[v.waddr[w]] = 1'b1;
+    for (int j = 0; j < PRF_DEPTH; j++) begin
+      v.dwen[j]   = 1'b0;
+      v.dwdata[j] = '0;
+      v.wset[j]   = 1'b0;
+      v.aclr[j]   = 1'b0;
+      for (int w = 0; w < PRF_WPORTS; w++) begin
+        if (v.wen[w] && (v.waddr[w] == PRF_ADDR_BITS'(unsigned'(j)))) begin
+          v.dwen[j]   = 1'b1;
+          v.dwdata[j] = v.wdata[w];
+          v.wset[j]   = 1'b1;
+        end
       end
-    end
-    for (int a = 0; a < ISSUE_WIDTH; a++) begin
-      if (v.aen[a]) begin
-        v.ready_next[v.aaddr[a]] = 1'b0;
+      for (int a = 0; a < ISSUE_WIDTH; a++) begin
+        if (v.aen[a] && (v.aaddr[a] == PRF_ADDR_BITS'(unsigned'(j)))) begin
+          v.aclr[j] = 1'b1;
+        end
       end
+      v.ready_next[j] = (ready[j] | v.wset[j]) & ~v.aclr[j];
     end
   end
 
@@ -87,9 +99,9 @@ module prf (
       end
     end
     else begin
-      for (int w = 0; w < PRF_WPORTS; w++) begin
-        if (v.wen[w]) begin
-          data[v.waddr[w]] <= v.wdata[w];
+      for (int j = 0; j < PRF_DEPTH; j++) begin
+        if (v.dwen[j]) begin
+          data[j] <= v.dwdata[j];
         end
       end
       ready <= v.ready_next;

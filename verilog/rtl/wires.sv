@@ -313,10 +313,9 @@ package wires;
     logic [3:0]  byteenable;
     logic [0:0]  exception;
     logic [7:0]  ecause;
-    logic [31:0] etval;
   } agu_out_type;
 
-  localparam agu_out_type init_agu_out = '{address: 0, byteenable: 0, exception: 0, ecause: 0, etval: 0};
+  localparam agu_out_type init_agu_out = '{address: 0, byteenable: 0, exception: 0, ecause: 0};
 
   typedef struct packed {
     logic [31:0] ldata;

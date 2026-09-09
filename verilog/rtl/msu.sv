@@ -197,14 +197,14 @@ module msu (
         v.rob_wentry[p].done      = 1'b1;
         v.rob_wentry[p].exception = 1'b1;
         v.rob_wentry[p].ecause    = msu_in.agu_out[p].ecause;
-        v.rob_wentry[p].result    = msu_in.agu_out[p].etval;
+        v.rob_wentry[p].result    = msu_in.agu_out[p].address;
       end
 
       if (v.load_ready[p] && v.load_accept[p] && msu_in.agu_out[p].exception) begin
         v.excp_pending[p] = 1'b1;
         v.excp_rob_tag[p] = msu_in.issue[p].rob_tag;
         v.excp_ecause[p]  = msu_in.agu_out[p].ecause;
-        v.excp_etval[p]   = msu_in.agu_out[p].etval;
+        v.excp_etval[p]   = msu_in.agu_out[p].address;
       end
     end
 

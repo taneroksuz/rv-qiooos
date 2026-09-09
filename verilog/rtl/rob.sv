@@ -70,6 +70,18 @@ module rob (
     logic [ROB_BANKS-1:0][ROB_ROW_BITS-1:0]    bank_wrow;
     logic [ROB_BANKS-1:0]                      bank_wen;
     logic [ROB_BANKS-1:0][ROB_BANK_BITS-1:0]   bank_lane;
+    logic [ROB_DEPTH-1:0][ROB_WPORTS-1:0]      ent_hit;
+    logic [ROB_DEPTH-1:0]                      ent_wen;
+    logic [ROB_DEPTH-1:0]                      ent_wen_t;
+    logic [ROB_DEPTH-1:0]                      ent_wen_b;
+    logic [ROB_DEPTH-1:0][31:0]                ent_result;
+    logic [ROB_DEPTH-1:0]                      ent_exception;
+    logic [ROB_DEPTH-1:0][7:0]                 ent_ecause;
+    logic [ROB_DEPTH-1:0][31:0]                ent_target;
+    logic [ROB_DEPTH-1:0]                      ent_branch;
+    logic [ROB_DEPTH-1:0]                      ent_jump;
+    logic [ROB_DEPTH-1:0][31:0]                ent_wdata;
+    logic [ROB_DEPTH-1:0][3:0]                 ent_store_strb;
   } rob_reg_type;
 
   localparam rob_reg_type init_rob_reg = '{
@@ -265,6 +277,58 @@ module rob (
       v.bank_wen[b] = v.alloc_ok[v.bank_lane[b]];
     end
 
+    for (int i = 0; i < ROB_DEPTH; i++) begin
+      v.ent_wen[i]        = 1'b0;
+      v.ent_wen_t[i]      = 1'b0;
+      v.ent_wen_b[i]      = 1'b0;
+      v.ent_result[i]     = '0;
+      v.ent_exception[i]  = 1'b0;
+      v.ent_ecause[i]     = '0;
+      v.ent_target[i]     = '0;
+      v.ent_branch[i]     = 1'b0;
+      v.ent_jump[i]       = 1'b0;
+      v.ent_wdata[i]      = '0;
+      v.ent_store_strb[i] = '0;
+      for (int p = 0; p < ROB_WPORTS; p++) begin
+        v.ent_hit[i][p] = v.write_ok[p] && (v.wtag[p] == ROB_ADDR_BITS'(unsigned'(i)));
+      end
+      for (int p = 0; p < ISSUE_WIDTH; p++) begin
+        if (v.ent_hit[i][p]) begin
+          v.ent_wen[i]        = 1'b1;
+          v.ent_wen_t[i]      = 1'b1;
+          v.ent_wen_b[i]      = 1'b1;
+          v.ent_result[i]     = v.wentry[p].result;
+          v.ent_exception[i]  = v.wentry[p].exception;
+          v.ent_ecause[i]     = v.wentry[p].ecause;
+          v.ent_target[i]     = v.wentry[p].target;
+          v.ent_branch[i]     = v.wentry[p].branch;
+          v.ent_jump[i]       = v.wentry[p].jump;
+          v.ent_wdata[i]      = v.wentry[p].wdata;
+          v.ent_store_strb[i] = v.wentry[p].store_strb;
+        end
+      end
+      for (int p = ISSUE_WIDTH; p < ISSUE_WIDTH + MEM_ISSUE_WIDTH; p++) begin
+        if (v.ent_hit[i][p]) begin
+          v.ent_wen[i]       = 1'b1;
+          v.ent_result[i]    = v.wentry[p].result;
+          v.ent_exception[i] = v.wentry[p].exception;
+          v.ent_ecause[i]    = v.wentry[p].ecause;
+        end
+      end
+      for (int p = ISSUE_WIDTH + MEM_ISSUE_WIDTH; p < ROB_WPORTS; p++) begin
+        if (v.ent_hit[i][p]) begin
+          v.ent_wen[i]        = 1'b1;
+          v.ent_wen_t[i]      = 1'b1;
+          v.ent_result[i]     = v.wentry[p].result;
+          v.ent_exception[i]  = v.wentry[p].exception;
+          v.ent_ecause[i]     = v.wentry[p].ecause;
+          v.ent_target[i]     = v.wentry[p].target;
+          v.ent_wdata[i]      = v.wentry[p].wdata;
+          v.ent_store_strb[i] = v.wentry[p].store_strb;
+        end
+      end
+    end
+
     rin = v;
   end
 
@@ -293,36 +357,21 @@ module rob (
           end
         end
 
-        for (int p = 0; p < ISSUE_WIDTH; p++) begin
-          if (rin.write_ok[p]) begin
-            array[rin.wtag[p]].done       <= 1'b1;
-            array[rin.wtag[p]].result     <= rin.wentry[p].result;
-            array[rin.wtag[p]].exception  <= rin.wentry[p].exception;
-            array[rin.wtag[p]].ecause     <= rin.wentry[p].ecause;
-            array[rin.wtag[p]].target     <= rin.wentry[p].target;
-            array[rin.wtag[p]].branch     <= rin.wentry[p].branch;
-            array[rin.wtag[p]].jump       <= rin.wentry[p].jump;
-            array[rin.wtag[p]].wdata      <= rin.wentry[p].wdata;
-            array[rin.wtag[p]].store_strb <= rin.wentry[p].store_strb;
+        for (int i = 0; i < ROB_DEPTH; i++) begin
+          if (rin.ent_wen[i]) begin
+            array[i].done      <= 1'b1;
+            array[i].result    <= rin.ent_result[i];
+            array[i].exception <= rin.ent_exception[i];
+            array[i].ecause    <= rin.ent_ecause[i];
           end
-        end
-        for (int p = ISSUE_WIDTH; p < ISSUE_WIDTH + MEM_ISSUE_WIDTH; p++) begin
-          if (rin.write_ok[p]) begin
-            array[rin.wtag[p]].done      <= 1'b1;
-            array[rin.wtag[p]].result    <= rin.wentry[p].result;
-            array[rin.wtag[p]].exception <= rin.wentry[p].exception;
-            array[rin.wtag[p]].ecause    <= rin.wentry[p].ecause;
+          if (rin.ent_wen_t[i]) begin
+            array[i].target     <= rin.ent_target[i];
+            array[i].wdata      <= rin.ent_wdata[i];
+            array[i].store_strb <= rin.ent_store_strb[i];
           end
-        end
-        for (int p = ISSUE_WIDTH + MEM_ISSUE_WIDTH; p < ISSUE_WIDTH + 2 * MEM_ISSUE_WIDTH; p++) begin
-          if (rin.write_ok[p]) begin
-            array[rin.wtag[p]].done       <= 1'b1;
-            array[rin.wtag[p]].target     <= rin.wentry[p].target;
-            array[rin.wtag[p]].wdata      <= rin.wentry[p].wdata;
-            array[rin.wtag[p]].store_strb <= rin.wentry[p].store_strb;
-            array[rin.wtag[p]].exception  <= rin.wentry[p].exception;
-            array[rin.wtag[p]].ecause     <= rin.wentry[p].ecause;
-            array[rin.wtag[p]].result     <= rin.wentry[p].result;
+          if (rin.ent_wen_b[i]) begin
+            array[i].branch <= rin.ent_branch[i];
+            array[i].jump   <= rin.ent_jump[i];
           end
         end
       end

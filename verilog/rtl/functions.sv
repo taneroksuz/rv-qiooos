@@ -63,17 +63,6 @@ package functions;
       bit_sexth = {{16{rs1[15]}}, rs1[15:0]};
     end
   endfunction
-  function automatic [31:0] bit_clz;
-    input [31:0] rs1;
-    logic [5:0] res;
-    begin
-      res = 6'd32;
-      for (int i = 0; i < 32; i = i + 1) begin
-        if (rs1[i] == 1) res = 6'(31 - i);
-      end
-      bit_clz = {26'h0, res};
-    end
-  endfunction
   function automatic [31:0] bit_ctz;
     input [31:0] rs1;
     logic [5:0] res;
@@ -133,22 +122,12 @@ package functions;
       bit_rev8 = res;
     end
   endfunction
-  function automatic [31:0] bit_rol;
+  function automatic [31:0] bit_rev1;
     input [31:0] rs1;
-    input [31:0] rs2;
     logic [31:0] res;
     begin
-      res     = rs1 << rs2[4:0];
-      bit_rol = res | (rs1 >> (32 - rs2[4:0]));
-    end
-  endfunction
-  function automatic [31:0] bit_ror;
-    input [31:0] rs1;
-    input [31:0] rs2;
-    logic [31:0] res;
-    begin
-      res     = rs1 >> rs2[4:0];
-      bit_ror = res | (rs1 << (32 - rs2[4:0]));
+      for (int i = 0; i < 32; i = i + 1) res[i] = rs1[31-i];
+      bit_rev1 = res;
     end
   endfunction
   function automatic [31:0] bit_bset;
@@ -201,27 +180,28 @@ package functions;
     input rs_entry_type e;
     input cdb_type [RS_CDB_COUNT-1:0] cd;
     rs_entry_type t;
-    logic [RS_CDB_COUNT-1:0] h1, h2, s1, s2;
+    logic [RS_CDB_COUNT-1:0] m1, m2;
     logic [31:0] d1, d2;
+    logic [0:0] hit1, hit2;
     begin
       t = e;
       for (int k = 0; k < RS_CDB_COUNT; k++) begin
-        h1[k] = cd[k].valid & e.valid & ~e.src1_ready & (e.psrc1 == cd[k].tag);
-        h2[k] = cd[k].valid & e.valid & ~e.src2_ready & (e.psrc2 == cd[k].tag);
+        m1[k] = cd[k].valid & (e.psrc1 == cd[k].tag);
+        m2[k] = cd[k].valid & (e.psrc2 == cd[k].tag);
       end
-      s1 = h1 & (~h1 + RS_CDB_COUNT'(1));
-      s2 = h2 & (~h2 + RS_CDB_COUNT'(1));
       d1 = '0;
       d2 = '0;
       for (int k = 0; k < RS_CDB_COUNT; k++) begin
-        d1 = d1 | ({32{s1[k]}} & cd[k].data);
-        d2 = d2 | ({32{s2[k]}} & cd[k].data);
+        d1 = d1 | ({32{m1[k]}} & cd[k].data);
+        d2 = d2 | ({32{m2[k]}} & cd[k].data);
       end
-      if (|h1) begin
+      hit1 = (|m1) & ~e.src1_ready;
+      hit2 = (|m2) & ~e.src2_ready;
+      if (hit1) begin
         t.src1_ready = 1'b1;
         t.rdata1     = d1;
       end
-      if (|h2) begin
+      if (hit2) begin
         t.src2_ready = 1'b1;
         t.rdata2     = d2;
       end

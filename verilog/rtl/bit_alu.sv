@@ -14,18 +14,19 @@ module bit_alu (
   logic [1:0] index;
   logic [1:0] op;
 
+  logic [ 4:0] rot_amt;
+  logic [31:0] cnt_in;
+  logic [31:0] res_rot;
+  logic [31:0] res_cnt;
+
   logic [31:0] res_shadd;
   logic [31:0] res_andn;
   logic [31:0] res_orn;
   logic [31:0] res_xnor;
-  logic [31:0] res_clz;
   logic [31:0] res_cpop;
-  logic [31:0] res_ctz;
   logic [31:0] res_minmax;
   logic [31:0] res_orcb;
   logic [31:0] res_rev8;
-  logic [31:0] res_rol;
-  logic [31:0] res_ror;
   logic [31:0] res_sextb;
   logic [31:0] res_sexth;
   logic [31:0] res_zexth;
@@ -78,14 +79,14 @@ module bit_alu (
     res_andn   = bit_andn(rdata1, rdata2);
     res_orn    = bit_orn(rdata1, rdata2);
     res_xnor   = bit_xnor(rdata1, rdata2);
-    res_clz    = bit_clz(rdata1);
+    cnt_in     = bit_zbb.bit_clz ? bit_rev1(rdata1) : rdata1;
+    res_cnt    = bit_ctz(cnt_in);
     res_cpop   = bit_cpop(rdata1);
-    res_ctz    = bit_ctz(rdata1);
     res_minmax = bit_minmax(rdata1, rdata2, op);
     res_orcb   = bit_orcb(rdata1);
     res_rev8   = bit_rev8(rdata1);
-    res_rol    = bit_rol(rdata1, rdata2);
-    res_ror    = bit_ror(rdata1, rdata2);
+    rot_amt    = bit_zbb.bit_rol ? (5'd0 - rdata2[4:0]) : rdata2[4:0];
+    res_rot    = 32'({rdata1, rdata1} >> rot_amt);
     res_sextb  = bit_sextb(rdata1);
     res_sexth  = bit_sexth(rdata1);
     res_zexth  = bit_zexth(rdata1);
@@ -107,13 +108,13 @@ module bit_alu (
       result = res_xnor;
     end
     else if (bit_zbb.bit_clz == 1) begin
-      result = res_clz;
+      result = res_cnt;
     end
     else if (bit_zbb.bit_cpop == 1) begin
       result = res_cpop;
     end
     else if (bit_zbb.bit_ctz == 1) begin
-      result = res_ctz;
+      result = res_cnt;
     end
     else if ((bit_zbb.bit_max | bit_zbb.bit_maxu | bit_zbb.bit_min | bit_zbb.bit_minu) == 1) begin
       result = res_minmax;
@@ -124,11 +125,8 @@ module bit_alu (
     else if (bit_zbb.bit_rev8 == 1) begin
       result = res_rev8;
     end
-    else if (bit_zbb.bit_rol == 1) begin
-      result = res_rol;
-    end
-    else if (bit_zbb.bit_ror == 1) begin
-      result = res_ror;
+    else if ((bit_zbb.bit_rol | bit_zbb.bit_ror) == 1) begin
+      result = res_rot;
     end
     else if (bit_zbb.bit_sextb == 1) begin
       result = res_sextb;
