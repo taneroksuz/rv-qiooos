@@ -65,23 +65,23 @@ module bus (
     for (int p = 0; p < 2; p++) begin
       if (imem_in[p].mem_valid & itim_hit_i[p]) begin
         itim_in[p]          = imem_in[p];
-        itim_in[p].mem_addr = imem_in[p].mem_addr - ITIM_BASE;
+        itim_in[p].mem_addr = imem_in[p].mem_addr & ~ITIM_MASK;
         itim_rev[p]         = 0;
       end
       else if (dmem_in[p].mem_valid & itim_hit_d[p]) begin
         itim_in[p]          = dmem_in[p];
-        itim_in[p].mem_addr = dmem_in[p].mem_addr - ITIM_BASE;
+        itim_in[p].mem_addr = dmem_in[p].mem_addr & ~ITIM_MASK;
         itim_rev[p]         = 1;
       end
 
       if (imem_in[p].mem_valid & dtim_hit_i[p]) begin
         dtim_in[p]          = imem_in[p];
-        dtim_in[p].mem_addr = imem_in[p].mem_addr - DTIM_BASE;
+        dtim_in[p].mem_addr = imem_in[p].mem_addr & ~DTIM_MASK;
         dtim_rev[p]         = 1;
       end
       else if (dmem_in[p].mem_valid & dtim_hit_d[p]) begin
         dtim_in[p]          = dmem_in[p];
-        dtim_in[p].mem_addr = dmem_in[p].mem_addr - DTIM_BASE;
+        dtim_in[p].mem_addr = dmem_in[p].mem_addr & ~DTIM_MASK;
         dtim_rev[p]         = 0;
       end
 

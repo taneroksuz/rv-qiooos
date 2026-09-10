@@ -24,9 +24,6 @@ module bridge (
   mem_in_type  error_in;
   mem_out_type error_out;
 
-  logic [31:0] mem_addr;
-  logic [31:0] base_addr;
-
   always_comb begin
 
     rom_in     = init_mem_in;
@@ -37,54 +34,43 @@ module bridge (
     uart_tx_in = init_mem_in;
     error_in   = init_mem_in;
 
-    base_addr = 0;
-
     error_in.mem_valid = bridge_in.mem_valid;
 
     if (bridge_in.mem_valid & ~|(ROM_BASE ^ (bridge_in.mem_addr & ROM_MASK))) begin
       rom_in             = bridge_in;
-      base_addr          = ROM_BASE;
+      rom_in.mem_addr    = bridge_in.mem_addr & ~ROM_MASK;
       error_in.mem_valid = 0;
     end
 
     if (bridge_in.mem_valid & ~|(RAM_BASE ^ (bridge_in.mem_addr & RAM_MASK))) begin
       ram_in             = bridge_in;
-      base_addr          = RAM_BASE;
+      ram_in.mem_addr    = bridge_in.mem_addr & ~RAM_MASK;
       error_in.mem_valid = 0;
     end
 
     if (bridge_in.mem_valid & ~|(SPI_BASE ^ (bridge_in.mem_addr & SPI_MASK))) begin
       spi_in             = bridge_in;
-      base_addr          = SPI_BASE;
+      spi_in.mem_addr    = bridge_in.mem_addr & ~SPI_MASK;
       error_in.mem_valid = 0;
     end
 
     if (bridge_in.mem_valid & ~|(CLINT_BASE ^ (bridge_in.mem_addr & CLINT_MASK))) begin
       clint_in           = bridge_in;
-      base_addr          = CLINT_BASE;
+      clint_in.mem_addr  = bridge_in.mem_addr & ~CLINT_MASK;
       error_in.mem_valid = 0;
     end
 
     if (bridge_in.mem_valid & ~|(UART_RX_BASE ^ (bridge_in.mem_addr & UART_RX_MASK))) begin
-      uart_rx_in         = bridge_in;
-      base_addr          = UART_RX_BASE;
-      error_in.mem_valid = 0;
+      uart_rx_in          = bridge_in;
+      uart_rx_in.mem_addr = bridge_in.mem_addr & ~UART_RX_MASK;
+      error_in.mem_valid  = 0;
     end
 
     if (bridge_in.mem_valid & ~|(UART_TX_BASE ^ (bridge_in.mem_addr & UART_TX_MASK))) begin
-      uart_tx_in         = bridge_in;
-      base_addr          = UART_TX_BASE;
-      error_in.mem_valid = 0;
+      uart_tx_in          = bridge_in;
+      uart_tx_in.mem_addr = bridge_in.mem_addr & ~UART_TX_MASK;
+      error_in.mem_valid  = 0;
     end
-
-    mem_addr = bridge_in.mem_addr - base_addr;
-
-    rom_in.mem_addr     = mem_addr;
-    ram_in.mem_addr     = mem_addr;
-    spi_in.mem_addr     = mem_addr;
-    clint_in.mem_addr   = mem_addr;
-    uart_rx_in.mem_addr = mem_addr;
-    uart_tx_in.mem_addr = mem_addr;
 
     bridge_out = init_mem_out;
 
