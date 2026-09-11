@@ -3,14 +3,11 @@ import constants::*;
 import wires::*;
 import functions::*;
 module rob (
-  input  logic                                       reset,
-  input  logic                                       clock,
-  input  logic                                       flush,
-  input  rob_in_type                                 rob_in,
-  output rob_out_type                                rob_out,
-  output logic                       [ROB_DEPTH-1:0] rob_store_pending,
-  output logic                       [ROB_DEPTH-1:0] rob_store_known,
-  output logic        [ROB_DEPTH-1:0][         29:0] rob_store_addr
+  input  logic        reset,
+  input  logic        clock,
+  input  logic        flush,
+  input  rob_in_type  rob_in,
+  output rob_out_type rob_out
 );
   timeunit 1ns; timeprecision 1ps;
 
@@ -178,12 +175,6 @@ module rob (
       end
     end
 
-    for (int i = 0; i < ROB_DEPTH; i++) begin
-      rob_store_pending[i] = r.valid_bits[i] & array[i].store;
-      rob_store_known[i]   = r.valid_bits[i] & array[i].store & array[i].done;
-      rob_store_addr[i]    = array[i].target[31:2];
-    end
-
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
       v.h_done[k] = v.h[k].valid && v.h[k].done && (r.count >= (ROB_ADDR_BITS + 1)'(k + 1));
       v.h_stop[k] = v.h[k].exception || v.h[k].mret || (v.h[k].jump && (v.h[k].target != v.h[k].pnpc)) ||
@@ -192,6 +183,11 @@ module rob (
 
     rob_out          = init_rob_out;
     rob_out.head_ptr = r.head;
+    for (int i = 0; i < ROB_DEPTH; i++) begin
+      rob_out.store_pending[i] = r.valid_bits[i] & array[i].store;
+      rob_out.store_known[i]   = r.valid_bits[i] & array[i].store & array[i].done;
+      rob_out.store_addr[i]    = array[i].target[31:2];
+    end
     if (!flush) begin
       for (int i = 0; i < ISSUE_WIDTH; i++) begin
         rob_out.alloc_tag[i] = rob_wrap((ROB_ADDR_BITS + 1)'(r.tail_ptr) + (ROB_ADDR_BITS + 1)'(i));

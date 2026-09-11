@@ -4,14 +4,11 @@ import wires::*;
 import functions::*;
 
 module rs_mem (
-  input  logic                                          reset,
-  input  logic                                          clock,
-  input  logic                                          flush,
-  input  rs_mem_in_type                                 rs_in,
-  input  logic                          [ROB_DEPTH-1:0] rob_store_pending,
-  input  logic                          [ROB_DEPTH-1:0] rob_store_known,
-  input  logic           [ROB_DEPTH-1:0][         29:0] rob_store_addr,
-  output rs_mem_out_type                                rs_out
+  input  logic           reset,
+  input  logic           clock,
+  input  logic           flush,
+  input  rs_mem_in_type  rs_in,
+  output rs_mem_out_type rs_out
 );
   timeunit 1ns; timeprecision 1ps;
 
@@ -124,9 +121,9 @@ module rs_mem (
     for (int i = 0; i < RS_MEM_DEPTH; i++) begin
       v.older_store[i] = 1'b0;
       for (int j = 0; j < ROB_DEPTH; j++) begin
-        if (rob_store_pending[j] && ((v.store_wrap[j] == v.tag_wrap[i]) ?
-                                     (ROB_ADDR_BITS'(unsigned'(j)) < array[i].rob_tag) : v.tag_wrap[i])) begin
-          if (rob_store_known[j] ? (rob_store_addr[j] == v.addr[i]) : !v.store_in_rs[j]) begin
+        if (rs_in.rob_store_pending[j] && ((v.store_wrap[j] == v.tag_wrap[i]) ?
+                                           (ROB_ADDR_BITS'(unsigned'(j)) < array[i].rob_tag) : v.tag_wrap[i])) begin
+          if (rs_in.rob_store_known[j] ? (rs_in.rob_store_addr[j] == v.addr[i]) : !v.store_in_rs[j]) begin
             v.older_store[i] = 1'b1;
           end
         end

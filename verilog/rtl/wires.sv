@@ -956,6 +956,9 @@ package wires;
     logic [ISSUE_WIDTH-1:0][0:0]               alloc_ok;
     rob_entry_type [ISSUE_WIDTH-1:0]           entry;
     logic [ISSUE_WIDTH-1:0][0:0]               commit_valid;
+    logic [ROB_DEPTH-1:0]                      store_pending;
+    logic [ROB_DEPTH-1:0]                      store_known;
+    logic [ROB_DEPTH-1:0][29:0]                store_addr;
   } rob_out_type;
 
   localparam rob_out_type init_rob_out = 0;
@@ -969,6 +972,9 @@ package wires;
     logic [MEM_ISSUE_WIDTH-1:0]       load_busy;
     logic [MEM_ISSUE_WIDTH-1:0]       store_slot_busy;
     logic [MEM_ISSUE_WIDTH-1:0][29:0] store_slot_addr;
+    logic [ROB_DEPTH-1:0]             rob_store_pending;
+    logic [ROB_DEPTH-1:0]             rob_store_known;
+    logic [ROB_DEPTH-1:0][29:0]       rob_store_addr;
   } rs_mem_in_type;
 
   typedef struct packed {
