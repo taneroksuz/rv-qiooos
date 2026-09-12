@@ -47,7 +47,7 @@ module rs_mem (
     logic [RS_MEM_CNT_BITS-1:0]                    inv_cnt;
     logic [RS_MEM_DEPTH-1:0]                       slot_wr;
     logic [RS_MEM_DEPTH-1:0][ISSUE_ADDR_BITS-1:0]  slot_src;
-    logic [RS_MEM_DEPTH-1:0][29:0]                 addr;
+    logic [RS_MEM_DEPTH-1:0][DISAMB_ADDR_BITS-1:0] addr;
     logic [RS_MEM_DEPTH-1:0]                       ent_store;
     logic [ROB_DEPTH-1:0]                          store_in_rs;
   } rs_mem_reg_type;
@@ -86,7 +86,7 @@ module rs_mem (
       v.cur_entry       = array[i];
       v.cur_entry.valid = r.valid_bits[i];
       v.woken[i]        = rs_wakeup_all(v.cur_entry, v.cdb_all);
-      v.addr[i]         = 30'((v.woken[i].rdata1 + v.woken[i].imm) >> 2);
+      v.addr[i]         = DISAMB_ADDR_BITS'((v.woken[i].rdata1 + v.woken[i].imm) >> 2);
       v.tag_wrap[i]     = array[i].rob_tag < rs_in.rob_head;
     end
 
@@ -231,8 +231,14 @@ module rs_mem (
       rs_out.issue[p]       = v.sel_found[p] ? v.woken[v.sel_idx[p]] : init_rs_entry;
       rs_out.issue_valid[p] = v.sel_found[p];
     end
+    v.inv_cnt = '0;
+    for (int i = 0; i < RS_MEM_DEPTH; i++) begin
+      if (!r.valid_bits[i]) begin
+        v.inv_cnt = v.inv_cnt + RS_MEM_CNT_BITS'(1);
+      end
+    end
     for (int k = 0; k < ISSUE_WIDTH; k++) begin
-      rs_out.alloc_ok[k] = v.free_found[k];
+      rs_out.alloc_ok[k] = (v.inv_cnt > RS_MEM_CNT_BITS'(unsigned'(k)));
     end
 
     if (flush) begin

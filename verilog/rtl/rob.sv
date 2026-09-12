@@ -186,7 +186,7 @@ module rob (
     for (int i = 0; i < ROB_DEPTH; i++) begin
       rob_out.store_pending[i] = r.valid_bits[i] & array[i].store;
       rob_out.store_known[i]   = r.valid_bits[i] & array[i].store & array[i].done;
-      rob_out.store_addr[i]    = array[i].target[31:2];
+      rob_out.store_addr[i]    = array[i].target[DISAMB_ADDR_BITS+1:2];
     end
     if (!flush) begin
       for (int i = 0; i < ISSUE_WIDTH; i++) begin

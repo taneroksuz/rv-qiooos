@@ -209,7 +209,7 @@ module msu (
     end
 
     for (int p = 0; p < MEM_ISSUE_WIDTH; p++) begin
-      v.slot_free_next[p] = !v.store_pending[p] && !v.load_pending[p] && !v.port_inflight[p];
+      v.slot_free_next[p] = !v.store_pending[p] && !v.load_pending[p] && !v.port_inflight[p] && !v.load_accept[p];
     end
 
     rin = v;
@@ -230,7 +230,7 @@ module msu (
       msu_out.load_busy[p]       = v.slot_blocked[p];
       msu_out.store_slot_free[p] = v.slot_free_next[p];
       msu_out.store_slot_busy[p] = v.store_pending[p];
-      msu_out.store_slot_addr[p] = v.store_entry[p].target[31:2];
+      msu_out.store_slot_addr[p] = v.store_entry[p].target[DISAMB_ADDR_BITS+1:2];
     end
   end
 

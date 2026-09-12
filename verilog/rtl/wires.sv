@@ -24,6 +24,7 @@ package wires;
   localparam RS_MEM_CNT_BITS  = count_bits(RS_MEM_DEPTH);
   localparam ISSUE_CNT_BITS   = count_bits(ISSUE_WIDTH);
   localparam PRF_WPORTS       = ISSUE_WIDTH + MEM_ISSUE_WIDTH;
+  localparam DISAMB_ADDR_BITS = 12;
 
   typedef struct packed {
     logic [0:0] bit_sh1add;
@@ -951,30 +952,30 @@ package wires;
   } rob_in_type;
 
   typedef struct packed {
-    logic [ROB_ADDR_BITS-1:0]                  head_ptr;
-    logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] alloc_tag;
-    logic [ISSUE_WIDTH-1:0][0:0]               alloc_ok;
-    rob_entry_type [ISSUE_WIDTH-1:0]           entry;
-    logic [ISSUE_WIDTH-1:0][0:0]               commit_valid;
-    logic [ROB_DEPTH-1:0]                      store_pending;
-    logic [ROB_DEPTH-1:0]                      store_known;
-    logic [ROB_DEPTH-1:0][29:0]                store_addr;
+    logic [ROB_ADDR_BITS-1:0]                   head_ptr;
+    logic [ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0]  alloc_tag;
+    logic [ISSUE_WIDTH-1:0][0:0]                alloc_ok;
+    rob_entry_type [ISSUE_WIDTH-1:0]            entry;
+    logic [ISSUE_WIDTH-1:0][0:0]                commit_valid;
+    logic [ROB_DEPTH-1:0]                       store_pending;
+    logic [ROB_DEPTH-1:0]                       store_known;
+    logic [ROB_DEPTH-1:0][DISAMB_ADDR_BITS-1:0] store_addr;
   } rob_out_type;
 
   localparam rob_out_type init_rob_out = 0;
 
   typedef struct packed {
-    rs_entry_type [ISSUE_WIDTH-1:0]   entry;
-    logic [ISSUE_WIDTH-1:0][0:0]      alloc;
-    cdb_type [ISSUE_WIDTH-1:0]        cdb;
-    cdb_type [MEM_ISSUE_WIDTH-1:0]    cdb_load;
-    logic [ROB_ADDR_BITS-1:0]         rob_head;
-    logic [MEM_ISSUE_WIDTH-1:0]       load_busy;
-    logic [MEM_ISSUE_WIDTH-1:0]       store_slot_busy;
-    logic [MEM_ISSUE_WIDTH-1:0][29:0] store_slot_addr;
-    logic [ROB_DEPTH-1:0]             rob_store_pending;
-    logic [ROB_DEPTH-1:0]             rob_store_known;
-    logic [ROB_DEPTH-1:0][29:0]       rob_store_addr;
+    rs_entry_type [ISSUE_WIDTH-1:0]                   entry;
+    logic [ISSUE_WIDTH-1:0][0:0]                      alloc;
+    cdb_type [ISSUE_WIDTH-1:0]                        cdb;
+    cdb_type [MEM_ISSUE_WIDTH-1:0]                    cdb_load;
+    logic [ROB_ADDR_BITS-1:0]                         rob_head;
+    logic [MEM_ISSUE_WIDTH-1:0]                       load_busy;
+    logic [MEM_ISSUE_WIDTH-1:0]                       store_slot_busy;
+    logic [MEM_ISSUE_WIDTH-1:0][DISAMB_ADDR_BITS-1:0] store_slot_addr;
+    logic [ROB_DEPTH-1:0]                             rob_store_pending;
+    logic [ROB_DEPTH-1:0]                             rob_store_known;
+    logic [ROB_DEPTH-1:0][DISAMB_ADDR_BITS-1:0]       rob_store_addr;
   } rs_mem_in_type;
 
   typedef struct packed {
@@ -1079,16 +1080,16 @@ package wires;
   };
 
   typedef struct packed {
-    cdb_type [MEM_ISSUE_WIDTH-1:0]                 cdb;
-    logic [MEM_ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0] rob_wtag;
-    rob_entry_type [MEM_ISSUE_WIDTH-1:0]           rob_wentry;
-    logic [MEM_ISSUE_WIDTH-1:0][0:0]               rob_wen;
-    logic [MEM_ISSUE_WIDTH-1:0]                    load_busy;
-    logic [MEM_ISSUE_WIDTH-1:0]                    store_slot_free;
-    logic [MEM_ISSUE_WIDTH-1:0]                    store_slot_busy;
-    logic [MEM_ISSUE_WIDTH-1:0][29:0]              store_slot_addr;
-    mem_in_type [LSU_COUNT-1:0]                    dmem_in;
-    lsu_in_type [LSU_COUNT-1:0]                    lsu_in;
+    cdb_type [MEM_ISSUE_WIDTH-1:0]                    cdb;
+    logic [MEM_ISSUE_WIDTH-1:0][ROB_ADDR_BITS-1:0]    rob_wtag;
+    rob_entry_type [MEM_ISSUE_WIDTH-1:0]              rob_wentry;
+    logic [MEM_ISSUE_WIDTH-1:0][0:0]                  rob_wen;
+    logic [MEM_ISSUE_WIDTH-1:0]                       load_busy;
+    logic [MEM_ISSUE_WIDTH-1:0]                       store_slot_free;
+    logic [MEM_ISSUE_WIDTH-1:0]                       store_slot_busy;
+    logic [MEM_ISSUE_WIDTH-1:0][DISAMB_ADDR_BITS-1:0] store_slot_addr;
+    mem_in_type [LSU_COUNT-1:0]                       dmem_in;
+    lsu_in_type [LSU_COUNT-1:0]                       lsu_in;
   } msu_out_type;
 
   localparam msu_out_type init_msu_out = '{
